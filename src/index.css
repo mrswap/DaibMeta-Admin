@@ -1,0 +1,349 @@
+/* =========================================================
+   🎨 NST HEALTH ADMIN — MASTER THEME FILE
+   =========================================================
+   Ye file poori app ka color control karti hai.
+
+   ⚡ RULE:
+   Color badalna ho → sirf is file ke @theme block mein
+   values update karo. Component mein kabhi hardcode mat karo.
+
+   📐 FORMAT:
+   rgb(R G B)  ← space separated, NO commas
+   Example: rgb(5 150 105)
+   ========================================================= */
+
+@import "tailwindcss";
+
+/* =========================================================
+   🌈 THEME TOKENS
+   --------------------------------------------------------
+   Poori app 3 independent layers mein divided hai:
+
+   1. ADMIN UI  → sidebar, navbar, dashboard
+   2. FORM      → input, select, textarea, buttons
+   3. TABLE     → header, rows, pagination
+
+   Har layer ka apna color system hai. Ek badlo,
+   baaki safe rahega.
+   ========================================================= */
+
+@theme {
+    /* ═══════════════════════════════════════════════════════
+     1️⃣  BRAND FAMILY
+     -------------------------------------------------------
+     Kaam   : Primary buttons, active nav, main CTA
+     Colors : Green (emerald-like)
+     Use    : bg-brand-600, text-brand-700, border-brand-200
+     ═══════════════════════════════════════════════════════ */
+    --color-brand-50: rgb(236 253 245);
+    /* lightest bg     */
+    --color-brand-100: rgb(209 250 229);
+    /* light bg        */
+    --color-brand-200: rgb(167 243 208);
+    /* light border    */
+    --color-brand-300: rgb(110 231 183);
+    /* soft accent     */
+    --color-brand-400: rgb(52 211 153);
+    /* medium          */
+    --color-brand-500: rgb(16 185 129);
+    /* vivid           */
+    --color-brand-600: rgb(5 150 105);
+    /* ⭐ MAIN BRAND   */
+    --color-brand-700: rgb(4 120 87);
+    /* hover / dark    */
+    --color-brand-800: rgb(6 95 70);
+    /* deepest text    */
+
+    /* ═══════════════════════════════════════════════════════
+     2️⃣  ACCENT FAMILY
+     -------------------------------------------------------
+     Kaam   : Info surfaces, in-consult, soft pills
+     Colors : Soft blue (sky-like)
+     Use    : bg-accent-50, text-accent-900, bg-accent-600
+     ═══════════════════════════════════════════════════════ */
+    --color-accent-50: rgb(240 249 255);
+    /* lightest bg     */
+    --color-accent-100: rgb(224 242 254);
+    /* light bg        */
+    --color-accent-200: rgb(186 230 253);
+    /* light border    */
+    --color-accent-300: rgb(125 211 252);
+    /* soft accent     */
+    --color-accent-400: rgb(56 189 248);
+    /* medium          */
+    --color-accent-500: rgb(14 165 233);
+    /* vivid           */
+    --color-accent-600: rgb(2 132 199);
+    /* ⭐ MAIN ACCENT  */
+    --color-accent-700: rgb(3 105 161);
+    /* hover / dark    */
+    --color-accent-800: rgb(7 89 133);
+    /* deep text       */
+    --color-accent-900: rgb(12 74 110);
+    /* deepest text    */
+
+    /* ═══════════════════════════════════════════════════════
+     3️⃣  INK FAMILY (Text + Borders + Greys)
+     -------------------------------------------------------
+     Kaam   : Saara text, borders, dividers, muted labels
+     Colors : Neutral grey (slate-like)
+     Use    : text-ink-800, border-ink-100, bg-ink-50
+     ═══════════════════════════════════════════════════════ */
+    --color-ink-50: rgb(248 250 252);
+    /* lightest grey bg  */
+    --color-ink-100: rgb(241 245 249);
+    /* light grey        */
+    --color-ink-200: rgb(226 232 240);
+    /* borders           */
+    --color-ink-300: rgb(203 213 225);
+    /* disabled / muted  */
+    --color-ink-400: rgb(148 163 184);
+    /* captions          */
+    --color-ink-500: rgb(100 116 139);
+    /* muted text        */
+    --color-ink-600: rgb(71 85 105);
+    /* secondary text    */
+    --color-ink-700: rgb(51 65 85);
+    /* body text         */
+    --color-ink-800: rgb(30 41 59);
+    /* ⭐ PRIMARY TEXT   */
+    --color-ink-900: rgb(15 23 42);
+    /* ⭐ HEADINGS        */
+
+    /* ═══════════════════════════════════════════════════════
+     4️⃣  WARN FAMILY
+     -------------------------------------------------------
+     Kaam   : "Arrived" status, pending, highlighted rows
+     Colors : Amber / yellow
+     Use    : bg-warn-100, text-warn-900
+     ═══════════════════════════════════════════════════════ */
+    --color-warn-50: rgb(255 251 235);
+    /* lightest bg       */
+    --color-warn-100: rgb(254 243 199);
+    /* light bg          */
+    --color-warn-200: rgb(253 230 138);
+    /* border            */
+    --color-warn-800: rgb(146 64 14);
+    /* deep text         */
+    --color-warn-900: rgb(120 53 15);
+    /* darkest text      */
+
+    /* ═══════════════════════════════════════════════════════
+     5️⃣  DANGER FAMILY
+     -------------------------------------------------------
+     Kaam   : Alerts, notification dots, error text
+     Colors : Red
+     Use    : bg-danger-500, text-danger-900
+     ═══════════════════════════════════════════════════════ */
+    --color-danger-50: rgb(254 242 242);
+    /* lightest bg     */
+    --color-danger-100: rgb(254 226 226);
+    /* light bg        */
+    --color-danger-500: rgb(239 68 68);
+    /* ⭐ MAIN DANGER  */
+    --color-danger-600: rgb(220 38 38);
+    /* hover / dark    */
+    --color-danger-900: rgb(127 29 29);
+    /* darkest text    */
+
+    /* ═══════════════════════════════════════════════════════
+     6️⃣  SURFACES
+     -------------------------------------------------------
+     Kaam   : Page background + card backgrounds
+     Use    : bg-app, bg-surface
+     ═══════════════════════════════════════════════════════ */
+    --color-app: rgb(248 249 255);
+    /* page background   */
+    --color-surface: rgb(255 255 255);
+    /* cards / navbar    */
+
+    /* ═══════════════════════════════════════════════════════
+     7️⃣  TYPOGRAPHY
+     -------------------------------------------------------
+     Use    : font-inter, font-serif
+     ═══════════════════════════════════════════════════════ */
+    --font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+
+    /* ═══════════════════════════════════════════════════════
+     8️⃣  SHAPE
+     -------------------------------------------------------
+     Use    : rounded-card
+     ═══════════════════════════════════════════════════════ */
+    --radius-card: 0.75rem;
+
+    /* ═══════════════════════════════════════════════════════
+     ═══════════════════════════════════════════════════════
+     📝 FORM TOKENS
+     -------------------------------------------------------
+     Form elements ka apna alag color system.
+     Admin UI ko touch kiye bina forms ka look change karo.
+     ═══════════════════════════════════════════════════════
+     ═══════════════════════════════════════════════════════ */
+
+    /* ─── Input / Textarea / Select base ─────────────────── */
+    --color-form-bg: rgb(255 255 255);
+    /* input bg         */
+    --color-form-bg-disabled: rgb(243 244 246);
+    /* disabled bg      */
+    --color-form-border: rgb(209 213 219);
+    /* normal border    */
+    --color-form-border-hover: rgb(156 163 175);
+    /* hover border     */
+    --color-form-border-focus: rgb(34 166 153);
+    /* focus border     */
+    --color-form-border-error: rgb(239 68 68);
+    /* error border     */
+    --color-form-border-disabled: rgb(229 231 235);
+    /* disabled border  */
+
+    /* ─── Text ───────────────────────────────────────────── */
+    --color-form-text: rgb(41 50 76);
+    /* input text       */
+    --color-form-text-disabled: rgb(107 114 128);
+    /* disabled text    */
+    --color-form-placeholder: rgb(156 163 175);
+    /* placeholder      */
+    --color-form-label: rgb(41 50 76);
+    /* label            */
+    --color-form-required: rgb(239 68 68);
+    /* * required mark  */
+    --color-form-error: rgb(239 68 68);
+    /* error message    */
+    --color-form-help: rgb(107 114 128);
+    /* helper text      */
+
+    /* ─── Focus ring ─────────────────────────────────────── */
+    --color-form-ring: rgb(34 166 153);
+    /* focus ring       */
+    --color-form-ring-error: rgb(239 68 68);
+    /* error ring       */
+
+    /* ─── Primary Button ─────────────────────────────────── */
+    --color-btn-primary-bg: rgb(34 166 153);
+    --color-btn-primary-bg-hover: rgb(28 140 130);
+    --color-btn-primary-text: rgb(255 255 255);
+
+    /* ─── Secondary Button ───────────────────────────────── */
+    --color-btn-secondary-bg: rgb(243 244 246);
+    --color-btn-secondary-bg-hover: rgb(229 231 235);
+    --color-btn-secondary-text: rgb(41 50 76);
+
+    /* ─── Danger Button ──────────────────────────────────── */
+    --color-btn-danger-bg: rgb(239 68 68);
+    --color-btn-danger-bg-hover: rgb(220 38 38);
+    --color-btn-danger-text: rgb(255 255 255);
+
+    /* ─── Checkbox / Radio accent ────────────────────────── */
+    --color-form-check-accent: rgb(34 166 153);
+
+    /* ═══════════════════════════════════════════════════════
+     ═══════════════════════════════════════════════════════
+     📊 TABLE TOKENS
+     -------------------------------------------------------
+     Table ka apna alag color system.
+     Forms aur admin UI ko touch kiye bina table ka look change karo.
+     ═══════════════════════════════════════════════════════
+     ═══════════════════════════════════════════════════════ */
+
+    /* ─── Container ──────────────────────────────────────── */
+    --color-table-bg: rgb(255 255 255);
+    /* card bg          */
+    --color-table-border: rgb(209 213 219);
+    /* outer border     */
+
+    /* ─── Header ─────────────────────────────────────────── */
+    --color-table-head-bg: rgb(248 250 252);
+    /* thead bg    */
+    --color-table-head-text: rgb(9 15 49);
+    /* header text */
+    --color-table-head-border: rgb(241 245 249);
+    /* bottom line */
+
+    /* ─── Body rows ──────────────────────────────────────── */
+    --color-table-row-bg: rgb(255 255 255);
+    /* row bg      */
+    --color-table-row-hover-bg: rgb(248 250 252);
+    /* hover bg    */
+    --color-table-row-border: rgb(241 245 249);
+    /* divider     */
+    --color-table-cell-text: rgb(55 65 81);
+    /* cell text   */
+
+    /* ─── Empty state ────────────────────────────────────── */
+    --color-table-empty-text: rgb(156 163 175);
+
+    /* ─── Pagination ─────────────────────────────────────── */
+    --color-table-page-text: rgb(100 116 139);
+    /* "Showing"  */
+    --color-table-page-active-bg: rgb(24 73 148);
+    /* active bg  */
+    --color-table-page-active-text: rgb(255 255 255);
+    /* active txt */
+    --color-table-page-btn-border: rgb(226 232 240);
+    /* btn border */
+    --color-table-page-btn-text: rgb(55 65 81);
+    /* btn text   */
+    --color-table-page-btn-hover-border: rgb(24 73 148);
+    /* hover bord */
+    --color-table-page-btn-hover-text: rgb(24 73 148);
+    /* hover text */
+    --color-table-page-btn-disabled-bg: rgb(241 245 249);
+    /* disab bg   */
+    --color-table-page-btn-disabled-text: rgb(203 213 225);
+    /* disab text */
+    --color-table-page-border: rgb(241 245 249);
+    /* top line   */
+    --color-table-dots: rgb(156 163 175);
+    /* ... dots   */
+}
+
+/* =========================================================
+   🧱 BASE STYLES
+   --------------------------------------------------------
+   Global resets — body, selection, scrollbar
+   ========================================================= */
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        background-color: var(--color-app);
+        color: var(--color-ink-800);
+        font-family: var(--font-inter);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Text selection color */
+    ::selection {
+        background-color: var(--color-brand-200);
+        color: var(--color-ink-900);
+    }
+
+    /* ─── Custom Scrollbar ─────────────────────────────────── */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-ink-300) transparent;
+    }
+
+    *::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    *::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+        background-color: var(--color-ink-300);
+        border-radius: 9999px;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-ink-400);
+    }
+}
