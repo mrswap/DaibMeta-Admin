@@ -6,13 +6,11 @@ const normalise = (col) => {
     return {
       label: col.header,
       align: col.align || "center",
-      getCell: (row) => {
+      getCell: (row, idx) => {
         if (col.render) {
-          // Agar accessor hai → value aur row dono bhejo
-          // Agar accessor nahi hai → poora row bhejo
           return col.accessor
-            ? col.render(row[col.accessor], row)
-            : col.render(row);
+            ? col.render(row[col.accessor], row, idx)
+            : col.render(row, row, idx);
         }
         if (col.accessor) return row[col.accessor] ?? "—";
         return "—";
@@ -23,15 +21,15 @@ const normalise = (col) => {
   return {
     label: col.label,
     align: col.align || "center",
-    getCell: (row) => {
-      if (col.render) return col.render(row[col.key], row);
+    getCell: (row, idx) => {
+      if (col.render) return col.render(row[col.key], row, idx);
       return row[col.key] ?? "—";
     },
   };
 };
 
 /* ================= ROW ================= */
-const TableRow = ({ row, normCols, isLast }) => {
+const TableRow = ({ row, normCols, isLast, index }) => {
   return (
     <tr
       className={`bg-table-row-bg hover:bg-table-row-hover-bg transition-colors ${
@@ -43,7 +41,7 @@ const TableRow = ({ row, normCols, isLast }) => {
           key={i}
           className="px-5 py-3 text-[13px] font-medium text-table-cell-text text-left whitespace-nowrap"
         >
-          {col.getCell(row)}
+          {col.getCell(row, index)}
         </td>
       ))}
     </tr>
@@ -106,35 +104,30 @@ const PageBtn = ({ children, onClick, isActive, isDisabled, title }) => {
 const CustomeTable = ({
   columns = [],
   data = [],
-  // --- server-side props ---
   serverSide = false,
   currentPage: extCurrentPage = 1,
   totalPages: extTotalPages = 1,
   totalItems: extTotalItems = 0,
   onPageChange,
-  // --- shared props ---
   itemsPerPage = 10,
   emptyText = "No data found.",
 }) => {
   const normCols = columns.map(normalise);
-
-  // local state only used when serverSide=false
   const [localPage, setLocalPage] = useState(1);
 
-  // resolve which values to use
   const currentPage = serverSide ? extCurrentPage : localPage;
   const totalItems = serverSide ? extTotalItems : data.length;
   const totalPages = serverSide
     ? extTotalPages
     : Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
-  // data slicing only for client-side
   const paginatedData = serverSide
     ? data
     : data.slice((localPage - 1) * itemsPerPage, localPage * itemsPerPage);
 
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+  const rowStartIndex = (currentPage - 1) * itemsPerPage;
 
   const handlePageChange = (page) => {
     if (page < 1 || page > totalPages) return;
@@ -169,7 +162,6 @@ const CustomeTable = ({
 
   return (
     <div className="w-full bg-table-bg shadow-xs border rounded-xl border-table-border overflow-hidden">
-      {/* TABLE CONTAINER WITH HORIZONTAL SCROLL */}
       <div className="overflow-x-auto custom-scrollbar w-full">
         <table className="w-full border-collapse min-w-[600px]">
           <thead className="bg-table-head-bg">
@@ -202,6 +194,7 @@ const CustomeTable = ({
                   row={row}
                   normCols={normCols}
                   isLast={i === paginatedData.length - 1}
+                  index={rowStartIndex + i}
                 />
               ))
             )}
@@ -209,16 +202,13 @@ const CustomeTable = ({
         </table>
       </div>
 
-      {/* PAGINATION — show when totalPages > 1 */}
       {totalPages > 1 && (
         <div className="flex flex-wrap items-center justify-between px-6 py-4 border-t border-table-page-border gap-3">
-          {/* summary */}
           <span className="text-sm text-table-page-text">
             Showing <strong>{startItem}</strong> to <strong>{endItem}</strong>{" "}
             of <strong>{totalItems}</strong>
           </span>
 
-          {/* page buttons */}
           <div className="flex gap-2 flex-wrap">
             <PageBtn
               title="Previous"

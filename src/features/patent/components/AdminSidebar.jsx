@@ -1,88 +1,327 @@
+// import React from "react";
+// import { NavLink } from "react-router-dom";
+// import { FiX } from "react-icons/fi";
+// import {
+//   MdOutlineDashboard,
+//   MdOutlineCalendarToday,
+//   MdOutlineDescription,
+//   MdOutlineBadge,
+//   MdOutlineAdminPanelSettings,
+//   MdOutlineMiscellaneousServices,
+//   MdOutlineMedication,
+//   MdOutlineReceiptLong,
+//   MdOutlineLocalShipping,
+//   MdOutlineViewCarousel,
+//   MdOutlineAssessment,
+//   MdOutlineSettings,
+//   MdOutlineEventNote,
+// } from "react-icons/md";
+// import {
+//   LuUserRound,
+//   LuStethoscope,
+//   LuApple,
+//   LuHandHeart,
+//   LuGraduationCap,
+// } from "react-icons/lu";
+// import logo from "../../../assets/daibmetalogo.jpeg";
+
+// const menuSections = [
+//   {
+//     title: "Clinical",
+//     items: [
+//       {
+//         name: "Dashboard",
+//         path: "/dashboard",
+//         icon: MdOutlineDashboard,
+//         enabled: true,
+//       },
+//       {
+//         name: "Patients",
+//         path: "/patients",
+//         icon: LuUserRound,
+//         enabled: true,
+//       },
+//       {
+//         name: "Appointment",
+//         path: "/appointment",
+//         icon: MdOutlineCalendarToday,
+//         enabled: true,
+//       },
+//       {
+//         name: "Appointment Types",
+//         path: "/appointment-types",
+//         icon: MdOutlineEventNote,
+//         enabled: true,
+//       },
+//       {
+//         name: "Availability",
+//         path: "/provider-availabilities",
+//         icon: MdOutlineCalendarToday,
+//         enabled: true,
+//       },
+//       {
+//         name: "Visits",
+//         path: "/visits",
+//         icon: MdOutlineDescription,
+//         enabled: false,
+//       },
+//     ],
+//   },
+//   {
+//     title: "Team",
+//     items: [
+//       {
+//         name: "Doctors",
+//         path: "/doctors",
+//         icon: LuStethoscope,
+//         enabled: false,
+//       },
+//       {
+//         name: "Dietitians",
+//         path: "/dietitians",
+//         icon: LuApple,
+//         enabled: false,
+//       },
+//       { name: "Staff", path: "/staff", icon: MdOutlineBadge, enabled: true },
+//       {
+//         name: "Roles",
+//         path: "/roles",
+//         icon: MdOutlineAdminPanelSettings,
+//         enabled: true,
+//       },
+//     ],
+//   },
+//   {
+//     title: "Masters",
+//     items: [
+//       {
+//         name: "Specializations",
+//         path: "/specializations",
+//         icon: LuGraduationCap,
+//         enabled: true,
+//       },
+//       {
+//         name: "Services",
+//         path: "/services",
+//         icon: MdOutlineMiscellaneousServices,
+//         enabled: false,
+//       },
+//     ],
+//   },
+//   {
+//     title: "Services",
+//     items: [
+//       {
+//         name: "Free Services",
+//         path: "/free-services",
+//         icon: LuHandHeart,
+//         enabled: false,
+//       },
+//       {
+//         name: "Products",
+//         path: "/products",
+//         icon: MdOutlineMedication,
+//         enabled: false,
+//       },
+//       {
+//         name: "Orders",
+//         path: "/orders",
+//         icon: MdOutlineReceiptLong,
+//         enabled: false,
+//       },
+//       {
+//         name: "Delivery",
+//         path: "/delivery",
+//         icon: MdOutlineLocalShipping,
+//         enabled: false,
+//       },
+//     ],
+//   },
+//   {
+//     title: "Operations",
+//     items: [
+//       {
+//         name: "Banners",
+//         path: "/banners",
+//         icon: MdOutlineViewCarousel,
+//         enabled: false,
+//       },
+//       {
+//         name: "Reports",
+//         path: "/reports",
+//         icon: MdOutlineAssessment,
+//         enabled: false,
+//       },
+//       {
+//         name: "Settings",
+//         path: "/settings",
+//         icon: MdOutlineSettings,
+//         enabled: true,
+//       },
+//     ],
+//   },
+// ];
+
+// const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
+//   return (
+//     <>
+//       {sidebarOpen && (
+//         <div
+//           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+//           onClick={() => setSidebarOpen(false)}
+//         />
+//       )}
+
+//       <aside
+//         className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 transform flex-col border-r border-ink-100 bg-surface transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:z-30 lg:translate-x-0 ${
+//           sidebarOpen ? "translate-x-0" : "-translate-x-full"
+//         }`}
+//       >
+//         <div className="flex h-16 shrink-0 items-center justify-between border-b border-ink-100 px-4">
+//           <img src={logo} alt="DiabMeta" className="h-12 w-auto" />
+//           <button
+//             onClick={() => setSidebarOpen(false)}
+//             aria-label="Close menu"
+//             className="cursor-pointer text-ink-400 hover:text-ink-700 lg:hidden"
+//           >
+//             <FiX className="h-5 w-5" />
+//           </button>
+//         </div>
+
+//         <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-4">
+//           {menuSections.map((section) => (
+//             <div key={section.title}>
+//               <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+//                 {section.title}
+//               </p>
+//               <div className="space-y-0.5">
+//                 {section.items.map(
+//                   ({ name, path, icon: Icon, enabled = true }) => {
+//                     if (!enabled) {
+//                       return (
+//                         <div
+//                           key={name}
+//                           title="Coming soon"
+//                           className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-ink-400 opacity-60"
+//                         >
+//                           <Icon className="h-5 w-5 shrink-0" />
+//                           <span className="flex-1">{name}</span>
+//                           <span className="rounded-full bg-ink-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-ink-500">
+//                             Soon
+//                           </span>
+//                         </div>
+//                       );
+//                     }
+
+//                     return (
+//                       <NavLink
+//                         key={name}
+//                         to={path}
+//                         onClick={() => setSidebarOpen(false)}
+//                         className={({ isActive }) =>
+//                           `flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+//                             isActive
+//                               ? "bg-brand-50 font-semibold text-brand-700"
+//                               : "text-ink-700 hover:bg-ink-50 hover:text-ink-900"
+//                           }`
+//                         }
+//                       >
+//                         <Icon className="h-5 w-5 shrink-0" />
+//                         {name}
+//                       </NavLink>
+//                     );
+//                   },
+//                 )}
+//               </div>
+//             </div>
+//           ))}
+//         </nav>
+//       </aside>
+//     </>
+//   );
+// };
+
+// export default AdminSidebar;
+
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { FiActivity, FiX } from "react-icons/fi";
+import { FiX } from "react-icons/fi";
 import {
-  MdLocalHospital,
-  MdUnfoldMore,
   MdOutlineDashboard,
   MdOutlineCalendarToday,
-  MdOutlineDescription,
   MdOutlineBadge,
-  MdOutlineInsights,
-  MdOutlineMedication,
-  MdOutlineReceiptLong,
-  MdOutlineLocalShipping,
-  MdOutlineNotificationsNone,
-  MdOutlineViewCarousel,
-  MdOutlineAssessment,
+  MdOutlineAdminPanelSettings,
   MdOutlineSettings,
+  MdOutlineEventNote,
 } from "react-icons/md";
-import {
-  LuUserRound,
-  LuStethoscope,
-  LuApple,
-  LuHandHeart,
-} from "react-icons/lu";
-
-const serif = {
-  fontFamily: "'Source Serif 4', Georgia, 'Times New Roman', serif",
-};
+import { LuUserRound, LuGraduationCap } from "react-icons/lu";
+import { FiCalendar } from "react-icons/fi";
+import logo from "../../../assets/daibmetalogo.jpeg";
 
 const menuSections = [
   {
-    title: "Clinical Core",
+    title: "Clinical",
     items: [
-      { name: "Dashboard", path: "/admin/dashboard", icon: MdOutlineDashboard },
       {
-        name: "Appointments",
-        path: "/admin/appointments",
+        name: "Dashboard",
+        path: "/dashboard",
+        icon: MdOutlineDashboard,
+      },
+      {
+        name: "Patients",
+        path: "/patients",
+        icon: LuUserRound,
+      },
+      {
+        name: "Appointment",
+        path: "/appointment",
         icon: MdOutlineCalendarToday,
       },
-      { name: "Patients", path: "/admin/patients", icon: LuUserRound },
-      { name: "Visits", path: "/admin/visits", icon: MdOutlineDescription },
-    ],
-  },
-  {
-    title: "Care Professionals",
-    items: [
-      { name: "Doctors", path: "/admin/doctors", icon: LuStethoscope },
-      { name: "Dietitians", path: "/admin/dietitians", icon: LuApple },
-      { name: "Staff", path: "/admin/staff", icon: MdOutlineBadge },
-    ],
-  },
-  {
-    title: "Services & Commerce",
-    items: [
       {
-        name: "Free Services",
-        path: "/admin/free-services",
-        icon: LuHandHeart,
+        name: "Appointment Types",
+        path: "/appointment-types",
+        icon: MdOutlineEventNote,
       },
       {
-        name: "Health Tools",
-        path: "/admin/health-tools",
-        icon: MdOutlineInsights,
-      },
-      { name: "Products", path: "/admin/products", icon: MdOutlineMedication },
-      { name: "Orders", path: "/admin/orders", icon: MdOutlineReceiptLong },
-      {
-        name: "Delivery",
-        path: "/admin/delivery",
-        icon: MdOutlineLocalShipping,
+        name: "Availability",
+        path: "/provider-availabilities",
+        icon: FiCalendar,
       },
     ],
   },
   {
-    title: "Operations & Reports",
+    title: "Team",
     items: [
       {
-        name: "Notifications",
-        path: "/admin/notifications",
-        icon: MdOutlineNotificationsNone,
+        name: "Staff",
+        path: "/staff",
+        icon: MdOutlineBadge,
       },
-      { name: "Banners", path: "/admin/banners", icon: MdOutlineViewCarousel },
-      { name: "Reports", path: "/admin/reports", icon: MdOutlineAssessment },
-      { name: "Settings", path: "/admin/settings", icon: MdOutlineSettings },
+      {
+        name: "Roles",
+        path: "/roles",
+        icon: MdOutlineAdminPanelSettings,
+      },
+    ],
+  },
+  {
+    title: "Masters",
+    items: [
+      {
+        name: "Specializations",
+        path: "/specializations",
+        icon: LuGraduationCap,
+      },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
+      {
+        name: "Settings",
+        path: "/settings",
+        icon: MdOutlineSettings,
+      },
     ],
   },
 ];
@@ -92,65 +331,31 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
     <>
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       <aside
-        className={`
-          fixed lg:static inset-y-0 left-0 z-50
-          w-64 bg-surface border-r border-ink-100 shadow-[0_1px_8px_rgba(0,0,0,0.04)]
-          transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0 flex flex-col
-        `}
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 transform flex-col border-r border-ink-100 bg-surface transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:z-30 lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
-        <div className="flex items-center justify-between h-16 px-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
-              <FiActivity className="w-5 h-5" />
-            </div>
-            <div>
-              <h1
-                style={serif}
-                className="text-base font-bold text-ink-900 leading-tight"
-              >
-                NST Health
-              </h1>
-              <p className="text-xs text-ink-600 font-medium">CuraClinic OS</p>
-            </div>
-          </div>
-          <span className="hidden lg:block w-2 h-2 rounded-full bg-brand-500"></span>
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-ink-100 px-4">
+          <img src={logo} alt="DiabMeta" className="h-12 w-auto" />
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-ink-400 hover:text-ink-600"
+            aria-label="Close menu"
+            className="cursor-pointer text-ink-400 hover:text-ink-700 lg:hidden"
           >
-            <FiX className="w-5 h-5" />
+            <FiX className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="px-3 pb-2">
-          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-accent-50 border border-accent-100 cursor-pointer hover:bg-accent-100 transition">
-            <div className="flex items-center gap-2.5">
-              <MdLocalHospital className="w-5 h-5 text-brand-600" />
-              <div className="flex flex-col leading-tight">
-                <span className="text-[11px] font-medium text-ink-600 uppercase">
-                  Branch
-                </span>
-                <span className="text-xs font-bold text-ink-900">
-                  Central Metro Clinic
-                </span>
-              </div>
-            </div>
-            <MdUnfoldMore className="w-4 h-4 text-ink-700" />
-          </div>
-        </div>
-
-        <nav className="flex-1 px-3 py-2 space-y-4 overflow-y-auto">
+        <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-4">
           {menuSections.map((section) => (
             <div key={section.title}>
-              <p className="px-2 text-[11px] font-semibold text-ink-500 uppercase tracking-wide mb-1">
+              <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
                 {section.title}
               </p>
               <div className="space-y-0.5">
@@ -160,14 +365,14 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     to={path}
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      `flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                         isActive
-                          ? "bg-brand-50 text-brand-700 font-semibold"
+                          ? "bg-brand-50 font-semibold text-brand-700"
                           : "text-ink-700 hover:bg-ink-50 hover:text-ink-900"
                       }`
                     }
                   >
-                    <Icon className="w-5 h-5 shrink-0" />
+                    <Icon className="h-5 w-5 shrink-0" />
                     {name}
                   </NavLink>
                 ))}
@@ -175,24 +380,6 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
             </div>
           ))}
         </nav>
-
-        <div className="p-3">
-          <div className="p-3 rounded-xl bg-accent-50 border border-accent-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-ink-700 uppercase">
-                System Pulse
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse"></span>
-                Operational
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-xs text-ink-700">
-              <span>Sync latency</span>
-              <span className="text-sm font-semibold text-ink-900">18ms</span>
-            </div>
-          </div>
-        </div>
       </aside>
     </>
   );
