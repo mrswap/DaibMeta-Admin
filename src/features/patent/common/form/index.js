@@ -1,6 +1,9 @@
 export { default as TextInput } from "./TextInput";
 export { default as TextareaField } from "./TextareaField";
 export { default as SelectField } from "./SelectField";
+export { default as FilterSelect } from "./FilterSelect";
+export { default as MultiSelectField } from "./MultiSelectField";
 export { default as Checkbox } from "./Checkbox";
 export { default as RadioGroup } from "./RadioGroup";
 export { default as FormButton } from "./FormButton";
+export { default as ToggleSwitch } from "./ToggleSwitch";
