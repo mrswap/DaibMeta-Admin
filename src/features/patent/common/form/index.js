@@ -7,3 +7,4 @@ export { default as Checkbox } from "./Checkbox";
 export { default as RadioGroup } from "./RadioGroup";
 export { default as FormButton } from "./FormButton";
 export { default as ToggleSwitch } from "./ToggleSwitch";
+export { default as ActionToggle } from "./ActionToggle";

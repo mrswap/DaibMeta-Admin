@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { FiArrowRight, FiAlertCircle, FiPlus } from "react-icons/fi";
 import { useRoles } from "../../../queries/roles";
 import { useStaff } from "../../../queries/staff";
 import { FilterSelect } from "../../../common/form";
-import { FiArrowRight } from "react-icons/fi";
 
 const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
+  const navigate = useNavigate();
   const [selectedRoleId, setSelectedRoleId] = useState(
     formData.role_id || null,
   );
   const isInitialMount = useRef(true);
 
   // Load roles
-  const { data: rolesData } = useRoles({ per_page: 100 });
+  const { data: rolesData, isLoading: loadingRoles } = useRoles({
+    per_page: 100,
+  });
   const roles = rolesData?.list || [];
 
   // Load providers filtered by role
@@ -32,6 +36,13 @@ const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
     label: `${p.name} — ${p.email || ""}`,
   }));
 
+  // No roles available at all
+  const hasNoRoles = !loadingRoles && roles.length === 0;
+
+  // Role selected but no providers for that role
+  const hasNoProviders =
+    selectedRoleId && !loadingStaff && providers.length === 0;
+
   // Keep selectedRoleId in sync with formData (external changes)
   useEffect(() => {
     if (formData.role_id && formData.role_id.value !== selectedRoleId?.value) {
@@ -46,7 +57,6 @@ const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
       isInitialMount.current = false;
       return;
     }
-    // Skip reset in edit mode — prefill kar rahe hain
     if (isEdit) return;
 
     setFormData((prev) => ({ ...prev, provider_id: null }));
@@ -85,7 +95,8 @@ const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
             value={selectedRoleId}
             onChange={handleRoleChange}
             options={roleOptions}
-            placeholder="Select role..."
+            placeholder={loadingRoles ? "Loading roles..." : "Select role..."}
+            isDisabled={loadingRoles}
             isClearable
           />
         </div>
@@ -99,24 +110,40 @@ const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
             onChange={handleProviderChange}
             options={providerOptions}
             placeholder={
-              selectedRoleId ? "Select provider..." : "Select role first"
+              !selectedRoleId
+                ? "Select role first"
+                : loadingStaff
+                  ? "Loading providers..."
+                  : providers.length === 0
+                    ? "No providers available"
+                    : "Select provider..."
             }
-            isDisabled={!selectedRoleId || loadingStaff}
+            isDisabled={!selectedRoleId || loadingStaff || hasNoProviders}
             isClearable
           />
         </div>
       </div>
 
-      {loadingStaff && selectedRoleId && (
-        <p className="text-xs text-ink-500">Loading providers...</p>
+      {/* No roles available */}
+      {hasNoRoles && (
+        <EmptyState
+          title="No provider roles found"
+          message="There are no roles configured yet. Create a role first to assign providers."
+          buttonLabel="Go to Roles"
+          onAction={() => navigate("/roles")}
+        />
       )}
 
-      {selectedRoleId && !loadingStaff && providers.length === 0 && (
-        <div className="rounded-lg border border-warn-200 bg-warn-50/50 px-4 py-3">
-          <p className="text-xs text-warn-800">
-            No active providers found for this role.
-          </p>
-        </div>
+      {/* No providers for selected role */}
+      {hasNoProviders && (
+        <EmptyState
+          title={`No providers found${
+            selectedRoleId?.label ? ` for "${selectedRoleId.label}"` : ""
+          }`}
+          message="There are no active staff members assigned to this role. Add a staff member first."
+          buttonLabel="Add Staff"
+          onAction={() => navigate("/staff")}
+        />
       )}
 
       <div className="flex justify-end gap-3 border-t border-ink-100 pt-4">
@@ -137,5 +164,28 @@ const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
     </div>
   );
 };
+
+// ==================== EMPTY STATE ====================
+const EmptyState = ({ title, message, buttonLabel, onAction }) => (
+  <div className="rounded-lg border border-warn-200 bg-warn-50/50 p-4">
+    <div className="flex items-start gap-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warn-100 text-warn-700">
+        <FiAlertCircle className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-warn-900">{title}</p>
+        <p className="mt-0.5 text-xs text-warn-800">{message}</p>
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-warn-800 px-3 py-1.5 text-xs font-semibold text-surface transition hover:bg-warn-900"
+        >
+          <FiPlus className="h-3 w-3" />
+          {buttonLabel}
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
 export default Step1Provider;

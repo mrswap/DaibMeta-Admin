@@ -24,57 +24,78 @@ import AvailabilityWizard from "../pages/providerAvailability/AvailabilityWizard
 import AvailabilityView from "../pages/providerAvailability/AvailabilityView";
 import AvailabilityExceptions from "../pages/providerAvailability/AvailabilityExceptions";
 
+import NotFound from "../pages/NotFound";
+import ProtectedRoute from "./ProtectedRoute";
+import PublicRoute from "./PublicRoute";
+import ComingSoon from "../pages/ComingSoon";
+
 const AdminRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-      {/* Auth */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
-
-      {/* Protected */}
-      <Route path="/" element={<AdminLayout />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/add-slot" element={<DoctorSlots />} />
-        <Route path="/theme-preview" element={<ThemePreview />} />
-        <Route path="/appointment" element={<Appointment />} />
-        <Route path="/appointment/add" element={<AddAppointment />} />
-
-        {/* Clinical */}
-        <Route path="/patients" element={<PatientList />} />
-
-        {/* Masters */}
-        <Route path="/specializations" element={<SpecializationList />} />
-        <Route path="/appointment-types" element={<AppointmentTypeList />} />
-
-        {/* Team */}
-        <Route path="/roles" element={<RoleList />} />
-        <Route path="/staff" element={<StaffList />} />
-
-        {/* Provider Availability */}
-        <Route path="/provider-availabilities" element={<AvailabilityList />} />
-        <Route
-          path="/provider-availabilities/new"
-          element={<AvailabilityWizard />}
-        />
-        <Route
-          path="/provider-availabilities/:id"
-          element={<AvailabilityView />}
-        />
-        <Route
-          path="/provider-availabilities/:id/edit"
-          element={<AvailabilityWizard />}
-        />
-        <Route
-          path="/provider-availabilities/:id/exceptions"
-          element={<AvailabilityExceptions />}
-        />
-
-        {/* Operations */}
-        <Route path="/settings" element={<SettingsPage />} />
+      {/* ==================== PUBLIC ROUTES ==================== */}
+      <Route element={<PublicRoute />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
       </Route>
+
+      {/* ==================== PROTECTED ROUTES ==================== */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<AdminLayout />}>
+          {/* Default redirect */}
+          <Route index element={<Navigate to="/dashboard" replace />} />
+
+          {/* Dashboard */}
+          <Route path="dashboard" element={<ComingSoon />} />
+          <Route path="dashboard/add-slot" element={<DoctorSlots />} />
+          <Route path="theme-preview" element={<ThemePreview />} />
+
+          {/* Clinical */}
+          <Route path="appointment" element={<ComingSoon />} />
+          <Route path="appointment/add" element={<AddAppointment />} />
+          <Route path="patients" element={<PatientList />} />
+
+          {/* Masters */}
+          <Route path="specializations" element={<SpecializationList />} />
+          <Route path="appointment-types" element={<AppointmentTypeList />} />
+
+          {/* Team */}
+          <Route path="roles" element={<RoleList />} />
+          <Route path="staff" element={<StaffList />} />
+
+          {/* Provider Availability */}
+          <Route
+            path="provider-availabilities"
+            element={<AvailabilityList />}
+          />
+          <Route
+            path="provider-availabilities/new"
+            element={<AvailabilityWizard />}
+          />
+          <Route
+            path="provider-availabilities/:id"
+            element={<AvailabilityView />}
+          />
+          <Route
+            path="provider-availabilities/:id/edit"
+            element={<AvailabilityWizard />}
+          />
+          <Route
+            path="provider-availabilities/:id/exceptions"
+            element={<AvailabilityExceptions />}
+          />
+
+          {/* Operations */}
+          <Route path="settings" element={<SettingsPage />} />
+
+          {/* ==================== 404 FALLBACK ==================== */}
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Route>
+
+      {/* ==================== GLOBAL 404 ==================== */}
+      {/* For routes outside layout (or if user hits unknown route while not in app) */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

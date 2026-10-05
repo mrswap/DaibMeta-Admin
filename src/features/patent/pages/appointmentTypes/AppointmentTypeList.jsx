@@ -6,8 +6,6 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
-  FiToggleLeft,
-  FiToggleRight,
 } from "react-icons/fi";
 import {
   useAppointmentTypes,
@@ -20,7 +18,7 @@ import AppointmentTypeView from "./components/AppointmentTypeView";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
-import { FilterSelect } from "../../common/form";
+import { FilterSelect, ActionToggle } from "../../common/form";
 
 const ALLOWED_ROLE_NAMES = ["doctor", "dietitian", "pathologist", "guest"];
 
@@ -31,8 +29,8 @@ const STATUS_OPTIONS = [
 
 const AppointmentTypeList = () => {
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState(null); // { value, label } | null
-  const [statusFilter, setStatusFilter] = useState(null); // { value, label } | null
+  const [roleFilter, setRoleFilter] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(null);
   const [page, setPage] = useState(1);
   const [perPage] = useState(10);
 
@@ -46,7 +44,6 @@ const AppointmentTypeList = () => {
     item: null,
   });
 
-  // Roles for filter
   const { data: rolesData } = useRoles({ per_page: 100 });
   const allRoles = rolesData?.list || [];
   const allowedRoles = allRoles.filter((r) =>
@@ -58,7 +55,6 @@ const AppointmentTypeList = () => {
     label: r.label,
   }));
 
-  // Params
   const params = {
     page,
     per_page: perPage,
@@ -74,7 +70,6 @@ const AppointmentTypeList = () => {
   const list = data?.list || [];
   const meta = data?.meta || {};
 
-  // ---------- Handlers ----------
   const handleAdd = () => {
     setEditData(null);
     setFormOpen(true);
@@ -98,7 +93,6 @@ const AppointmentTypeList = () => {
   const handleConfirm = () => {
     const { type, item } = confirm;
     if (!item) return;
-
     const mutation = type === "toggle" ? toggleStatus : deleteMutation;
     mutation.mutate(item.id, {
       onSettled: () => setConfirm({ open: false, type: null, item: null }),
@@ -109,27 +103,11 @@ const AppointmentTypeList = () => {
     setConfirm({ open: false, type: null, item: null });
   };
 
-  const handleSearchChange = (v) => {
-    setSearch(v);
-    setPage(1);
-  };
-
-  const handleRoleChange = (val) => {
-    setRoleFilter(val);
-    setPage(1);
-  };
-
-  const handleStatusChange = (val) => {
-    setStatusFilter(val);
-    setPage(1);
-  };
-
   const currentPage = meta.current_page || 1;
   const lastPage = meta.last_page || 1;
   const total = meta.total || 0;
   const metaPerPage = meta.per_page || perPage;
 
-  // ---------- Columns ----------
   const columns = [
     {
       header: "#",
@@ -172,15 +150,7 @@ const AppointmentTypeList = () => {
     {
       header: "Status",
       accessor: "status",
-      render: (value) => (
-        <span
-          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            value ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
-          }`}
-        >
-          {value ? "Active" : "Inactive"}
-        </span>
-      ),
+      render: (value) => <StatusBadge active={value} />,
     },
     {
       header: "Actions",
@@ -192,16 +162,13 @@ const AppointmentTypeList = () => {
           <IconBtn title="Edit" onClick={() => handleEdit(row)}>
             <FiEdit2 className="h-4 w-4" />
           </IconBtn>
-          <IconBtn
-            title={row.status ? "Deactivate" : "Activate"}
+          <ActionToggle
+            active={row.status}
             onClick={() => handleToggleClick(row)}
-          >
-            {row.status ? (
-              <FiToggleRight className="h-4 w-4" />
-            ) : (
-              <FiToggleLeft className="h-4 w-4" />
-            )}
-          </IconBtn>
+            loading={
+              toggleStatus.isPending && toggleStatus.variables === row.id
+            }
+          />
           <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
             <FiTrash2 className="h-4 w-4" />
           </IconBtn>
@@ -231,7 +198,6 @@ const AppointmentTypeList = () => {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
@@ -250,7 +216,6 @@ const AppointmentTypeList = () => {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-surface p-4 lg:flex-row lg:items-center">
         <div className="flex flex-1 items-center gap-2 rounded-lg border border-form-border bg-form-bg px-3">
           <FiSearch className="h-4 w-4 text-ink-400" />
@@ -258,25 +223,32 @@ const AppointmentTypeList = () => {
             type="text"
             placeholder="Search appointment types..."
             value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-form-placeholder"
           />
         </div>
 
-        {/* Role filter — react-select */}
         <FilterSelect
           value={roleFilter}
-          onChange={handleRoleChange}
+          onChange={(v) => {
+            setRoleFilter(v);
+            setPage(1);
+          }}
           options={roleOptions}
           placeholder="All Roles"
           isClearable
           width="w-48"
         />
 
-        {/* Status filter — react-select */}
         <FilterSelect
           value={statusFilter}
-          onChange={handleStatusChange}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
           options={STATUS_OPTIONS}
           placeholder="All Status"
           isClearable
@@ -294,7 +266,6 @@ const AppointmentTypeList = () => {
         </button>
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <Loader text="Loading appointment types..." />
       ) : (
@@ -315,7 +286,6 @@ const AppointmentTypeList = () => {
         />
       )}
 
-      {/* Modals */}
       <AppointmentTypeForm
         open={formOpen}
         onClose={() => {
@@ -343,6 +313,16 @@ const AppointmentTypeList = () => {
     </div>
   );
 };
+
+const StatusBadge = ({ active }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+      active ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
+    }`}
+  >
+    {active ? "Active" : "Inactive"}
+  </span>
+);
 
 const IconBtn = ({ children, title, onClick, disabled, danger }) => (
   <button

@@ -6,8 +6,6 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
-  FiToggleLeft,
-  FiToggleRight,
 } from "react-icons/fi";
 import {
   useRoles,
@@ -19,7 +17,7 @@ import RoleView from "./components/RoleView";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
-import { FilterSelect } from "../../common/form";
+import { FilterSelect, ActionToggle } from "../../common/form";
 
 const STATUS_OPTIONS = [
   { value: "1", label: "Active" },
@@ -98,21 +96,6 @@ const RoleList = () => {
     setConfirm({ open: false, type: null, item: null });
   };
 
-  const handleSearchChange = (v) => {
-    setSearch(v);
-    setPage(1);
-  };
-
-  const handleStatusChange = (val) => {
-    setStatusFilter(val);
-    setPage(1);
-  };
-
-  const handleSystemChange = (val) => {
-    setSystemFilter(val);
-    setPage(1);
-  };
-
   const currentPage = meta.current_page || 1;
   const lastPage = meta.last_page || 1;
   const total = meta.total || 0;
@@ -156,15 +139,7 @@ const RoleList = () => {
     {
       header: "Status",
       accessor: "status",
-      render: (value) => (
-        <span
-          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            value ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
-          }`}
-        >
-          {value ? "Active" : "Inactive"}
-        </span>
-      ),
+      render: (value) => <StatusBadge active={value} />,
     },
     {
       header: "Sort",
@@ -181,23 +156,14 @@ const RoleList = () => {
           <IconBtn title="Edit" onClick={() => handleEdit(row)}>
             <FiEdit2 className="h-4 w-4" />
           </IconBtn>
-          <IconBtn
-            title={
-              row.is_system
-                ? "System role cannot be disabled"
-                : row.status
-                  ? "Deactivate"
-                  : "Activate"
-            }
+          <ActionToggle
+            active={row.status}
             onClick={() => handleToggleClick(row)}
+            loading={
+              toggleStatus.isPending && toggleStatus.variables === row.id
+            }
             disabled={row.is_system}
-          >
-            {row.status ? (
-              <FiToggleRight className="h-4 w-4" />
-            ) : (
-              <FiToggleLeft className="h-4 w-4" />
-            )}
-          </IconBtn>
+          />
           <IconBtn
             title={row.is_system ? "System role cannot be deleted" : "Delete"}
             onClick={() => handleDeleteClick(row)}
@@ -255,14 +221,20 @@ const RoleList = () => {
             type="text"
             placeholder="Search roles..."
             value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-form-placeholder"
           />
         </div>
 
         <FilterSelect
           value={statusFilter}
-          onChange={handleStatusChange}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
           options={STATUS_OPTIONS}
           placeholder="All Status"
           isClearable
@@ -271,7 +243,10 @@ const RoleList = () => {
 
         <FilterSelect
           value={systemFilter}
-          onChange={handleSystemChange}
+          onChange={(v) => {
+            setSystemFilter(v);
+            setPage(1);
+          }}
           options={TYPE_OPTIONS}
           placeholder="All Types"
           isClearable
@@ -330,6 +305,16 @@ const RoleList = () => {
     </div>
   );
 };
+
+const StatusBadge = ({ active }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+      active ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
+    }`}
+  >
+    {active ? "Active" : "Inactive"}
+  </span>
+);
 
 const IconBtn = ({ children, title, onClick, disabled, danger }) => (
   <button

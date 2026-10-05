@@ -20,7 +20,9 @@ export const useProviderAvailabilities = (params = {}) => {
             api.get("/admin/provider-availabilities", { params }).then((r) => {
                 // Backend: { data: [], links: {}, meta: {} }
                 const body = r.data;
-                const list = Array.isArray(body.data) ? body.data : body.data?.data || [];
+                const list = Array.isArray(body.data)
+                    ? body.data
+                    : body.data?.data || [];
                 return {
                     list,
                     meta: body.meta || body.data?.meta || {},
@@ -35,7 +37,9 @@ export const useProviderAvailability = (id) => {
     return useQuery({
         queryKey: availabilityKeys.detail(id),
         queryFn: () =>
-            api.get(`/admin/provider-availabilities/${id}`).then((r) => r.data.data),
+            api
+                .get(`/admin/provider-availabilities/${id}`)
+                .then((r) => r.data.data),
         enabled: !!id,
     });
 };
@@ -150,5 +154,6 @@ export const DAY_NAMES = {
 };
 
 export const getDayLabel = (num) => DAY_NAMES[num] || "";
+
 export const getDaysLabel = (days = []) =>
     days.map((d) => DAY_NAMES[d]?.slice(0, 3)).join(", ");

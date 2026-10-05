@@ -6,8 +6,8 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
-  FiToggleLeft,
-  FiToggleRight,
+  FiGrid,
+  FiList,
 } from "react-icons/fi";
 import {
   usePatients,
@@ -16,10 +16,11 @@ import {
 } from "../../queries/patients";
 import PatientForm from "./components/PatientForm";
 import PatientView from "./components/PatientView";
+import PatientCard from "./components/PatientCard";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
-import { FilterSelect } from "../../common/form";
+import { FilterSelect, ActionToggle } from "../../common/form";
 
 const STATUS_OPTIONS = [
   { value: "1", label: "Active" },
@@ -30,7 +31,8 @@ const PatientList = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
   const [page, setPage] = useState(1);
-  const [perPage] = useState(10);
+  const [perPage] = useState(12);
+  const [viewMode, setViewMode] = useState("grid");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editData, setEditData] = useState(null);
@@ -66,7 +68,10 @@ const PatientList = () => {
     setFormOpen(true);
   };
 
-  const handleView = (id) => setViewId(id);
+  const handleView = (itemOrId) => {
+    const id = typeof itemOrId === "object" ? itemOrId.id : itemOrId;
+    setViewId(id);
+  };
 
   const handleToggleClick = (item) => {
     setConfirm({ open: true, type: "toggle", item });
@@ -89,16 +94,6 @@ const PatientList = () => {
     setConfirm({ open: false, type: null, item: null });
   };
 
-  const handleSearchChange = (v) => {
-    setSearch(v);
-    setPage(1);
-  };
-
-  const handleStatusChange = (val) => {
-    setStatusFilter(val);
-    setPage(1);
-  };
-
   const currentPage = meta.current_page || 1;
   const lastPage = meta.last_page || 1;
   const total = meta.total || 0;
@@ -112,35 +107,53 @@ const PatientList = () => {
     {
       header: "Patient ID",
       accessor: "patient_id",
-      render: (value) => (
+      render: (v) => (
         <code className="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-xs text-ink-700">
-          {value || "—"}
+          {v || "—"}
         </code>
       ),
     },
     {
       header: "Name",
       accessor: "name",
-      render: (value) => (
-        <span className="font-medium text-ink-900">{value}</span>
+      render: (v, row) => (
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-surface">
+            {v
+              ?.split(/\s+/)
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((w) => w[0])
+              .join("")
+              .toUpperCase()}
+          </div>
+          <div>
+            <p className="font-medium text-ink-900">{v}</p>
+            {row.linked_primary_patient_id && (
+              <p className="text-[10px] text-ink-500">
+                Family of {row.primary_patient?.name}
+              </p>
+            )}
+          </div>
+        </div>
       ),
     },
     {
       header: "Mobile",
       accessor: "mobile",
-      render: (value) => <span className="text-ink-700">{value}</span>,
+      render: (v) => <span className="text-ink-700">{v}</span>,
     },
     {
       header: "Age",
       accessor: "age",
-      render: (value) => <span className="text-ink-700">{value ?? "—"}</span>,
+      render: (v) => <span className="text-ink-700">{v ?? "—"}</span>,
     },
     {
       header: "Gender",
       accessor: "sex",
-      render: (value) => (
+      render: (v) => (
         <span className="text-ink-700">
-          {value ? value.charAt(0).toUpperCase() + value.slice(1) : "—"}
+          {v ? v.charAt(0).toUpperCase() + v.slice(1) : "—"}
         </span>
       ),
     },
@@ -158,49 +171,27 @@ const PatientList = () => {
         ),
     },
     {
-      header: "Primary Patient",
-      render: (_, row) =>
-        row.primary_patient ? (
-          <span className="text-xs text-ink-600">
-            {row.primary_patient.name}
-          </span>
-        ) : (
-          <span className="text-ink-400">—</span>
-        ),
-    },
-    {
       header: "Status",
       accessor: "status",
-      render: (value) => (
-        <span
-          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            value ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
-          }`}
-        >
-          {value ? "Active" : "Inactive"}
-        </span>
-      ),
+      render: (value) => <StatusBadge active={value} />,
     },
     {
       header: "Actions",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row.id)}>
+          <IconBtn title="View" onClick={() => handleView(row)}>
             <FiEye className="h-4 w-4" />
           </IconBtn>
           <IconBtn title="Edit" onClick={() => handleEdit(row)}>
             <FiEdit2 className="h-4 w-4" />
           </IconBtn>
-          <IconBtn
-            title={row.status ? "Deactivate" : "Activate"}
+          <ActionToggle
+            active={row.status}
             onClick={() => handleToggleClick(row)}
-          >
-            {row.status ? (
-              <FiToggleRight className="h-4 w-4" />
-            ) : (
-              <FiToggleLeft className="h-4 w-4" />
-            )}
-          </IconBtn>
+            loading={
+              toggleStatus.isPending && toggleStatus.variables === row.id
+            }
+          />
           <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
             <FiTrash2 className="h-4 w-4" />
           </IconBtn>
@@ -230,7 +221,6 @@ const PatientList = () => {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
@@ -238,18 +228,18 @@ const PatientList = () => {
           </h1>
           <p className="mt-1 text-sm text-ink-500">
             Manage patient profiles and family members
+            {total > 0 && ` · ${total} total`}
           </p>
         </div>
         <button
           onClick={handleAdd}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
+          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
         >
           <FiPlus className="h-4 w-4" />
           Add Patient
         </button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-surface p-4 lg:flex-row lg:items-center">
         <div className="flex flex-1 items-center gap-2 rounded-lg border border-form-border bg-form-bg px-3">
           <FiSearch className="h-4 w-4 text-ink-400" />
@@ -257,14 +247,20 @@ const PatientList = () => {
             type="text"
             placeholder="Search by name, patient ID, mobile, email..."
             value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-form-placeholder"
           />
         </div>
 
         <FilterSelect
           value={statusFilter}
-          onChange={handleStatusChange}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
           options={STATUS_OPTIONS}
           placeholder="All Status"
           isClearable
@@ -273,18 +269,105 @@ const PatientList = () => {
 
         <button
           onClick={() => refetch()}
-          className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-ink-200 px-3 text-sm font-medium text-ink-700 hover:bg-ink-50"
+          className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-ink-200 px-3 text-sm font-medium text-ink-700 hover:bg-ink-50"
         >
           <FiRefreshCw
             className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
           />
-          Refresh
+          <span className="sm:hidden lg:inline">Refresh</span>
         </button>
+
+        <div className="flex items-center rounded-lg border border-ink-200 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            className={`cursor-pointer rounded-md p-1.5 transition ${
+              viewMode === "grid"
+                ? "bg-brand-50 text-brand-700"
+                : "text-ink-500 hover:bg-ink-50"
+            }`}
+            title="Grid view"
+          >
+            <FiGrid className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={`cursor-pointer rounded-md p-1.5 transition ${
+              viewMode === "table"
+                ? "bg-brand-50 text-brand-700"
+                : "text-ink-500 hover:bg-ink-50"
+            }`}
+            title="Table view"
+          >
+            <FiList className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <Loader text="Loading patients..." />
+      ) : list.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-ink-200 bg-surface py-16 text-center">
+          <p className="text-sm font-medium text-ink-700">
+            {search ? "No patients found" : "No patients yet"}
+          </p>
+          <p className="mt-1 text-xs text-ink-500">
+            {search
+              ? "Try a different search term or clear filters."
+              : "Add your first patient to get started."}
+          </p>
+          {!search && (
+            <button
+              onClick={handleAdd}
+              className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+            >
+              <FiPlus className="h-4 w-4" />
+              Add Patient
+            </button>
+          )}
+        </div>
+      ) : viewMode === "grid" ? (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {list.map((patient) => (
+              <PatientCard
+                key={patient.id}
+                patient={patient}
+                onView={handleView}
+                onEdit={handleEdit}
+                onToggle={handleToggleClick}
+                onDelete={handleDeleteClick}
+              />
+            ))}
+          </div>
+
+          {lastPage > 1 && (
+            <div className="flex flex-col items-center justify-between gap-3 rounded-xl border border-ink-100 bg-surface px-4 py-3 sm:flex-row">
+              <p className="text-xs text-ink-500">
+                Showing {(currentPage - 1) * metaPerPage + 1}–
+                {Math.min(currentPage * metaPerPage, total)} of {total}
+              </p>
+              <div className="flex items-center gap-1">
+                <PageBtn
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </PageBtn>
+                <span className="px-3 text-xs text-ink-600">
+                  Page {currentPage} of {lastPage}
+                </span>
+                <PageBtn
+                  disabled={currentPage >= lastPage}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </PageBtn>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <CustomeTable
           columns={columns}
@@ -301,7 +384,6 @@ const PatientList = () => {
         />
       )}
 
-      {/* Modals */}
       <PatientForm
         open={formOpen}
         onClose={() => {
@@ -314,6 +396,7 @@ const PatientList = () => {
         open={!!viewId}
         onClose={() => setViewId(null)}
         id={viewId}
+        onEdit={handleEdit}
       />
 
       <ConfirmModal
@@ -330,17 +413,36 @@ const PatientList = () => {
   );
 };
 
-const IconBtn = ({ children, title, onClick, disabled, danger }) => (
+const StatusBadge = ({ active }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+      active ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
+    }`}
+  >
+    {active ? "Active" : "Inactive"}
+  </span>
+);
+
+const IconBtn = ({ children, title, onClick, danger }) => (
   <button
     type="button"
     title={title}
     onClick={onClick}
-    disabled={disabled}
-    className={`cursor-pointer rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
+    className={`cursor-pointer rounded-lg p-1.5 transition ${
       danger
         ? "text-danger-500 hover:bg-danger-50"
         : "text-ink-600 hover:bg-ink-100 hover:text-ink-900"
     }`}
+  >
+    {children}
+  </button>
+);
+
+const PageBtn = ({ children, disabled, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className="cursor-pointer rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:border-brand-300 hover:text-brand-700 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400 disabled:hover:border-ink-200 disabled:hover:text-ink-400"
   >
     {children}
   </button>

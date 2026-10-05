@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiArrowLeft, FiEye } from "react-icons/fi";
 
 const DAYS = [
@@ -13,8 +13,17 @@ const DAYS = [
 
 const DURATION_OPTIONS = [10, 15, 20, 30, 45, 60];
 
-const Step3Schedule = ({ onNext, onBack, formData, setFormData }) => {
+const Step3Schedule = ({
+  onNext,
+  onBack,
+  formData,
+  setFormData,
+  appointmentTypeDefaults,
+}) => {
   const [errors, setErrors] = useState({});
+
+  const maxCapacity = appointmentTypeDefaults?.capacity || null;
+  const maxDuration = appointmentTypeDefaults?.slot_duration || null;
 
   const updateField = (key, value) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -34,6 +43,14 @@ const Step3Schedule = ({ onNext, onBack, formData, setFormData }) => {
   const applyPreset = (days) => {
     updateField("days_of_week", days);
   };
+
+  // Auto-clamp capacity if it exceeds max
+  useEffect(() => {
+    if (maxCapacity && formData.capacity > maxCapacity) {
+      setFormData((prev) => ({ ...prev, capacity: maxCapacity }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxCapacity]);
 
   const validate = () => {
     const e = {};
@@ -59,8 +76,12 @@ const Step3Schedule = ({ onNext, onBack, formData, setFormData }) => {
       e.end_time = "End time must be after start time";
     }
     if (!formData.slot_duration) e.slot_duration = "Duration is required";
-    if (!formData.capacity || formData.capacity < 1)
+    if (!formData.capacity || formData.capacity < 1) {
       e.capacity = "Capacity must be at least 1";
+    }
+    if (maxCapacity && formData.capacity > maxCapacity) {
+      e.capacity = `Capacity cannot exceed ${maxCapacity}`;
+    }
 
     if (formData.start_time && formData.end_time && formData.slot_duration) {
       const [sh, sm] = formData.start_time.split(":").map(Number);
@@ -77,6 +98,13 @@ const Step3Schedule = ({ onNext, onBack, formData, setFormData }) => {
 
   const handleNext = () => {
     if (validate()) onNext();
+  };
+
+  const handleCapacityChange = (val) => {
+    let num = Number(val) || 1;
+    if (num < 1) num = 1;
+    if (maxCapacity && num > maxCapacity) num = maxCapacity;
+    updateField("capacity", num);
   };
 
   const inputCls =
@@ -235,9 +263,15 @@ const Step3Schedule = ({ onNext, onBack, formData, setFormData }) => {
             {DURATION_OPTIONS.map((d) => (
               <option key={d} value={d}>
                 {d} Minutes
+                {maxDuration === d ? " (default)" : ""}
               </option>
             ))}
           </select>
+          {maxDuration && (
+            <p className="mt-1 text-[11px] text-ink-500">
+              Default from appointment type: {maxDuration} min
+            </p>
+          )}
           {errors.slot_duration && (
             <p className="mt-1 text-xs text-form-error">
               {errors.slot_duration}
@@ -252,12 +286,21 @@ const Step3Schedule = ({ onNext, onBack, formData, setFormData }) => {
           <input
             type="number"
             min={1}
+            max={maxCapacity || undefined}
             value={formData.capacity || 1}
-            onChange={(e) =>
-              updateField("capacity", Number(e.target.value) || 1)
-            }
+            onChange={(e) => handleCapacityChange(e.target.value)}
             className={inputCls}
           />
+          {maxCapacity ? (
+            <p className="mt-1 text-[11px] text-ink-500">
+              Max {maxCapacity} allowed (from appointment type). You can set 1
+              to {maxCapacity}.
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] text-ink-500">
+              Number of patients allowed per slot
+            </p>
+          )}
           {errors.capacity && (
             <p className="mt-1 text-xs text-form-error">{errors.capacity}</p>
           )}

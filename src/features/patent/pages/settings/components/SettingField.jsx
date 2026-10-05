@@ -316,28 +316,45 @@ const SensitiveField = ({ setting, value, onChange }) => {
 const FileField = ({ setting, value }) => {
   const fileInputRef = useRef(null);
   const uploadMutation = useUploadFileSetting();
-  const [localPreview, setLocalPreview] = useState(null);
 
-  const existingUrl = getFileUrl(value);
+  // Local state for instant preview update
+  const [localPreview, setLocalPreview] = useState(null);
+  const [uploadedValue, setUploadedValue] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Current effective value: prefer uploadedValue > localPreview > prop value
+  const currentValue = uploadedValue ?? value;
+  const displayUrl = localPreview || getFileUrl(currentValue);
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show instant preview
+    // Instant local preview
     const reader = new FileReader();
     reader.onload = (ev) => setLocalPreview(ev.target.result);
     reader.readAsDataURL(file);
 
-    // Upload
     uploadMutation.mutate(
       { id: setting.id, setting, file },
       {
-        onSuccess: () => {
-          setLocalPreview(null);
+        onSuccess: (response) => {
+          // Backend may return updated setting with new value
+          // Try to extract new value from response
+          const newValue = response?.data?.value || response?.value || null;
+
+          if (newValue) {
+            setUploadedValue(newValue);
+          } else {
+            // Fallback: keep local preview until page refresh
+            // (parent will eventually refetch)
+          }
+
+          // Clear the file input
           if (fileInputRef.current) fileInputRef.current.value = "";
         },
         onError: () => {
+          // Reset preview on error
           setLocalPreview(null);
           if (fileInputRef.current) fileInputRef.current.value = "";
         },
@@ -345,101 +362,131 @@ const FileField = ({ setting, value }) => {
     );
   };
 
-  const handleCancelLocalPreview = () => {
-    setLocalPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handleImageClick = () => {
+    if (displayUrl) setPreviewOpen(true);
   };
 
-  const previewUrl = localPreview || existingUrl;
-  const isImage =
-    previewUrl && !previewUrl.endsWith(".pdf") && !previewUrl.endsWith(".json");
+  const isImage = displayUrl && !displayUrl.endsWith(".pdf");
 
   return (
-    <FieldWrapper label={formatLabel(setting.key)} status={setting.status}>
-      <div className="rounded-lg border border-ink-200 bg-surface p-3">
-        {/* Preview area */}
-        {previewUrl ? (
-          <div className="flex items-center gap-3">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-ink-100 bg-ink-50">
-              {isImage ? (
-                <img
-                  src={previewUrl}
-                  alt={setting.key}
-                  className="h-full w-full object-contain"
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                  }}
-                />
-              ) : (
-                <span className="text-[10px] font-medium text-ink-500">
-                  FILE
-                </span>
+    <>
+      <FieldWrapper label={formatLabel(setting.key)} status={setting.status}>
+        <div className="rounded-lg border border-ink-200 bg-surface p-3">
+          {displayUrl ? (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleImageClick}
+                title="Click to preview"
+                className="group flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-ink-100 bg-ink-50 transition hover:border-brand-300 hover:ring-2 hover:ring-brand-500/20"
+              >
+                {isImage ? (
+                  <img
+                    src={displayUrl}
+                    alt={setting.key}
+                    className="h-full w-full object-contain transition group-hover:scale-105"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <span className="text-[10px] font-medium text-ink-500">
+                    FILE
+                  </span>
+                )}
+              </button>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-ink-700">
+                  {uploadMutation.isPending ? "Uploading..." : "Current file"}
+                </p>
+                <p
+                  className="mt-0.5 truncate font-mono text-[10px] text-ink-500"
+                  title={currentValue || ""}
+                >
+                  {localPreview ? "New file selected" : currentValue || "—"}
+                </p>
+                {isImage && (
+                  <p className="mt-0.5 text-[10px] text-brand-600">
+                    Click image to preview
+                  </p>
+                )}
+              </div>
+
+              {uploadMutation.isPending && (
+                <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
               )}
             </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium text-ink-700">
-                {localPreview ? "Uploading..." : "Current file"}
-              </p>
-              <p
-                className="mt-0.5 truncate font-mono text-[10px] text-ink-500"
-                title={value}
-              >
-                {localPreview ? "New file selected" : value}
-              </p>
+          ) : (
+            <div className="flex h-16 items-center justify-center rounded-md border border-dashed border-ink-200 bg-ink-50/40">
+              <p className="text-xs text-ink-500">No file uploaded yet</p>
             </div>
-
-            {localPreview && uploadMutation.isPending && (
-              <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-            )}
-          </div>
-        ) : (
-          <div className="flex h-16 items-center justify-center rounded-md border border-dashed border-ink-200 bg-ink-50/40">
-            <p className="text-xs text-ink-500">No file uploaded yet</p>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="hidden"
-            id={`file-input-${setting.id}`}
-          />
-          <label
-            htmlFor={`file-input-${setting.id}`}
-            className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50 ${
-              uploadMutation.isPending ? "pointer-events-none opacity-50" : ""
-            }`}
-          >
-            <FiUpload className="h-3.5 w-3.5" />
-            {uploadMutation.isPending
-              ? "Uploading..."
-              : value
-                ? "Replace File"
-                : "Upload File"}
-          </label>
-
-          {localPreview && !uploadMutation.isPending && (
-            <button
-              type="button"
-              onClick={handleCancelLocalPreview}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-ink-200 bg-surface px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:bg-ink-50"
-            >
-              <FiX className="h-3.5 w-3.5" />
-              Cancel
-            </button>
           )}
-        </div>
 
-        <p className="mt-2 text-[10px] text-ink-500">
-          Accepted: images. Max size depends on server configuration.
-        </p>
-      </div>
-    </FieldWrapper>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+              id={`file-input-${setting.id}`}
+            />
+            <label
+              htmlFor={`file-input-${setting.id}`}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50 ${
+                uploadMutation.isPending ? "pointer-events-none opacity-50" : ""
+              }`}
+            >
+              <FiUpload className="h-3.5 w-3.5" />
+              {uploadMutation.isPending
+                ? "Uploading..."
+                : currentValue
+                  ? "Replace File"
+                  : "Upload File"}
+            </label>
+          </div>
+
+          <p className="mt-2 text-[10px] text-ink-500">
+            Accepted: images. Max size depends on server configuration.
+          </p>
+        </div>
+      </FieldWrapper>
+
+      {/* Preview Modal */}
+      {previewOpen && displayUrl && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setPreviewOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(false)}
+            className="absolute right-4 top-4 cursor-pointer rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+            title="Close"
+          >
+            <FiX className="h-5 w-5" />
+          </button>
+
+          <div
+            className="relative max-h-[90vh] max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={displayUrl}
+              alt={setting.key}
+              className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+            <p className="mt-3 text-center text-xs text-white/70">
+              {formatLabel(setting.key)}
+            </p>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

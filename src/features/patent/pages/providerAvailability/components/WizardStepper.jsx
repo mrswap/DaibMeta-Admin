@@ -1,7 +1,23 @@
 import { FiCheck } from "react-icons/fi";
 
-const WizardStepper = ({ steps = [], current = 1, onStepClick }) => {
+/**
+ * WizardStepper — Multi-step indicator with clickable steps
+ *
+ * Props:
+ *   steps    — array of { label, icon }
+ *   current  — current step number (1-based)
+ *   onStepClick — (stepNumber) => void (optional)
+ *   maxReached  — highest step the user has reached (prevents skipping ahead without completing)
+ */
+const WizardStepper = ({
+  steps = [],
+  current = 1,
+  onStepClick,
+  maxReached,
+}) => {
   const isClickable = typeof onStepClick === "function";
+  // maxReached defaults to current — user can only go back, not skip ahead
+  const maxAllowed = maxReached ?? current;
 
   return (
     <div className="flex items-center">
@@ -11,25 +27,30 @@ const WizardStepper = ({ steps = [], current = 1, onStepClick }) => {
         const isActive = stepNum === current;
         const isLast = idx === steps.length - 1;
         const Icon = step.icon;
+        const canClick =
+          isClickable && stepNum !== current && stepNum <= maxAllowed;
 
         return (
           <div key={step.label} className="flex flex-1 items-center">
             <button
               type="button"
-              onClick={() => isClickable && onStepClick(stepNum)}
-              disabled={!isClickable}
+              onClick={() => canClick && onStepClick(stepNum)}
+              disabled={!canClick}
+              title={canClick ? `Go to ${step.label}` : step.label}
               className={`flex flex-col items-center gap-1.5 ${
-                isClickable ? "cursor-pointer" : "cursor-default"
+                canClick ? "cursor-pointer" : "cursor-default"
               }`}
             >
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors ${
+                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-all ${
                   isCompleted
                     ? "border-brand-600 bg-brand-600 text-surface"
                     : isActive
                       ? "border-brand-600 bg-surface text-brand-700"
-                      : "border-ink-200 bg-surface text-ink-400"
-                } ${isClickable && !isActive ? "hover:border-brand-400" : ""}`}
+                      : canClick
+                        ? "border-ink-300 bg-surface text-ink-500 group-hover:border-brand-400"
+                        : "border-ink-200 bg-surface text-ink-400"
+                } ${canClick && !isActive ? "hover:border-brand-500 hover:bg-brand-50" : ""}`}
               >
                 {isCompleted ? (
                   <FiCheck className="h-4 w-4" />
@@ -45,7 +66,9 @@ const WizardStepper = ({ steps = [], current = 1, onStepClick }) => {
                     ? "text-brand-700"
                     : isCompleted
                       ? "text-ink-700"
-                      : "text-ink-400"
+                      : canClick
+                        ? "text-ink-500"
+                        : "text-ink-400"
                 }`}
               >
                 {step.label}

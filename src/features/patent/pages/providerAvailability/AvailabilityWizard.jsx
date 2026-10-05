@@ -33,8 +33,16 @@ const AvailabilityWizard = () => {
   const roles = rolesData?.list || [];
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [maxReached, setMaxReached] = useState(1);
   const [previewData, setPreviewData] = useState(null);
   const [prefilled, setPrefilled] = useState(!isEdit);
+
+  // Store the selected appointment type's default values separately
+  // so Step3 can enforce limits
+  const [appointmentTypeDefaults, setAppointmentTypeDefaults] = useState({
+    slot_duration: null,
+    capacity: null,
+  });
 
   const [formData, setFormData] = useState({
     role_id: null,
@@ -87,11 +95,25 @@ const AvailabilityWizard = () => {
       capacity: existingData.capacity || 1,
     });
 
+    // In edit mode — all steps reachable
+    setMaxReached(4);
     setPrefilled(true);
   }, [isEdit, existingData, roles, prefilled]);
 
-  const handleNext = () => setCurrentStep((s) => Math.min(4, s + 1));
+  const handleNext = () => {
+    const next = Math.min(4, currentStep + 1);
+    setCurrentStep(next);
+    setMaxReached((m) => Math.max(m, next));
+  };
+
   const handleBack = () => setCurrentStep((s) => Math.max(1, s - 1));
+
+  const handleStepClick = (stepNum) => {
+    // Allow jumping to any step <= maxReached
+    if (stepNum <= maxReached && stepNum !== currentStep) {
+      setCurrentStep(stepNum);
+    }
+  };
 
   const handleClose = () => navigate("/provider-availabilities");
 
@@ -131,7 +153,8 @@ const AvailabilityWizard = () => {
         <WizardStepper
           steps={STEPS}
           current={currentStep}
-          onStepClick={isEdit ? setCurrentStep : undefined}
+          onStepClick={handleStepClick}
+          maxReached={maxReached}
         />
       </div>
 
@@ -151,6 +174,7 @@ const AvailabilityWizard = () => {
             setFormData={setFormData}
             onNext={handleNext}
             onBack={handleBack}
+            setAppointmentTypeDefaults={setAppointmentTypeDefaults}
           />
         )}
 
@@ -160,6 +184,7 @@ const AvailabilityWizard = () => {
             setFormData={setFormData}
             onNext={handleNext}
             onBack={handleBack}
+            appointmentTypeDefaults={appointmentTypeDefaults}
           />
         )}
 

@@ -7,8 +7,6 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
-  FiToggleLeft,
-  FiToggleRight,
   FiAlertCircle,
 } from "react-icons/fi";
 import {
@@ -20,7 +18,7 @@ import {
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
-import { FilterSelect } from "../../common/form";
+import { FilterSelect, ActionToggle } from "../../common/form";
 
 const STATUS_OPTIONS = [
   { value: "1", label: "Active" },
@@ -55,7 +53,6 @@ const AvailabilityList = () => {
   const list = data?.list || [];
   const meta = data?.meta || {};
 
-  // ---------- Handlers ----------
   const handleAdd = () => navigate("/provider-availabilities/new");
   const handleEdit = (item) =>
     navigate(`/provider-availabilities/${item.id}/edit`);
@@ -85,7 +82,6 @@ const AvailabilityList = () => {
   const total = meta.total || 0;
   const metaPerPage = meta.per_page || perPage;
 
-  // ---------- Columns ----------
   const columns = [
     {
       header: "#",
@@ -133,15 +129,7 @@ const AvailabilityList = () => {
     {
       header: "Status",
       accessor: "status",
-      render: (value) => (
-        <span
-          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            value ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
-          }`}
-        >
-          {value ? "Active" : "Inactive"}
-        </span>
-      ),
+      render: (value) => <StatusBadge active={value} />,
     },
     {
       header: "Actions",
@@ -159,16 +147,13 @@ const AvailabilityList = () => {
           >
             <FiAlertCircle className="h-4 w-4" />
           </IconBtn>
-          <IconBtn
-            title={row.status ? "Deactivate" : "Activate"}
+          <ActionToggle
+            active={row.status}
             onClick={() => handleToggleClick(row)}
-          >
-            {row.status ? (
-              <FiToggleRight className="h-4 w-4" />
-            ) : (
-              <FiToggleLeft className="h-4 w-4" />
-            )}
-          </IconBtn>
+            loading={
+              toggleStatus.isPending && toggleStatus.variables === row.id
+            }
+          />
           <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
             <FiTrash2 className="h-4 w-4" />
           </IconBtn>
@@ -198,7 +183,6 @@ const AvailabilityList = () => {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
@@ -217,7 +201,6 @@ const AvailabilityList = () => {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-surface p-4 sm:flex-row sm:items-center">
         <div className="flex flex-1 items-center gap-2 rounded-lg border border-form-border bg-form-bg px-3">
           <FiSearch className="h-4 w-4 text-ink-400" />
@@ -256,7 +239,6 @@ const AvailabilityList = () => {
         </button>
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <Loader text="Loading availabilities..." />
       ) : (
@@ -291,13 +273,22 @@ const AvailabilityList = () => {
   );
 };
 
-const IconBtn = ({ children, title, onClick, disabled, danger }) => (
+const StatusBadge = ({ active }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+      active ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
+    }`}
+  >
+    {active ? "Active" : "Inactive"}
+  </span>
+);
+
+const IconBtn = ({ children, title, onClick, danger }) => (
   <button
     type="button"
     title={title}
     onClick={onClick}
-    disabled={disabled}
-    className={`cursor-pointer rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
+    className={`cursor-pointer rounded-lg p-1.5 transition ${
       danger
         ? "text-danger-500 hover:bg-danger-50"
         : "text-ink-600 hover:bg-ink-100 hover:text-ink-900"

@@ -1,11 +1,26 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  FiClock,
+  FiUsers,
+  FiArrowLeft,
+  FiArrowRight,
+  FiAlertCircle,
+  FiPlus,
+} from "react-icons/fi";
 import { useAppointmentTypes } from "../../../queries/appointmentTypes";
 import { FilterSelect } from "../../../common/form";
-import { FiClock, FiUsers, FiArrowLeft, FiArrowRight } from "react-icons/fi";
 
-const Step2AppointmentType = ({ onNext, onBack, formData, setFormData }) => {
+const Step2AppointmentType = ({
+  onNext,
+  onBack,
+  formData,
+  setFormData,
+  setAppointmentTypeDefaults,
+}) => {
+  const navigate = useNavigate();
   const roleId = formData.role_id?.value;
 
-  // Filter appointment types by role
   const { data, isFetching } = useAppointmentTypes(
     roleId ? { role_id: roleId, per_page: 100 } : { per_page: 100 },
   );
@@ -16,16 +31,41 @@ const Step2AppointmentType = ({ onNext, onBack, formData, setFormData }) => {
     label: `${a.name} — ${a.duration} min`,
   }));
 
-  // Selected type details
   const selectedType = list.find(
     (a) => a.id === formData.appointment_type_id?.value,
   );
+
+  // Auto-update slot_duration and capacity when appointment type is selected
+  useEffect(() => {
+    if (!selectedType) return;
+
+    const defaultDuration = selectedType.duration || 15;
+    const defaultCapacity = selectedType.capacity || 1;
+
+    // Only auto-fill if the field hasn't been touched OR is empty
+    // (to avoid overwriting user's manual values when they come back)
+    setFormData((prev) => ({
+      ...prev,
+      slot_duration: defaultDuration,
+      capacity: defaultCapacity,
+    }));
+
+    // Pass defaults to parent for Step 3's max-limit enforcement
+    if (setAppointmentTypeDefaults) {
+      setAppointmentTypeDefaults({
+        slot_duration: defaultDuration,
+        capacity: defaultCapacity,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedType?.id]);
 
   const handleChange = (val) => {
     setFormData((prev) => ({ ...prev, appointment_type_id: val }));
   };
 
   const canProceed = !!formData.appointment_type_id?.value;
+  const hasNoAppointmentTypes = !isFetching && list.length === 0;
 
   return (
     <div className="space-y-5">
@@ -46,7 +86,14 @@ const Step2AppointmentType = ({ onNext, onBack, formData, setFormData }) => {
           value={formData.appointment_type_id}
           onChange={handleChange}
           options={options}
-          placeholder="Select appointment type..."
+          placeholder={
+            isFetching
+              ? "Loading..."
+              : hasNoAppointmentTypes
+                ? "No appointment types available"
+                : "Select appointment type..."
+          }
+          isDisabled={isFetching || hasNoAppointmentTypes}
           isClearable
         />
       </div>
@@ -55,7 +102,36 @@ const Step2AppointmentType = ({ onNext, onBack, formData, setFormData }) => {
         <p className="text-xs text-ink-500">Loading appointment types...</p>
       )}
 
-      {/* Info panel */}
+      {hasNoAppointmentTypes && (
+        <div className="rounded-lg border border-warn-200 bg-warn-50/50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warn-100 text-warn-700">
+              <FiAlertCircle className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-warn-900">
+                No appointment types found
+                {formData.role_id?.label
+                  ? ` for "${formData.role_id.label}"`
+                  : ""}
+              </p>
+              <p className="mt-0.5 text-xs text-warn-800">
+                This provider role doesn't have any appointment types configured
+                yet. Create one first.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/appointment-types")}
+                className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-warn-800 px-3 py-1.5 text-xs font-semibold text-surface transition hover:bg-warn-900"
+              >
+                <FiPlus className="h-3 w-3" />
+                Create Appointment Type
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedType && (
         <div className="rounded-lg border border-accent-200 bg-accent-50/50 p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-accent-800">
@@ -78,7 +154,7 @@ const Step2AppointmentType = ({ onNext, onBack, formData, setFormData }) => {
                 <FiUsers className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-[11px] text-ink-500">Default Capacity</p>
+                <p className="text-[11px] text-ink-500">Max Capacity</p>
                 <p className="text-sm font-semibold text-ink-900">
                   {selectedType.capacity} Patient
                   {selectedType.capacity > 1 ? "s" : ""}
@@ -86,6 +162,10 @@ const Step2AppointmentType = ({ onNext, onBack, formData, setFormData }) => {
               </div>
             </div>
           </div>
+          <p className="mt-3 text-[11px] text-accent-700">
+            Slot duration and capacity will be pre-filled in the next step.
+            Capacity can't exceed this maximum.
+          </p>
         </div>
       )}
 
