@@ -56,10 +56,16 @@ const AvailabilityExceptions = () => {
   const bulkMutation = useBulkSaveExceptions();
   const deleteMutation = useDeleteException();
 
-  // ==================== IS DIRTY ====================
   const isDirty = useMemo(() => {
     if (!localSlots) return false;
     return localSlots.some((s) => s.blocked !== s.wasBlockedInitially);
+  }, [localSlots]);
+
+  const hasNewBlocks = useMemo(() => {
+    if (!localSlots) return false;
+    return localSlots.some(
+      (s) => s.blocked === true && s.wasBlockedInitially === false,
+    );
   }, [localSlots]);
 
   const allDates = useMemo(() => {
@@ -110,9 +116,6 @@ const AvailabilityExceptions = () => {
       per_page: 100,
     });
 
-  // ==================== MERGE SLOTS ====================
-  // PRIMARY SOURCE: slot.available / slot.status from backend
-  // FALLBACK: exceptions data (for safety)
   useEffect(() => {
     if (!slotsData || !Array.isArray(slotsData)) return;
 
@@ -125,18 +128,12 @@ const AvailabilityExceptions = () => {
     );
 
     const mergedSlots = slotsData.map((slot) => {
-      // Fallback: try to find matching exception for this slot
       const matchingEx = dateExceptions.find(
         (ex) =>
           toShortTime(ex.start_time) === slot.start_time &&
           toShortTime(ex.end_time) === slot.end_time,
       );
 
-      // Slot is blocked if:
-      // 1. Backend says available === false (PRIMARY)
-      // 2. Backend says status === "blocked"
-      // 3. Full-day exception exists
-      // 4. A matching slot-level exception exists
       const isBlocked =
         slot.available === false ||
         slot.status === "blocked" ||
@@ -169,6 +166,7 @@ const AvailabilityExceptions = () => {
   }, [exceptionsData]);
 
   const toggleSlot = (idx) => {
+    if (isSaving) return;
     setLocalSlots((prev) => {
       const updated = [...prev];
       updated[idx] = { ...updated[idx], blocked: !updated[idx].blocked };
@@ -177,14 +175,17 @@ const AvailabilityExceptions = () => {
   };
 
   const selectAll = () => {
+    if (isSaving) return;
     setLocalSlots((prev) => prev.map((s) => ({ ...s, blocked: true })));
   };
 
   const clearAll = () => {
+    if (isSaving) return;
     setLocalSlots((prev) => prev.map((s) => ({ ...s, blocked: false })));
   };
 
   const handleSelectDate = (dateStr) => {
+    if (isSaving) return;
     if (isDirty) {
       const ok = window.confirm("Unsaved changes will be lost. Continue?");
       if (!ok) return;
@@ -195,18 +196,23 @@ const AvailabilityExceptions = () => {
   };
 
   const handleSaveClick = () => {
-    if (!localSlots || !availability || !isDirty) return;
-    setSaveReason(DEFAULT_REASON);
-    setSaveModalOpen(true);
+    if (!localSlots || !availability || !isDirty || isSaving) return;
+
+    if (hasNewBlocks) {
+      setSaveReason(DEFAULT_REASON);
+      setSaveModalOpen(true);
+    } else {
+      performSave(null);
+    }
   };
 
-  const handleSaveConfirm = async () => {
+  const performSave = async (reason) => {
     if (!localSlots || !availability) return;
 
     setSaveModalOpen(false);
     setIsSaving(true);
 
-    const trimmedReason = saveReason.trim() || null;
+    const trimmedReason = reason?.trim() || null;
 
     try {
       const dateExceptions = exceptionsByDate[selectedDate]?.items || [];
@@ -285,6 +291,10 @@ const AvailabilityExceptions = () => {
     }
   };
 
+  const handleSaveConfirm = () => {
+    performSave(saveReason);
+  };
+
   const handleSaveCancel = () => {
     setSaveModalOpen(false);
   };
@@ -315,7 +325,8 @@ const AvailabilityExceptions = () => {
         <div className="min-w-0">
           <button
             onClick={() => navigate("/provider-availabilities")}
-            className="mb-2 inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-ink-500 hover:text-ink-700"
+            disabled={isSaving}
+            className="mb-2 inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-ink-500 hover:text-ink-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <FiArrowLeft className="h-3.5 w-3.5" />
             Back to Availabilities
@@ -422,8 +433,9 @@ const AvailabilityExceptions = () => {
 
       <div className="lg:hidden">
         <button
-          onClick={() => setMobileListOpen((v) => !v)}
-          className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-ink-200 bg-surface px-4 py-3 text-left"
+          onClick={() => !isSaving && setMobileListOpen((v) => !v)}
+          disabled={isSaving}
+          className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-ink-200 bg-surface px-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-60"
         >
           <div className="flex items-center gap-2">
             <FiCalendar className="h-4 w-4 text-ink-500" />
@@ -459,7 +471,8 @@ const AvailabilityExceptions = () => {
               {mobileListOpen && (
                 <button
                   onClick={() => setMobileListOpen(false)}
-                  className="cursor-pointer rounded-md p-1 text-ink-500 hover:bg-ink-100"
+                  disabled={isSaving}
+                  className="cursor-pointer rounded-md p-1 text-ink-500 hover:bg-ink-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <FiX className="h-4 w-4" />
                 </button>
@@ -474,7 +487,8 @@ const AvailabilityExceptions = () => {
                   placeholder="Search date (YYYY-MM)"
                   value={searchDate}
                   onChange={(e) => setSearchDate(e.target.value)}
-                  className="h-8 w-full rounded-md border border-ink-200 bg-surface pl-8 pr-2 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
+                  disabled={isSaving}
+                  className="h-8 w-full rounded-md border border-ink-200 bg-surface pl-8 pr-2 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
             )}
@@ -495,14 +509,20 @@ const AvailabilityExceptions = () => {
                   const info = exceptionsByDate[d.dateStr];
                   const isFullDay = info?.hasFullDay;
                   const hasExceptions = info?.items?.length > 0;
+                  const isDisabled = isSaving;
 
                   return (
                     <button
                       key={d.dateStr}
                       type="button"
                       onClick={() => handleSelectDate(d.dateStr)}
-                      className={`flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors ${
-                        isActive ? "bg-brand-50" : "hover:bg-ink-50"
+                      disabled={isDisabled}
+                      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                        isDisabled
+                          ? ""
+                          : isActive
+                            ? "cursor-pointer bg-brand-50"
+                            : "cursor-pointer hover:bg-ink-50"
                       }`}
                     >
                       <div
@@ -551,9 +571,11 @@ const AvailabilityExceptions = () => {
                   <button
                     type="button"
                     onClick={() =>
+                      !isSaving &&
                       setVisibleDatesCount((c) => c + LOAD_MORE_INCREMENT)
                     }
-                    className="mt-2 w-full cursor-pointer rounded-md border border-dashed border-ink-200 bg-surface py-2 text-xs font-medium text-ink-600 hover:bg-ink-50"
+                    disabled={isSaving}
+                    className="mt-2 w-full cursor-pointer rounded-md border border-dashed border-ink-200 bg-surface py-2 text-xs font-medium text-ink-600 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Load more dates ({filteredDates.length - visibleDatesCount}{" "}
                     remaining)
@@ -589,9 +611,9 @@ const AvailabilityExceptions = () => {
                       <button
                         type="button"
                         onClick={selectAll}
-                        disabled={isAllBlocked}
+                        disabled={isAllBlocked || isSaving}
                         className={`flex-1 rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition sm:flex-none sm:px-3 sm:text-xs ${
-                          isAllBlocked
+                          isAllBlocked || isSaving
                             ? "cursor-not-allowed border-ink-100 bg-ink-50 text-ink-400"
                             : "cursor-pointer border-ink-200 bg-surface text-ink-600 hover:bg-ink-50"
                         }`}
@@ -601,9 +623,9 @@ const AvailabilityExceptions = () => {
                       <button
                         type="button"
                         onClick={clearAll}
-                        disabled={isNoneBlocked}
+                        disabled={isNoneBlocked || isSaving}
                         className={`flex-1 rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition sm:flex-none sm:px-3 sm:text-xs ${
-                          isNoneBlocked
+                          isNoneBlocked || isSaving
                             ? "cursor-not-allowed border-ink-100 bg-ink-50 text-ink-400"
                             : "cursor-pointer border-ink-200 bg-surface text-ink-600 hover:bg-ink-50"
                         }`}
@@ -661,10 +683,13 @@ const AvailabilityExceptions = () => {
                             key={idx}
                             type="button"
                             onClick={() => toggleSlot(idx)}
+                            disabled={isSaving}
                             className={`flex flex-col gap-1 rounded-lg border p-2.5 text-left transition sm:p-3 ${
-                              isBlocked
-                                ? "cursor-pointer border-danger-200 bg-danger-50 hover:bg-danger-100"
-                                : "cursor-pointer border-ink-200 bg-surface hover:border-brand-200 hover:bg-brand-50/40"
+                              isSaving
+                                ? "cursor-not-allowed opacity-60"
+                                : isBlocked
+                                  ? "cursor-pointer border-danger-200 bg-danger-50 hover:bg-danger-100"
+                                  : "cursor-pointer border-ink-200 bg-surface hover:border-brand-200 hover:bg-brand-50/40"
                             }`}
                           >
                             <div className="flex items-center justify-between gap-1">
@@ -720,7 +745,7 @@ const AvailabilityExceptions = () => {
                         </span>
                       </div>
                       <p className="ml-auto text-[11px] text-ink-500">
-                        Click a slot to toggle
+                        {isSaving ? "Saving…" : "Click a slot to toggle"}
                       </p>
                     </div>
                   </>
@@ -735,7 +760,7 @@ const AvailabilityExceptions = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50"
-            onClick={handleSaveCancel}
+            onClick={isSaving ? undefined : handleSaveCancel}
           />
 
           <div className="relative z-10 w-full max-w-md overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xl">
@@ -756,7 +781,8 @@ const AvailabilityExceptions = () => {
               <button
                 type="button"
                 onClick={handleSaveCancel}
-                className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50"
+                disabled={isSaving}
+                className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FiX className="h-4 w-4" />
               </button>
@@ -780,7 +806,8 @@ const AvailabilityExceptions = () => {
                   onChange={(e) => setSaveReason(e.target.value)}
                   placeholder="e.g. Doctor unavailable"
                   autoFocus
-                  className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                  disabled={isSaving}
+                  className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <p className="mt-1 text-[11px] text-ink-500">
                   This reason will be shown against all blocked slots for this
@@ -793,7 +820,8 @@ const AvailabilityExceptions = () => {
               <button
                 type="button"
                 onClick={handleSaveCancel}
-                className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50"
+                disabled={isSaving}
+                className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
