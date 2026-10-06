@@ -35,10 +35,9 @@ const AvailabilityWizard = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [maxReached, setMaxReached] = useState(1);
   const [previewData, setPreviewData] = useState(null);
+  const [previewSnapshot, setPreviewSnapshot] = useState(null);
   const [prefilled, setPrefilled] = useState(!isEdit);
 
-  // Store the selected appointment type's default values separately
-  // so Step3 can enforce limits
   const [appointmentTypeDefaults, setAppointmentTypeDefaults] = useState({
     slot_duration: null,
     capacity: null,
@@ -62,7 +61,6 @@ const AvailabilityWizard = () => {
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
-  // Prefill form when editing
   useEffect(() => {
     if (!isEdit) return;
     if (!existingData) return;
@@ -95,7 +93,6 @@ const AvailabilityWizard = () => {
       capacity: existingData.capacity || 1,
     });
 
-    // In edit mode — all steps reachable
     setMaxReached(4);
     setPrefilled(true);
   }, [isEdit, existingData, roles, prefilled]);
@@ -109,10 +106,14 @@ const AvailabilityWizard = () => {
   const handleBack = () => setCurrentStep((s) => Math.max(1, s - 1));
 
   const handleStepClick = (stepNum) => {
-    // Allow jumping to any step <= maxReached
     if (stepNum <= maxReached && stepNum !== currentStep) {
       setCurrentStep(stepNum);
     }
+  };
+
+  const handleEditSchedule = () => {
+    // Navigate back to Step 3 (Schedule)
+    setCurrentStep(3);
   };
 
   const handleClose = () => navigate("/provider-availabilities");
@@ -193,7 +194,10 @@ const AvailabilityWizard = () => {
             formData={formData}
             previewData={previewData}
             setPreviewData={setPreviewData}
+            previewSnapshot={previewSnapshot}
+            setPreviewSnapshot={setPreviewSnapshot}
             onBack={handleBack}
+            onEditSchedule={handleEditSchedule}
             onSave={handleSave}
             isSaving={isSaving}
             isEdit={isEdit}
