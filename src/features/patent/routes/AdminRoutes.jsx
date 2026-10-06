@@ -8,9 +8,6 @@ import ThemePreview from "../../../ThemePreview";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import VerifyEmail from "../pages/auth/VerifyEmail";
-import Appointment from "../pages/appointment/Appointment";
-import AddAppointment from "../pages/appointment/components/AddAppointment";
-import DoctorSlots from "../pages/dashboad/components/DoctroSlots";
 
 import SpecializationList from "../pages/specializations/SpecializationList";
 import RoleList from "../pages/roles/RoleList";
@@ -24,10 +21,15 @@ import AvailabilityWizard from "../pages/providerAvailability/AvailabilityWizard
 import AvailabilityView from "../pages/providerAvailability/AvailabilityView";
 import AvailabilityExceptions from "../pages/providerAvailability/AvailabilityExceptions";
 
+import AppointmentList from "../pages/appointments/AppointmentList";
+import AppointmentBooking from "../pages/appointments/AppointmentBooking";
+import AppointmentView from "../pages/appointments/AppointmentView";
+import AppointmentEdit from "../pages/appointments/AppointmentEdit";
+
 import NotFound from "../pages/NotFound";
+import ComingSoon from "../pages/ComingSoon";
 import ProtectedRoute from "./ProtectedRoute";
 import PublicRoute from "./PublicRoute";
-import ComingSoon from "../pages/ComingSoon";
 
 const AdminRoutes = () => {
   return (
@@ -45,25 +47,20 @@ const AdminRoutes = () => {
           {/* Default redirect */}
           <Route index element={<Navigate to="/dashboard" replace />} />
 
-          {/* Dashboard */}
+          {/* ==================== Dashboard ==================== */}
           <Route path="dashboard" element={<ComingSoon />} />
-          <Route path="dashboard/add-slot" element={<DoctorSlots />} />
           <Route path="theme-preview" element={<ThemePreview />} />
 
-          {/* Clinical */}
-          <Route path="appointment" element={<ComingSoon />} />
-          <Route path="appointment/add" element={<AddAppointment />} />
+          {/* ==================== Clinical ==================== */}
           <Route path="patients" element={<PatientList />} />
 
-          {/* Masters */}
-          <Route path="specializations" element={<SpecializationList />} />
-          <Route path="appointment-types" element={<AppointmentTypeList />} />
+          {/* ==================== Appointments ==================== */}
+          <Route path="appointments" element={<AppointmentList />} />
+          <Route path="appointments/book" element={<AppointmentBooking />} />
+          <Route path="appointments/:id" element={<AppointmentView />} />
+          <Route path="appointments/:id/edit" element={<AppointmentEdit />} />
 
-          {/* Team */}
-          <Route path="roles" element={<RoleList />} />
-          <Route path="staff" element={<StaffList />} />
-
-          {/* Provider Availability */}
+          {/* ==================== Provider Availability ==================== */}
           <Route
             path="provider-availabilities"
             element={<AvailabilityList />}
@@ -85,7 +82,15 @@ const AdminRoutes = () => {
             element={<AvailabilityExceptions />}
           />
 
-          {/* Operations */}
+          {/* ==================== Team ==================== */}
+          <Route path="staff" element={<StaffList />} />
+          <Route path="roles" element={<RoleList />} />
+
+          {/* ==================== Masters ==================== */}
+          <Route path="specializations" element={<SpecializationList />} />
+          <Route path="appointment-types" element={<AppointmentTypeList />} />
+
+          {/* ==================== Operations ==================== */}
           <Route path="settings" element={<SettingsPage />} />
 
           {/* ==================== 404 FALLBACK ==================== */}
@@ -94,7 +99,6 @@ const AdminRoutes = () => {
       </Route>
 
       {/* ==================== GLOBAL 404 ==================== */}
-      {/* For routes outside layout (or if user hits unknown route while not in app) */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
