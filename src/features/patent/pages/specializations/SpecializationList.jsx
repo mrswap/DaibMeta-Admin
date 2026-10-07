@@ -198,6 +198,7 @@ const SpecializationList = () => {
             type="text"
             placeholder="Search specialization..."
             value={search}
+            maxLength={150}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);

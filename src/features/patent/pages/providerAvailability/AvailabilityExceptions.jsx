@@ -486,6 +486,7 @@ const AvailabilityExceptions = () => {
                   type="text"
                   placeholder="Search date (YYYY-MM)"
                   value={searchDate}
+                  maxLength={7}
                   onChange={(e) => setSearchDate(e.target.value)}
                   disabled={isSaving}
                   className="h-8 w-full rounded-md border border-ink-200 bg-surface pl-8 pr-2 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
@@ -803,6 +804,7 @@ const AvailabilityExceptions = () => {
                 <input
                   type="text"
                   value={saveReason}
+                  maxLength={500}
                   onChange={(e) => setSaveReason(e.target.value)}
                   placeholder="e.g. Doctor unavailable"
                   autoFocus

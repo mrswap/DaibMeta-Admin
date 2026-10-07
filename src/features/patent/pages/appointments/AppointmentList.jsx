@@ -20,7 +20,7 @@ import {
 import AppointmentStatusBadge from "./components/AppointmentStatusBadge";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
-import { FilterSelect } from "../../common/form";
+import { FilterSelect, DatePicker } from "../../common/form";
 
 const STATUS_OPTIONS = APPOINTMENT_STATUSES.map((s) => ({
   value: s.value,
@@ -159,6 +159,7 @@ const AppointmentList = () => {
               type="text"
               placeholder="Search by name, mobile..."
               value={search}
+              maxLength={150}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setPage(1);
@@ -233,14 +234,16 @@ const AppointmentList = () => {
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Date From
                 </label>
-                <input
-                  type="date"
+                <DatePicker
+                  name="date_from"
+                  isFormik={false}
                   value={dateFromFilter}
-                  onChange={(e) => {
-                    setDateFromFilter(e.target.value);
+                  onChange={(v) => {
+                    setDateFromFilter(v || "");
                     setPage(1);
                   }}
-                  className="h-10 w-full rounded-lg border border-form-border bg-surface px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                  placeholder="From date"
+                  max={dateToFilter || ""}
                 />
               </div>
 
@@ -248,14 +251,16 @@ const AppointmentList = () => {
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Date To
                 </label>
-                <input
-                  type="date"
+                <DatePicker
+                  name="date_to"
+                  isFormik={false}
                   value={dateToFilter}
-                  onChange={(e) => {
-                    setDateToFilter(e.target.value);
+                  onChange={(v) => {
+                    setDateToFilter(v || "");
                     setPage(1);
                   }}
-                  className="h-10 w-full rounded-lg border border-form-border bg-surface px-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                  placeholder="To date"
+                  min={dateFromFilter || ""}
                 />
               </div>
             </div>

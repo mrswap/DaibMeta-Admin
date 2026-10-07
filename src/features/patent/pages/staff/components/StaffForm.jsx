@@ -10,6 +10,8 @@ import {
   MultiSelectField,
   FormButton,
   ToggleSwitch,
+  PhoneInputField,
+  validatePhone,
 } from "../../../common/form";
 
 const StaffForm = ({ open, onClose, initialData }) => {
@@ -87,13 +89,16 @@ const StaffForm = ({ open, onClose, initialData }) => {
     phone: Yup.string()
       .trim()
       .required("Phone is required")
-      .matches(/^[0-9+\-\s()]*$/, "Invalid phone number")
-      .max(20, "Max 20 characters"),
+      .test("phone", "Invalid phone number", validatePhone),
     password: isEdit
-      ? Yup.string().nullable().min(8, "Min 8 characters")
+      ? Yup.string()
+          .nullable()
+          .min(8, "Min 8 characters")
+          .max(128, "Max 128 characters")
       : Yup.string()
           .required("Password is required")
-          .min(8, "Min 8 characters"),
+          .min(8, "Min 8 characters")
+          .max(128, "Max 128 characters"),
     password_confirmation: isEdit
       ? Yup.string()
           .nullable()
@@ -166,6 +171,7 @@ const StaffForm = ({ open, onClose, initialData }) => {
                   label="Full Name"
                   name="name"
                   placeholder="e.g. Dr. Rakesh Gupta"
+                  maxLength={150}
                   required
                 />
               </div>
@@ -175,13 +181,15 @@ const StaffForm = ({ open, onClose, initialData }) => {
                 name="email"
                 type="email"
                 placeholder="staff@example.com"
+                maxLength={150}
                 required
               />
 
-              <TextInput
+              <PhoneInputField
                 label="Phone"
                 name="phone"
-                placeholder="+91 98765 43210"
+                placeholder="Enter phone number"
+                defaultCountry="IN"
                 required
               />
 
@@ -202,6 +210,7 @@ const StaffForm = ({ open, onClose, initialData }) => {
                 name="password"
                 type="password"
                 placeholder={isEdit ? "Leave blank" : "Min 8 characters"}
+                maxLength={128}
                 required={!isEdit}
               />
 
@@ -210,6 +219,7 @@ const StaffForm = ({ open, onClose, initialData }) => {
                 name="password_confirmation"
                 type="password"
                 placeholder="Re-enter password"
+                maxLength={128}
                 required={!isEdit}
               />
             </div>

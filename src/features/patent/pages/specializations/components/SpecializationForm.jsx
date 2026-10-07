@@ -63,7 +63,7 @@ const SpecializationForm = ({ open, onClose, initialData }) => {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-ink-500 hover:bg-ink-50 hover:text-ink-900"
+            className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50 hover:text-ink-900"
           >
             <FiX className="h-5 w-5" />
           </button>
@@ -71,6 +71,7 @@ const SpecializationForm = ({ open, onClose, initialData }) => {
 
         {/* Body */}
         <Formik
+          key={initialData?.id || "new"}
           initialValues={initialValues}
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
@@ -81,6 +82,7 @@ const SpecializationForm = ({ open, onClose, initialData }) => {
               label="Specialization Name"
               name="name"
               placeholder="e.g. Internal Medicine"
+              maxLength={150}
               required
             />
 
@@ -89,6 +91,7 @@ const SpecializationForm = ({ open, onClose, initialData }) => {
               name="description"
               rows={4}
               placeholder="Short description..."
+              maxLength={500}
             />
 
             <ToggleSwitch
@@ -103,7 +106,7 @@ const SpecializationForm = ({ open, onClose, initialData }) => {
                 type="button"
                 onClick={onClose}
                 disabled={isPending}
-                className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-60"
+                className="cursor-pointer rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>

@@ -243,6 +243,7 @@ const StaffList = () => {
             type="text"
             placeholder="Search name, email, phone..."
             value={search}
+            maxLength={150}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);

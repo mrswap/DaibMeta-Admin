@@ -18,6 +18,7 @@ const RoleFormInner = ({ onClose, isEdit, isSystem, isPending }) => {
         label="Role Name"
         name="name"
         placeholder="e.g. receptionist"
+        maxLength={150}
         required
         isDisabled={isSystem}
       />
@@ -29,6 +30,7 @@ const RoleFormInner = ({ onClose, isEdit, isSystem, isPending }) => {
         label="Display Label"
         name="label"
         placeholder="e.g. Receptionist"
+        maxLength={150}
         required
       />
 
@@ -37,6 +39,7 @@ const RoleFormInner = ({ onClose, isEdit, isSystem, isPending }) => {
         name="description"
         rows={3}
         placeholder="Short description..."
+        maxLength={500}
       />
 
       <TextInput
@@ -64,7 +67,7 @@ const RoleFormInner = ({ onClose, isEdit, isSystem, isPending }) => {
           type="button"
           onClick={onClose}
           disabled={isPending}
-          className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-60"
+          className="cursor-pointer rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Cancel
         </button>
@@ -111,7 +114,7 @@ const RoleForm = ({ open, onClose, initialData }) => {
     name: Yup.string()
       .trim()
       .required("Role name is required")
-      .max(100, "Max 100 characters")
+      .max(150, "Max 150 characters")
       .matches(
         /^[a-z0-9]+(?:_[a-z0-9]+)*$/,
         "Only lowercase letters, numbers and underscores allowed",
@@ -166,7 +169,7 @@ const RoleForm = ({ open, onClose, initialData }) => {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-ink-500 hover:bg-ink-50 hover:text-ink-900"
+            className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50 hover:text-ink-900"
           >
             <FiX className="h-5 w-5" />
           </button>

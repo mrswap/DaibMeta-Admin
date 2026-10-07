@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { FiArrowLeft, FiEye } from "react-icons/fi";
+import { DatePicker } from "../../../common/form";
 
 const DAYS = [
   { value: 1, label: "Monday", short: "Mon" },
@@ -124,35 +125,40 @@ const Step3Schedule = ({
 
       {/* Date Range */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-form-label">
-            Available From <span className="text-form-required">*</span>
-          </label>
-          <input
-            type="date"
-            value={formData.date_from || ""}
-            onChange={(e) => updateField("date_from", e.target.value)}
-            className={inputCls}
-          />
-          {errors.date_from && (
-            <p className="mt-1 text-xs text-form-error">{errors.date_from}</p>
-          )}
-        </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-form-label">
-            Available Until <span className="text-form-required">*</span>
-          </label>
-          <input
-            type="date"
-            value={formData.date_to || ""}
-            onChange={(e) => updateField("date_to", e.target.value)}
-            className={inputCls}
-          />
-          {errors.date_to && (
-            <p className="mt-1 text-xs text-form-error">{errors.date_to}</p>
-          )}
-        </div>
+        <DatePicker
+          label="Available From"
+          name="date_from"
+          isFormik={false}
+          value={formData.date_from || ""}
+          onChange={(v) => updateField("date_from", v || "")}
+          placeholder="Select start date"
+          max={formData.date_to || ""}
+          required
+        />
+
+        <DatePicker
+          label="Available Until"
+          name="date_to"
+          isFormik={false}
+          value={formData.date_to || ""}
+          onChange={(v) => updateField("date_to", v || "")}
+          placeholder="Select end date"
+          min={formData.date_from || ""}
+          required
+        />
       </div>
+
+      {/* Date errors (from validate) */}
+      {(errors.date_from || errors.date_to) && (
+        <div className="-mt-3 space-y-0.5">
+          {errors.date_from && (
+            <p className="text-xs text-form-error">{errors.date_from}</p>
+          )}
+          {errors.date_to && (
+            <p className="text-xs text-form-error">{errors.date_to}</p>
+          )}
+        </div>
+      )}
 
       {/* Available Days */}
       <div>

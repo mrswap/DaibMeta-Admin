@@ -18,7 +18,7 @@ const SpecializationView = ({ open, onClose, id }) => {
           </h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-ink-500 hover:bg-ink-50 hover:text-ink-900"
+            className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50 hover:text-ink-900"
           >
             <FiX className="h-5 w-5" />
           </button>
@@ -68,7 +68,7 @@ const SpecializationView = ({ open, onClose, id }) => {
         <div className="flex justify-end border-t border-ink-100 px-5 py-4">
           <button
             onClick={onClose}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+            className="cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
           >
             Close
           </button>

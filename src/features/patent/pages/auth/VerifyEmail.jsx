@@ -104,7 +104,7 @@ const VerifyEmail = ({ phone = "+91 98201 •••21" }) => {
 
         <a
           href="/register"
-          className="mb-4 inline-flex items-center gap-1 text-[13px] text-ink-600 hover:text-brand-700"
+          className="mb-4 inline-flex cursor-pointer items-center gap-1 text-[13px] text-ink-600 hover:text-brand-700"
         >
           <MdArrowBack size={16} />
           Back
@@ -173,7 +173,7 @@ const VerifyEmail = ({ phone = "+91 98201 •••21" }) => {
                 type="button"
                 disabled={!canResend}
                 onClick={() => handleResend("sms")}
-                className="text-brand-700 hover:underline disabled:cursor-not-allowed disabled:text-ink-400 disabled:no-underline"
+                className="cursor-pointer text-brand-700 hover:underline disabled:cursor-not-allowed disabled:text-ink-400 disabled:no-underline"
               >
                 SMS
               </button>
@@ -181,7 +181,7 @@ const VerifyEmail = ({ phone = "+91 98201 •••21" }) => {
                 type="button"
                 disabled={!canResend}
                 onClick={() => handleResend("whatsapp")}
-                className="text-brand-700 hover:underline disabled:cursor-not-allowed disabled:text-ink-400 disabled:no-underline"
+                className="cursor-pointer text-brand-700 hover:underline disabled:cursor-not-allowed disabled:text-ink-400 disabled:no-underline"
               >
                 WhatsApp
               </button>
@@ -192,7 +192,7 @@ const VerifyEmail = ({ phone = "+91 98201 •••21" }) => {
             type="submit"
             disabled={loading}
             onClick={handleVerify}
-            className="h-11 w-full rounded-lg bg-brand-600 text-sm font-semibold text-surface transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
+            className="h-11 w-full cursor-pointer rounded-lg bg-brand-600 text-sm font-semibold text-surface transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Verifying..." : "Verify & Continue"}
           </button>

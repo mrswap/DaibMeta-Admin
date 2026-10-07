@@ -4,6 +4,7 @@ import {
   useCreateException,
   useUpdateException,
 } from "../../../queries/availabilityExceptions";
+import { DatePicker } from "../../../common/form";
 
 // ==================== TIME HELPERS ====================
 const timeToMinutes = (time) => {
@@ -331,35 +332,33 @@ const ExceptionForm = ({
 
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
           {/* Date */}
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-form-label">
-              Date <span className="text-form-required">*</span>
-            </label>
-            <input
-              type="date"
-              value={form.exception_date}
-              min={dateMin}
-              max={dateMax}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  exception_date: e.target.value,
-                  selectedSlotIndices: [], // reset on date change
-                })
-              }
-              className={inputCls}
-            />
-            {dateMin && dateMax && (
-              <div className="mt-1.5 flex items-center gap-1.5">
-                <FiAlertCircle className="h-3 w-3 text-ink-400" />
-                <p className="text-[11px] text-ink-500">
-                  Only dates between{" "}
-                  <strong className="text-ink-700">{formatDateRange()}</strong>{" "}
-                  can be selected
-                </p>
-              </div>
-            )}
-          </div>
+          <DatePicker
+            label="Date"
+            name="exception_date"
+            isFormik={false}
+            value={form.exception_date}
+            onChange={(v) =>
+              setForm({
+                ...form,
+                exception_date: v || "",
+                selectedSlotIndices: [], // reset on date change
+              })
+            }
+            placeholder="Select date"
+            min={dateMin}
+            max={dateMax}
+            required
+          />
+          {dateMin && dateMax && (
+            <div className="-mt-2 flex items-center gap-1.5">
+              <FiAlertCircle className="h-3 w-3 text-ink-400" />
+              <p className="text-[11px] text-ink-500">
+                Only dates between{" "}
+                <strong className="text-ink-700">{formatDateRange()}</strong>{" "}
+                can be selected
+              </p>
+            </div>
+          )}
 
           {/* Full day blocked warning */}
           {form.exception_date && blockedSlotsForDate.fullDay && (
@@ -571,6 +570,7 @@ const ExceptionForm = ({
               type="text"
               placeholder="e.g. Doctor on leave"
               value={form.reason}
+              maxLength={500}
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
               className={inputCls}
             />

@@ -64,7 +64,7 @@ const AppointmentTypeForm = ({ open, onClose, initialData }) => {
     name: Yup.string()
       .trim()
       .required("Appointment type name is required")
-      .max(255, "Max 255 characters"),
+      .max(150, "Max 150 characters"),
     description: Yup.string().nullable(),
     duration: Yup.number()
       .typeError("Duration must be a number")
@@ -145,6 +145,7 @@ const AppointmentTypeForm = ({ open, onClose, initialData }) => {
                   label="Appointment Type Name"
                   name="name"
                   placeholder="e.g. General Physician Appointment"
+                  maxLength={150}
                   required
                 />
               </div>
@@ -156,6 +157,7 @@ const AppointmentTypeForm = ({ open, onClose, initialData }) => {
                   name="description"
                   rows={3}
                   placeholder="Short description..."
+                  maxLength={500}
                 />
               </div>
 
