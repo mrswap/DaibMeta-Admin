@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiClock,
@@ -35,6 +35,31 @@ const Step2AppointmentType = ({
     (a) => a.id === formData.appointment_type_id?.value,
   );
 
+  // ==================== AUTO-SELECT SINGLE APPOINTMENT TYPE ====================
+  // Agar provider ke liye sirf 1 appointment type hai → auto-select + lock
+  const isTypeLocked = !isFetching && list.length === 1;
+
+  const autoSelectDone = useRef(false);
+
+  useEffect(() => {
+    if (!isTypeLocked) return;
+    const onlyType = list[0];
+    const currentVal = formData.appointment_type_id;
+
+    // Only auto-select once per mount
+    if (!currentVal || currentVal.value !== onlyType.id) {
+      setFormData((prev) => ({
+        ...prev,
+        appointment_type_id: {
+          value: onlyType.id,
+          label: `${onlyType.name} — ${onlyType.duration} min`,
+        },
+      }));
+      autoSelectDone.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTypeLocked, list.length]);
+
   // Auto-update slot_duration and capacity when appointment type is selected
   useEffect(() => {
     if (!selectedType) return;
@@ -42,15 +67,12 @@ const Step2AppointmentType = ({
     const defaultDuration = selectedType.duration || 15;
     const defaultCapacity = selectedType.capacity || 1;
 
-    // Only auto-fill if the field hasn't been touched OR is empty
-    // (to avoid overwriting user's manual values when they come back)
     setFormData((prev) => ({
       ...prev,
       slot_duration: defaultDuration,
       capacity: defaultCapacity,
     }));
 
-    // Pass defaults to parent for Step 3's max-limit enforcement
     if (setAppointmentTypeDefaults) {
       setAppointmentTypeDefaults({
         slot_duration: defaultDuration,
@@ -93,9 +115,14 @@ const Step2AppointmentType = ({
                 ? "No appointment types available"
                 : "Select appointment type..."
           }
-          isDisabled={isFetching || hasNoAppointmentTypes}
-          isClearable
+          isDisabled={isFetching || hasNoAppointmentTypes || isTypeLocked}
+          isClearable={!isTypeLocked}
         />
+        {isTypeLocked && (
+          <p className="mt-1 text-[11px] text-ink-500">
+            Only one appointment type available for this role.
+          </p>
+        )}
       </div>
 
       {isFetching && (

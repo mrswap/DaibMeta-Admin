@@ -1,32 +1,25 @@
-import { Formik, Form } from "formik";
-import * as Yup from "yup";
+import { useState, useRef, useEffect } from "react";
 import { FiX } from "react-icons/fi";
 import {
   useCreateAppointmentType,
   useUpdateAppointmentType,
+  useAppointmentTypeProviders,
 } from "../../../queries/appointmentTypes";
 import { useRoles } from "../../../queries/roles";
-import {
-  TextInput,
-  TextareaField,
-  SelectField,
-  FormButton,
-  ToggleSwitch,
-} from "../../../common/form";
+import { TextInput, FormButton, FilterSelect } from "../../../common/form";
 
-// Backend allowed roles (Doc point 3)
+// Backend allowed roles (Doc point 4)
 const ALLOWED_ROLE_NAMES = ["doctor", "dietitian", "pathologist", "guest"];
 
+// ==================== MAIN FORM ====================
 const AppointmentTypeForm = ({ open, onClose, initialData }) => {
   const isEdit = !!initialData;
   const createMutation = useCreateAppointmentType();
   const updateMutation = useUpdateAppointmentType();
 
-  // Roles dropdown
+  // ==================== ROLES ====================
   const { data: rolesData } = useRoles({ per_page: 100 });
   const allRoles = rolesData?.list || [];
-
-  // Filter only allowed roles
   const allowedRoles = allRoles.filter((r) =>
     ALLOWED_ROLE_NAMES.includes(r.name),
   );
@@ -36,57 +29,134 @@ const AppointmentTypeForm = ({ open, onClose, initialData }) => {
     label: `${r.label} (${r.name})`,
   }));
 
-  if (!open) return null;
+  // ==================== LOCAL STATE ====================
+  const [selectedRoleId, setSelectedRoleId] = useState(null);
+  const [selectedProvider, setSelectedProvider] = useState(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [duration, setDuration] = useState(15);
+  const [capacity, setCapacity] = useState(1);
+  const [status, setStatus] = useState(true);
+  const [errors, setErrors] = useState({});
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isInitialMount = useRef(true);
 
-  // Edit mode ke liye role object nikaalo
-  const getRoleObject = () => {
-    const roleId = initialData?.role_id || initialData?.role?.id;
-    if (!roleId) return null;
-    const roleObj = allowedRoles.find((r) => r.id === roleId);
-    return roleObj
-      ? { value: roleObj.id, label: `${roleObj.label} (${roleObj.name})` }
-      : null;
+  // ==================== SYNC INITIAL DATA ====================
+  useEffect(() => {
+    if (!open) return;
+
+    if (initialData) {
+      const roleObj = allowedRoles.find(
+        (r) => r.id === (initialData.role_id || initialData.role?.id),
+      );
+      setSelectedRoleId(
+        roleObj
+          ? { value: roleObj.id, label: `${roleObj.label} (${roleObj.name})` }
+          : null,
+      );
+      setName(initialData.name || "");
+      setDescription(initialData.description || "");
+      setDuration(initialData.duration || 15);
+      setCapacity(initialData.capacity || 1);
+      setStatus(initialData.status ?? true);
+    } else {
+      setSelectedRoleId(null);
+      setSelectedProvider(null);
+      setName("");
+      setDescription("");
+      setDuration(15);
+      setCapacity(1);
+      setStatus(true);
+    }
+    setErrors({});
+    isInitialMount.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialData]);
+
+  // ==================== PROVIDERS FETCH ====================
+  const { data: providers = [], isFetching: loadingProviders } =
+    useAppointmentTypeProviders(
+      selectedRoleId?.value,
+      isEdit ? initialData?.id : null,
+    );
+
+  // ==================== PRE-FILL PROVIDER ON EDIT ====================
+  useEffect(() => {
+    if (!isEdit) return;
+    if (!providers || providers.length === 0) return;
+    const adminId = initialData?.admin_id || initialData?.provider?.id;
+    if (!adminId) return;
+    const found = providers.find((p) => p.id === adminId);
+    if (found) {
+      setSelectedProvider({
+        value: found.id,
+        label: found.name,
+        isDisabled: found.disabled,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providers, isEdit, initialData]);
+
+  // ==================== PROVIDER OPTIONS ====================
+  const providerOptions = providers.map((p) => ({
+    value: p.id,
+    label: p.disabled
+      ? `${p.name} (${p.disabled_reason || "Already assigned"})`
+      : p.name,
+    isDisabled: p.disabled,
+  }));
+
+  // ==================== RESET PROVIDER WHEN ROLE CHANGES ====================
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    setSelectedProvider(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRoleId?.value]);
+
+  // ==================== HANDLERS ====================
+  const handleRoleChange = (val) => {
+    setSelectedRoleId(val);
   };
 
-  const initialValues = {
-    role_id: getRoleObject(),
-    name: initialData?.name || "",
-    description: initialData?.description || "",
-    duration: initialData?.duration || 15,
-    capacity: initialData?.capacity || 1,
-    status: initialData?.status ?? true,
+  const handleProviderChange = (val) => {
+    if (val?.isDisabled) return;
+    setSelectedProvider(val);
+    if (errors.provider_id) {
+      setErrors((prev) => ({ ...prev, provider_id: "" }));
+    }
   };
 
-  const validationSchema = Yup.object({
-    role_id: Yup.object().nullable().required("Role is required"),
-    name: Yup.string()
-      .trim()
-      .required("Appointment type name is required")
-      .max(150, "Max 150 characters"),
-    description: Yup.string().nullable(),
-    duration: Yup.number()
-      .typeError("Duration must be a number")
-      .required("Duration is required")
-      .integer("Must be a whole number")
-      .min(1, "Minimum 1 minute"),
-    capacity: Yup.number()
-      .typeError("Capacity must be a number")
-      .required("Capacity is required")
-      .integer("Must be a whole number")
-      .min(1, "Minimum 1"),
-    status: Yup.boolean(),
-  });
+  // ==================== VALIDATION ====================
+  const validate = () => {
+    const e = {};
+    if (!selectedRoleId?.value) e.role_id = "Role is required";
+    if (!selectedProvider?.value) e.provider_id = "Provider is required";
+    if (!name.trim()) e.name = "Appointment type name is required";
+    else if (name.trim().length > 150) e.name = "Max 150 characters";
+    if (!duration || Number(duration) < 1)
+      e.duration = "Duration must be at least 1 minute";
+    if (!capacity || Number(capacity) < 1)
+      e.capacity = "Capacity must be at least 1";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
-  const handleSubmit = (values) => {
+  // ==================== SUBMIT ====================
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+
     const payload = {
-      role_id: values.role_id?.value,
-      name: values.name.trim(),
-      description: values.description?.trim() || null,
-      duration: Number(values.duration),
-      capacity: Number(values.capacity),
-      status: values.status,
+      role_id: selectedRoleId?.value,
+      admin_id: selectedProvider?.value,
+      name: name.trim(),
+      description: description?.trim() || null,
+      duration: Number(duration),
+      capacity: Number(capacity),
+      status: status,
     };
 
     const mutation = isEdit
@@ -95,6 +165,11 @@ const AppointmentTypeForm = ({ open, onClose, initialData }) => {
 
     mutation.then(() => onClose()).catch(() => {});
   };
+
+  if (!open) return null;
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+  const hasRoleSelected = !!selectedRoleId?.value;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -116,104 +191,187 @@ const AppointmentTypeForm = ({ open, onClose, initialData }) => {
         </div>
 
         {/* Body */}
-        <Formik
-          key={initialData?.id || "new"}
-          initialValues={initialValues}
-          validationSchema={validationSchema}
-          onSubmit={handleSubmit}
-          enableReinitialize
-        >
-          <Form className="px-5 py-5">
-            <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-              {/* Role */}
-              <div className="sm:col-span-2">
-                <SelectField
-                  label="Provider Role"
-                  name="role_id"
-                  options={roleOptions}
-                  placeholder="Select role..."
-                  required
-                />
-                <p className="-mt-2 mb-3 text-xs text-form-help">
-                  Only Doctor, Dietitian, Pathologist & Guest roles allowed
+        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+            {/* Role */}
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-xs font-medium text-form-label">
+                Provider Role <span className="text-form-required">*</span>
+              </label>
+              <FilterSelect
+                value={selectedRoleId}
+                onChange={handleRoleChange}
+                options={roleOptions}
+                placeholder="Select role..."
+                isClearable
+              />
+              {errors.role_id && (
+                <p className="mt-1 text-xs text-form-error">{errors.role_id}</p>
+              )}
+            </div>
+
+            {/* Provider */}
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-xs font-medium text-form-label">
+                Provider <span className="text-form-required">*</span>
+              </label>
+              <FilterSelect
+                value={selectedProvider}
+                onChange={handleProviderChange}
+                options={providerOptions}
+                placeholder={
+                  !hasRoleSelected
+                    ? "Select role first"
+                    : loadingProviders
+                      ? "Loading providers..."
+                      : providerOptions.length === 0
+                        ? "No providers available"
+                        : "Select provider..."
+                }
+                isDisabled={
+                  !hasRoleSelected ||
+                  loadingProviders ||
+                  providerOptions.length === 0
+                }
+                isClearable
+                isOptionDisabled={(opt) => opt.isDisabled}
+              />
+              {errors.provider_id && (
+                <p className="mt-1 text-xs text-form-error">
+                  {errors.provider_id}
                 </p>
-              </div>
+              )}
+            </div>
 
-              {/* Name */}
-              <div className="sm:col-span-2">
-                <TextInput
-                  label="Appointment Type Name"
-                  name="name"
-                  placeholder="e.g. General Physician Appointment"
-                  maxLength={150}
-                  required
-                />
-              </div>
-
-              {/* Description */}
-              <div className="sm:col-span-2">
-                <TextareaField
-                  label="Description"
-                  name="description"
-                  rows={3}
-                  placeholder="Short description..."
-                  maxLength={500}
-                />
-              </div>
-
-              {/* Duration */}
+            {/* Name */}
+            <div className="sm:col-span-2">
               <TextInput
-                label="Duration (minutes)"
-                name="duration"
+                label="Appointment Type Name"
+                name="at_name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                isFormik={false}
+                placeholder="e.g. General Physician Appointment"
+                maxLength={150}
+                required
+              />
+              {errors.name && (
+                <p className="mt-1 text-xs text-form-error">{errors.name}</p>
+              )}
+            </div>
+
+            {/* Description */}
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-xs font-medium text-form-label">
+                Description
+              </label>
+              <textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={500}
+                placeholder="Short description..."
+                className="w-full resize-y rounded-lg border border-ink-200 bg-surface px-3 py-2 text-sm text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+              />
+            </div>
+
+            {/* Duration */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-form-label">
+                Duration (minutes) <span className="text-form-required">*</span>
+              </label>
+              <input
                 type="number"
+                min={1}
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
                 placeholder="e.g. 15"
-                required
+                className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm outline-none transition hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
               />
+              {errors.duration && (
+                <p className="mt-1 text-xs text-form-error">
+                  {errors.duration}
+                </p>
+              )}
+            </div>
 
-              {/* Capacity */}
-              <TextInput
-                label="Capacity (patients per slot)"
-                name="capacity"
+            {/* Capacity */}
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-form-label">
+                Capacity (patients per slot){" "}
+                <span className="text-form-required">*</span>
+              </label>
+              <input
                 type="number"
+                min={1}
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
                 placeholder="e.g. 1"
-                required
+                className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm outline-none transition hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+              />
+              {errors.capacity && (
+                <p className="mt-1 text-xs text-form-error">
+                  {errors.capacity}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Status Toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-ink-200 bg-surface px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-ink-800">
+                {status ? "Active" : "Inactive"}
+              </p>
+              <p className="text-[11px] text-ink-500">
+                Toggle to activate or deactivate
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={status}
+              onClick={() => setStatus((v) => !v)}
+              disabled={isPending}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                status ? "bg-brand-600" : "bg-ink-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition ${
+                  status ? "translate-x-5" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 border-t border-ink-100 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isPending}
+              className="cursor-pointer rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <div className="w-40">
+              <FormButton
+                type="submit"
+                text={
+                  isPending
+                    ? isEdit
+                      ? "Updating..."
+                      : "Creating..."
+                    : isEdit
+                      ? "Update"
+                      : "Create"
+                }
+                disabled={isPending}
               />
             </div>
-
-            <ToggleSwitch
-              name="status"
-              label="Status"
-              description="Toggle to activate or deactivate"
-            />
-
-            {/* Actions */}
-            <div className="mt-4 flex justify-end gap-3 border-t border-ink-100 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isPending}
-                className="cursor-pointer rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <div className="w-40">
-                <FormButton
-                  type="submit"
-                  text={
-                    isPending
-                      ? isEdit
-                        ? "Updating..."
-                        : "Creating..."
-                      : isEdit
-                        ? "Update"
-                        : "Create"
-                  }
-                  disabled={isPending}
-                />
-              </div>
-            </div>
-          </Form>
-        </Formik>
+          </div>
+        </form>
       </div>
     </div>
   );

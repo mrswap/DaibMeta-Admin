@@ -61,6 +61,35 @@ const Step2Provider = ({ formData, setFormData, onNext, onBack }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoleId?.value]);
 
+  // ==================== AUTO-SELECT SINGLE APPOINTMENT TYPE ====================
+  // Auto-select ONLY after provider is selected
+  const hasProviderSelected = !!formData.provider_id?.value;
+
+  const isTypeLocked =
+    hasProviderSelected &&
+    !!selectedRoleId?.value &&
+    !loadingTypes &&
+    appointmentTypes.length === 1;
+
+  useEffect(() => {
+    if (!isTypeLocked) return;
+    const onlyType = appointmentTypes[0];
+    const currentVal = formData.appointment_type_id;
+
+    if (!currentVal || currentVal.value !== onlyType.id) {
+      setFormData((prev) => ({
+        ...prev,
+        appointment_type_id: {
+          value: onlyType.id,
+          label: `${onlyType.name} — ${onlyType.duration} min`,
+        },
+        appointment_date: "",
+        selected_slot: null,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTypeLocked, appointmentTypes.length]);
+
   const handleRoleChange = (val) => {
     setSelectedRoleId(val);
     setFormData((prev) => ({ ...prev, role_id: val }));
@@ -70,7 +99,8 @@ const Step2Provider = ({ formData, setFormData, onNext, onBack }) => {
     setFormData((prev) => ({
       ...prev,
       provider_id: val,
-      // Reset date/slot on provider change
+      // Reset type on provider change (auto-select will re-trigger)
+      appointment_type_id: null,
       appointment_date: "",
       selected_slot: null,
     }));
@@ -80,7 +110,6 @@ const Step2Provider = ({ formData, setFormData, onNext, onBack }) => {
     setFormData((prev) => ({
       ...prev,
       appointment_type_id: val,
-      // Reset date/slot on type change
       appointment_date: "",
       selected_slot: null,
     }));
@@ -95,7 +124,7 @@ const Step2Provider = ({ formData, setFormData, onNext, onBack }) => {
     <div className="space-y-5">
       <div>
         <h3 className="font-jakarta text-base font-bold text-ink-900">
-          Select Provider & Appointment Type
+          Select Provider &amp; Appointment Type
         </h3>
         <p className="mt-1 text-sm text-ink-500">
           Choose the provider role, provider, and the type of appointment.
@@ -151,17 +180,28 @@ const Step2Provider = ({ formData, setFormData, onNext, onBack }) => {
             placeholder={
               !selectedRoleId
                 ? "Select role first"
-                : loadingTypes
-                  ? "Loading types..."
-                  : appointmentTypes.length === 0
-                    ? "No types available"
-                    : "Select appointment type..."
+                : !hasProviderSelected
+                  ? "Select provider first"
+                  : loadingTypes
+                    ? "Loading types..."
+                    : appointmentTypes.length === 0
+                      ? "No types available"
+                      : "Select appointment type..."
             }
             isDisabled={
-              !selectedRoleId || loadingTypes || appointmentTypes.length === 0
+              !selectedRoleId ||
+              !hasProviderSelected ||
+              loadingTypes ||
+              appointmentTypes.length === 0 ||
+              isTypeLocked
             }
-            isClearable
+            isClearable={!isTypeLocked}
           />
+          {isTypeLocked && (
+            <p className="mt-1 text-[11px] text-ink-500">
+              Only one appointment type available for this provider.
+            </p>
+          )}
         </div>
       </div>
 
