@@ -223,6 +223,7 @@ const AppointmentTypeList = () => {
             type="text"
             placeholder="Search appointment types..."
             value={search}
+            maxLength={150}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);

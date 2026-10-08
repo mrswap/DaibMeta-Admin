@@ -5,6 +5,7 @@ import {
   useUploadFileSetting,
   getFileUrl,
 } from "../../../queries/settings";
+import { PhoneInputField, validatePhone } from "../../../common/form";
 
 const formatLabel = (key) => {
   if (!key) return "";
@@ -18,6 +19,12 @@ const formatLabel = (key) => {
       return word.charAt(0).toUpperCase() + word.slice(1);
     })
     .join(" ");
+};
+
+// Detect if a setting key represents a phone number
+const isPhoneKey = (key) => {
+  if (!key) return false;
+  return /phone|mobile|whatsapp|contact_number|contact_no/i.test(key);
 };
 
 const SettingField = ({ setting, value, onChange }) => {
@@ -48,6 +55,12 @@ const SettingField = ({ setting, value, onChange }) => {
       return <FileField setting={setting} value={value} />;
     case "string":
     default:
+      // Phone-like keys get the PhoneInputField treatment
+      if (isPhoneKey(setting.key)) {
+        return (
+          <PhoneField setting={setting} value={value} onChange={onChange} />
+        );
+      }
       return (
         <StringField setting={setting} value={value} onChange={onChange} />
       );
@@ -82,11 +95,25 @@ const StringField = ({ setting, value, onChange }) => (
     <input
       type="text"
       value={value ?? ""}
+      maxLength={150}
       onChange={(e) => onChange(e.target.value)}
       placeholder={`Enter ${formatLabel(setting.key).toLowerCase()}`}
       className={inputCls}
     />
   </FieldWrapper>
+);
+
+// ==================== PHONE ====================
+const PhoneField = ({ setting, value, onChange }) => (
+  <PhoneInputField
+    name={setting.key}
+    label={formatLabel(setting.key)}
+    placeholder={`Enter ${formatLabel(setting.key).toLowerCase()}`}
+    defaultCountry="IN"
+    isFormik={false}
+    value={value ?? ""}
+    onChange={(val) => onChange(val || "")}
+  />
 );
 
 // ==================== TEXTAREA ====================
@@ -95,6 +122,7 @@ const TextareaField = ({ setting, value, onChange }) => (
     <textarea
       rows={3}
       value={value ?? ""}
+      maxLength={500}
       onChange={(e) => onChange(e.target.value)}
       placeholder={`Enter ${formatLabel(setting.key).toLowerCase()}`}
       className={textareaCls}
@@ -123,6 +151,7 @@ const UrlField = ({ setting, value, onChange }) => (
     <input
       type="url"
       value={value ?? ""}
+      maxLength={500}
       onChange={(e) => onChange(e.target.value)}
       placeholder="https://example.com"
       className={inputCls}
@@ -195,6 +224,7 @@ const JsonField = ({ setting, value, onChange }) => {
       <textarea
         rows={5}
         value={text}
+        maxLength={5000}
         onChange={(e) => handleChange(e.target.value)}
         placeholder="{ }"
         className={`w-full resize-y rounded-lg border bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-ink-800 outline-none transition ${
@@ -273,6 +303,7 @@ const SensitiveField = ({ setting, value, onChange }) => {
           <input
             type={show ? "text" : "password"}
             value={localValue}
+            maxLength={128}
             onChange={(e) => setLocalValue(e.target.value)}
             placeholder="Enter new value"
             autoFocus
@@ -317,12 +348,10 @@ const FileField = ({ setting, value }) => {
   const fileInputRef = useRef(null);
   const uploadMutation = useUploadFileSetting();
 
-  // Local state for instant preview update
   const [localPreview, setLocalPreview] = useState(null);
   const [uploadedValue, setUploadedValue] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  // Current effective value: prefer uploadedValue > localPreview > prop value
   const currentValue = uploadedValue ?? value;
   const displayUrl = localPreview || getFileUrl(currentValue);
 
@@ -330,7 +359,6 @@ const FileField = ({ setting, value }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Instant local preview
     const reader = new FileReader();
     reader.onload = (ev) => setLocalPreview(ev.target.result);
     reader.readAsDataURL(file);
@@ -339,22 +367,13 @@ const FileField = ({ setting, value }) => {
       { id: setting.id, setting, file },
       {
         onSuccess: (response) => {
-          // Backend may return updated setting with new value
-          // Try to extract new value from response
           const newValue = response?.data?.value || response?.value || null;
-
           if (newValue) {
             setUploadedValue(newValue);
-          } else {
-            // Fallback: keep local preview until page refresh
-            // (parent will eventually refetch)
           }
-
-          // Clear the file input
           if (fileInputRef.current) fileInputRef.current.value = "";
         },
         onError: () => {
-          // Reset preview on error
           setLocalPreview(null);
           if (fileInputRef.current) fileInputRef.current.value = "";
         },

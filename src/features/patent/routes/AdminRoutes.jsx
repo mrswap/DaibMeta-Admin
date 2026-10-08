@@ -26,6 +26,13 @@ import AppointmentBooking from "../pages/appointments/AppointmentBooking";
 import AppointmentView from "../pages/appointments/AppointmentView";
 import AppointmentEdit from "../pages/appointments/AppointmentEdit";
 
+import VisitList from "../pages/visits/VisitList";
+import VisitNew from "../pages/visits/VisitNew";
+import VisitEdit from "../pages/visits/VisitEdit";
+import VisitDetail from "../pages/visits/VisitDetail";
+
+import BookingCalendar from "../pages/bookingCalendar/BookingCalendar";
+
 import NotFound from "../pages/NotFound";
 import ComingSoon from "../pages/ComingSoon";
 import ProtectedRoute from "./ProtectedRoute";
@@ -59,6 +66,15 @@ const AdminRoutes = () => {
           <Route path="appointments/book" element={<AppointmentBooking />} />
           <Route path="appointments/:id" element={<AppointmentView />} />
           <Route path="appointments/:id/edit" element={<AppointmentEdit />} />
+
+          {/* ==================== Booking Calendar ==================== */}
+          <Route path="booking-calendar" element={<BookingCalendar />} />
+
+          {/* ==================== Visits ==================== */}
+          <Route path="visits" element={<VisitList />} />
+          <Route path="visits/new" element={<VisitNew />} />
+          <Route path="visits/:id" element={<VisitDetail />} />
+          <Route path="visits/:id/edit" element={<VisitEdit />} />
 
           {/* ==================== Provider Availability ==================== */}
           <Route

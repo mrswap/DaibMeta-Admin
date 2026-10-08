@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "../../../../assets/daibmetalogo.jpeg";
 import { useLogin } from "./queries";
 import { useToast } from "../../common/toast/ToastContext";
-import { TextInput, Checkbox, FormButton } from "../../common/form";
+import { TextInput, FormButton } from "../../common/form";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -17,15 +17,16 @@ const Login = () => {
   const initialValues = {
     email: "swapnil@netswaptech.com",
     password: "Admin@12345",
-    remember: false,
   };
 
   const validationSchema = Yup.object({
     email: Yup.string()
       .email("Invalid email address")
-      .required("Email is required"),
+      .required("Email is required")
+      .max(150, "Email must be at most 150 characters"),
     password: Yup.string()
       .min(6, "Password must be at least 6 characters")
+      .max(128, "Password must be at most 128 characters")
       .required("Password is required"),
   });
 
@@ -34,7 +35,6 @@ const Login = () => {
       {
         email: values.email,
         password: values.password,
-        remember: values.remember,
       },
       {
         onSuccess: () => {
@@ -88,6 +88,7 @@ const Login = () => {
                 name="email"
                 type="email"
                 placeholder="doctor@example.com"
+                maxLength={150}
                 required
               />
 
@@ -98,13 +99,14 @@ const Login = () => {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
+                  maxLength={128}
                   required
                 />
                 <button
                   type="button"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-[32px] text-ink-500 hover:text-ink-900 sm:top-[38px]"
+                  className="absolute right-3 top-[32px] cursor-pointer text-ink-500 hover:text-ink-900 sm:top-[38px]"
                 >
                   {showPassword ? (
                     <MdVisibilityOff size={18} />
@@ -114,12 +116,11 @@ const Login = () => {
                 </button>
               </div>
 
-              {/* Remember + Forgot */}
-              <div className="flex items-center justify-between">
-                <Checkbox label="Remember me" name="remember" />
+              {/* Forgot password */}
+              <div className="mb-4 flex justify-end">
                 <a
                   href="#"
-                  className="-mt-3 text-xs font-medium text-brand-700 hover:underline"
+                  className="cursor-pointer text-xs font-medium text-brand-700 hover:underline"
                 >
                   Forgot password?
                 </a>
@@ -147,7 +148,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={handleOtpLogin}
-                className="h-11 w-full rounded-lg border border-form-border bg-surface text-sm font-medium text-ink-900 transition hover:bg-ink-50"
+                className="h-11 w-full cursor-pointer rounded-lg border border-form-border bg-surface text-sm font-medium text-ink-900 transition hover:bg-ink-50"
               >
                 Login with OTP
               </button>

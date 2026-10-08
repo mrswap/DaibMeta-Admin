@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { FiX, FiCalendar, FiClock } from "react-icons/fi";
+import { FiX, FiCalendar, FiClock, FiActivity, FiGrid } from "react-icons/fi";
 import {
   MdOutlineDashboard,
   MdOutlineBadge,
@@ -24,6 +24,16 @@ const menuSections = [
         name: "Appointments",
         path: "/appointments",
         icon: FiCalendar,
+      },
+      {
+        name: "Booking Calendar",
+        path: "/booking-calendar",
+        icon: FiGrid,
+      },
+      {
+        name: "Visits",
+        path: "/visits",
+        icon: FiActivity,
       },
       {
         name: "Patients",

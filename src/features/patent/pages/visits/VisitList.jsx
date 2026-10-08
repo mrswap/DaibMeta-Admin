@@ -1,3 +1,5 @@
+// src/features/patent/pages/visits/VisitList.jsx
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -7,31 +9,37 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
-  FiAlertCircle,
   FiFilter,
   FiX,
 } from "react-icons/fi";
 import {
-  useProviderAvailabilities,
-  useToggleAvailabilityStatus,
-  useDeleteAvailability,
-} from "../../queries/providerAvailabilities";
+  useVisits,
+  useDeleteVisit,
+  VISIT_STATUSES,
+  VISIT_TYPES,
+  PAYMENT_STATUSES,
+} from "../../queries/visits";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
-import { FilterSelect, ActionToggle, DatePicker } from "../../common/form";
+import { FilterSelect, DatePicker } from "../../common/form";
 
-const STATUS_OPTIONS = [
-  { value: "1", label: "Active" },
-  { value: "0", label: "Inactive" },
-];
+const STATUS_OPTIONS = VISIT_STATUSES.map((s) => ({
+  value: s.value,
+  label: s.label,
+}));
+
+const TYPE_OPTIONS = VISIT_TYPES.map((t) => ({
+  value: t.value,
+  label: t.label,
+}));
+
+const PAYMENT_OPTIONS = PAYMENT_STATUSES.map((p) => ({
+  value: p.value,
+  label: p.label,
+}));
 
 // ==================== HELPERS ====================
-const formatDateShort = (dateStr) => {
-  if (!dateStr) return "—";
-  return dateStr.slice(0, 10);
-};
-
 const formatTime12 = (t) => {
   if (!t) return "—";
   const [h, m] = t.slice(0, 5).split(":").map(Number);
@@ -40,42 +48,34 @@ const formatTime12 = (t) => {
   return `${hr}:${String(m).padStart(2, "0")} ${period}`;
 };
 
-const DAY_SHORT = {
-  1: "Mon",
-  2: "Tue",
-  3: "Wed",
-  4: "Thu",
-  5: "Fri",
-  6: "Sat",
-  7: "Sun",
-};
-
-const splitDays = (daysOfWeek = []) => {
-  const labels = daysOfWeek.map((d) => DAY_SHORT[d]);
-  if (labels.length <= 3) {
-    return { line1: labels.join(", "), line2: "" };
+const formatDate = (d) => {
+  if (!d) return "—";
+  try {
+    return new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return d;
   }
-  const mid = Math.ceil(labels.length / 2);
-  return {
-    line1: labels.slice(0, mid).join(", "),
-    line2: labels.slice(mid).join(", "),
-  };
 };
 
-const AvailabilityList = () => {
+const VisitList = () => {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
+  const [typeFilter, setTypeFilter] = useState(null);
+  const [paymentFilter, setPaymentFilter] = useState(null);
   const [dateFromFilter, setDateFromFilter] = useState("");
   const [dateToFilter, setDateToFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [perPage] = useState(10);
+  const [perPage] = useState(15);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [confirm, setConfirm] = useState({
     open: false,
-    type: null,
     item: null,
   });
 
@@ -84,178 +84,171 @@ const AvailabilityList = () => {
     per_page: perPage,
     ...(search && { search }),
     ...(statusFilter?.value && { status: statusFilter.value }),
+    ...(typeFilter?.value && { visit_type: typeFilter.value }),
+    ...(paymentFilter?.value && { payment_status: paymentFilter.value }),
     ...(dateFromFilter && { date_from: dateFromFilter }),
     ...(dateToFilter && { date_to: dateToFilter }),
   };
 
-  const { data, isLoading, isFetching, refetch } =
-    useProviderAvailabilities(params);
-  const toggleStatus = useToggleAvailabilityStatus();
-  const deleteMutation = useDeleteAvailability();
+  const { data, isLoading, isFetching, refetch } = useVisits(params);
+  const deleteMutation = useDeleteVisit();
 
   const list = data?.list || [];
   const meta = data?.meta || {};
 
-  const handleAdd = () => navigate("/provider-availabilities/new");
-  const handleEdit = (item) =>
-    navigate(`/provider-availabilities/${item.id}/edit`);
-  const handleView = (item) => navigate(`/provider-availabilities/${item.id}`);
-  const handleManageExceptions = (item) =>
-    navigate(`/provider-availabilities/${item.id}/exceptions`);
+  const handleAdd = () => navigate("/visits/new");
+  const handleEdit = (row) => navigate(`/visits/${row.id}/edit`);
+  const handleView = (row) => navigate(`/visits/${row.id}`);
 
-  const handleToggleClick = (item) =>
-    setConfirm({ open: true, type: "toggle", item });
-  const handleDeleteClick = (item) =>
-    setConfirm({ open: true, type: "delete", item });
-
-  const handleConfirm = () => {
-    const { type, item } = confirm;
-    if (!item) return;
-    const mutation = type === "toggle" ? toggleStatus : deleteMutation;
-    mutation.mutate(item.id, {
-      onSettled: () => setConfirm({ open: false, type: null, item: null }),
-    });
+  const handleDeleteClick = (item) => {
+    // Cannot delete in_consultation or completed visits
+    if (item.status === "in_consultation" || item.status === "completed") {
+      return;
+    }
+    setConfirm({ open: true, item });
   };
 
-  const handleCancel = () =>
-    setConfirm({ open: false, type: null, item: null });
+  const handleConfirm = () => {
+    const { item } = confirm;
+    if (!item) return;
+    deleteMutation.mutate(item.id, {
+      onSettled: () => setConfirm({ open: false, item: null }),
+    });
+  };
 
   const clearFilters = () => {
     setSearch("");
     setStatusFilter(null);
+    setTypeFilter(null);
+    setPaymentFilter(null);
     setDateFromFilter("");
     setDateToFilter("");
     setPage(1);
   };
+
+  const hasActiveFilters =
+    search ||
+    statusFilter ||
+    typeFilter ||
+    paymentFilter ||
+    dateFromFilter ||
+    dateToFilter;
+
+  const activeFilterCount =
+    (search ? 1 : 0) +
+    (statusFilter ? 1 : 0) +
+    (typeFilter ? 1 : 0) +
+    (paymentFilter ? 1 : 0) +
+    (dateFromFilter ? 1 : 0) +
+    (dateToFilter ? 1 : 0);
 
   const currentPage = meta.current_page || 1;
   const lastPage = meta.last_page || 1;
   const total = meta.total || 0;
   const metaPerPage = meta.per_page || perPage;
 
-  const activeFilterCount =
-    (search ? 1 : 0) +
-    (statusFilter ? 1 : 0) +
-    (dateFromFilter ? 1 : 0) +
-    (dateToFilter ? 1 : 0);
-
-  const hasActiveFilters = activeFilterCount > 0;
-
+  // ==================== COLUMNS ====================
   const columns = [
     {
       header: "#",
       render: (_, __, idx) => <span className="text-ink-500">{idx + 1}</span>,
     },
     {
-      header: "Provider",
-      render: (_, row) => (
-        <div>
-          <p className="font-medium text-ink-900">{row.provider?.name}</p>
-          <p className="text-[11px] text-ink-500">{row.provider?.role_label}</p>
-        </div>
+      header: "Visit ID",
+      accessor: "id",
+      render: (v) => (
+        <code className="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-xs text-ink-700">
+          #{v}
+        </code>
       ),
     },
     {
-      header: "Appointment Type",
-      render: (_, row) => (
-        <span className="text-ink-700">{row.appointment_type?.name}</span>
-      ),
-    },
-    {
-      header: "Period",
+      header: "Patient",
       render: (_, row) => (
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-ink-900">
-            {formatDateShort(row.date_from)}
-            <span className="ml-1 font-normal text-ink-500">–</span>
+          <p className="truncate font-medium text-ink-900">
+            {row.patient?.name || "—"}
           </p>
-          <p className="mt-0.5 text-xs font-semibold text-ink-900">
-            {formatDateShort(row.date_to)}
+          <p className="truncate text-[11px] text-ink-500">
+            {row.patient?.mobile || "—"}
           </p>
         </div>
       ),
     },
     {
-      header: "Days",
+      header: "Provider",
+      render: (_, row) => (
+        <span className="text-xs text-ink-700">
+          {row.provider?.name || "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Date & Time",
       render: (_, row) => {
-        const { line1, line2 } = splitDays(row.days_of_week);
+        const date = row.visit_schedule?.date || row.visit_date;
+        const start = row.visit_schedule?.start_time || row.slot_start_time;
+        const end = row.visit_schedule?.end_time || row.slot_end_time;
         return (
           <div className="min-w-0">
-            <p className="text-xs text-ink-700">{line1}</p>
-            {line2 && <p className="mt-0.5 text-xs text-ink-700">{line2}</p>}
+            <p className="text-xs font-semibold text-ink-900">
+              {date ? formatDate(date) : "—"}
+            </p>
+            <p className="text-[11px] text-ink-500">
+              {formatTime12(start)} – {formatTime12(end)}
+            </p>
           </div>
         );
       },
     },
     {
-      header: "Time",
+      header: "Type",
       render: (_, row) => (
-        <div className="min-w-0">
-          <p className="text-xs font-semibold text-ink-900">
-            {formatTime12(row.start_time)}
-            <span className="ml-1 font-normal text-ink-500">–</span>
-          </p>
-          <p className="mt-0.5 text-xs font-semibold text-ink-900">
-            {formatTime12(row.end_time)}
-          </p>
-        </div>
+        <span className="inline-flex rounded-full bg-accent-50 px-2.5 py-0.5 text-xs font-medium text-accent-800">
+          {row.visit_type_label || row.visit_type || "—"}
+        </span>
       ),
     },
     {
       header: "Status",
       accessor: "status",
-      render: (value) => <StatusBadge active={value} />,
+      render: (value, row) => (
+        <StatusBadge status={value} label={row.status_label} />
+      ),
+    },
+    {
+      header: "Payment",
+      accessor: "payment_status",
+      render: (value, row) => (
+        <PaymentBadge status={value} label={row.payment_status_label} />
+      ),
     },
     {
       header: "Actions",
-      render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row)}>
-            <FiEye className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-            <FiEdit2 className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn
-            title="Manage Exceptions"
-            onClick={() => handleManageExceptions(row)}
-          >
-            <FiAlertCircle className="h-4 w-4" />
-          </IconBtn>
-          <ActionToggle
-            active={row.status}
-            onClick={() => handleToggleClick(row)}
-            loading={
-              toggleStatus.isPending && toggleStatus.variables === row.id
-            }
-          />
-          <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
-            <FiTrash2 className="h-4 w-4" />
-          </IconBtn>
-        </div>
-      ),
+      render: (_, row) => {
+        const canDelete =
+          row.status !== "in_consultation" && row.status !== "completed";
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <IconBtn title="View" onClick={() => handleView(row)}>
+              <FiEye className="h-4 w-4" />
+            </IconBtn>
+            <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+              <FiEdit2 className="h-4 w-4" />
+            </IconBtn>
+            <IconBtn
+              title={canDelete ? "Delete" : "Cannot delete this visit"}
+              onClick={() => handleDeleteClick(row)}
+              disabled={!canDelete}
+              danger
+            >
+              <FiTrash2 className="h-4 w-4" />
+            </IconBtn>
+          </div>
+        );
+      },
     },
   ];
-
-  const confirmConfig =
-    confirm.type === "delete"
-      ? {
-          title: "Delete Availability",
-          message:
-            "Are you sure you want to delete this availability? This action cannot be undone.",
-          confirmText: "Delete",
-          variant: "danger",
-        }
-      : {
-          title: confirm.item?.status
-            ? "Deactivate Availability"
-            : "Activate Availability",
-          message: `Are you sure you want to ${
-            confirm.item?.status ? "deactivate" : "activate"
-          } this availability?`,
-          confirmText: confirm.item?.status ? "Deactivate" : "Activate",
-          variant: "warn",
-        };
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -263,12 +256,12 @@ const AvailabilityList = () => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="font-jakarta text-xl font-bold text-ink-900 sm:text-2xl">
-            Provider Availability
+            Visits
           </h1>
           <p className="mt-0.5 text-xs text-ink-500 sm:text-sm">
             {total > 0
-              ? `${total} availabilit${total === 1 ? "y" : "ies"}`
-              : "Manage provider schedules and dynamic slot generation"}
+              ? `${total} visit${total > 1 ? "s" : ""} total`
+              : "Manage patient visits and check-ins"}
           </p>
         </div>
         <button
@@ -276,7 +269,7 @@ const AvailabilityList = () => {
           className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700 sm:w-auto"
         >
           <FiPlus className="h-4 w-4" />
-          Set Availability
+          New Visit
         </button>
       </div>
 
@@ -287,7 +280,7 @@ const AvailabilityList = () => {
             <FiSearch className="h-4 w-4 shrink-0 text-ink-400" />
             <input
               type="text"
-              placeholder="Search provider or appointment type..."
+              placeholder="Search by patient name, mobile..."
               value={search}
               maxLength={150}
               onChange={(e) => {
@@ -318,7 +311,6 @@ const AvailabilityList = () => {
           <button
             onClick={() => refetch()}
             className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-ink-200 bg-surface px-3 text-sm font-medium text-ink-700 hover:bg-ink-50"
-            title="Refresh"
           >
             <FiRefreshCw
               className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
@@ -341,6 +333,38 @@ const AvailabilityList = () => {
                   }}
                   options={STATUS_OPTIONS}
                   placeholder="All Status"
+                  isClearable
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
+                  Visit Type
+                </label>
+                <FilterSelect
+                  value={typeFilter}
+                  onChange={(v) => {
+                    setTypeFilter(v);
+                    setPage(1);
+                  }}
+                  options={TYPE_OPTIONS}
+                  placeholder="All Types"
+                  isClearable
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
+                  Payment
+                </label>
+                <FilterSelect
+                  value={paymentFilter}
+                  onChange={(v) => {
+                    setPaymentFilter(v);
+                    setPage(1);
+                  }}
+                  options={PAYMENT_OPTIONS}
+                  placeholder="All Payments"
                   isClearable
                 />
               </div>
@@ -397,7 +421,7 @@ const AvailabilityList = () => {
 
       {/* Table */}
       {isLoading ? (
-        <Loader text="Loading availabilities..." />
+        <Loader text="Loading visits..." />
       ) : (
         <CustomeTable
           columns={columns}
@@ -410,36 +434,64 @@ const AvailabilityList = () => {
           onPageChange={(p) => setPage(p)}
           emptyText={
             hasActiveFilters
-              ? "No availabilities found for your filters."
-              : "No availabilities found."
+              ? "No visits found for your filters."
+              : "No visits yet."
           }
         />
       )}
 
+      {/* Delete Confirmation */}
       <ConfirmModal
         open={confirm.open}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        confirmText={confirmConfig.confirmText}
-        variant={confirmConfig.variant}
+        title="Delete Visit"
+        message="Are you sure you want to delete this visit? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
         onConfirm={handleConfirm}
-        onCancel={handleCancel}
-        loading={toggleStatus.isPending || deleteMutation.isPending}
+        onCancel={() => setConfirm({ open: false, item: null })}
+        loading={deleteMutation.isPending}
       />
     </div>
   );
 };
 
-// ==================== SHARED ====================
-const StatusBadge = ({ active }) => (
-  <span
-    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-      active ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
-    }`}
-  >
-    {active ? "Active" : "Inactive"}
-  </span>
-);
+// ==================== SUB-COMPONENTS ====================
+const StatusBadge = ({ status, label }) => {
+  const styles = {
+    waiting: "bg-warn-100 text-warn-900",
+    in_consultation: "bg-accent-50 text-accent-800",
+    completed: "bg-brand-50 text-brand-700",
+    cancelled: "bg-danger-50 text-danger-700",
+    no_show: "bg-danger-100 text-danger-900",
+  };
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        styles[status] || "bg-ink-100 text-ink-600"
+      }`}
+    >
+      {label || status}
+    </span>
+  );
+};
+
+const PaymentBadge = ({ status, label }) => {
+  const styles = {
+    paid: "bg-brand-50 text-brand-700",
+    unpaid: "bg-warn-100 text-warn-900",
+    partial: "bg-accent-50 text-accent-800",
+    free: "bg-ink-100 text-ink-600",
+  };
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        styles[status] || "bg-ink-100 text-ink-600"
+      }`}
+    >
+      {label || status || "—"}
+    </span>
+  );
+};
 
 const IconBtn = ({ children, title, onClick, disabled, danger }) => (
   <button
@@ -457,4 +509,4 @@ const IconBtn = ({ children, title, onClick, disabled, danger }) => (
   </button>
 );
 
-export default AvailabilityList;
+export default VisitList;

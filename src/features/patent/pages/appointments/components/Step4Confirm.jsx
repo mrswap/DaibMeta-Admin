@@ -157,6 +157,7 @@ const Step4Confirm = ({ formData, setFormData, onBack, onSave, isSaving }) => {
         </label>
         <textarea
           rows={3}
+          maxLength={500}
           value={formData.notes || ""}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, notes: e.target.value }))

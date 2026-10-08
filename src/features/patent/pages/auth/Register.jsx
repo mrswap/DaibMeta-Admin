@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import logo from "../../../../assets/daibmetalogo.jpeg";
+import { PhoneInputField } from "../../common/form";
 
 const inputCls =
   "h-11 w-full rounded-lg border border-form-border bg-form-bg px-3.5 text-sm text-form-text outline-none transition placeholder:text-form-placeholder hover:border-form-border-hover focus:border-form-border-focus focus:ring-2 focus:ring-form-ring/20";
@@ -73,6 +74,7 @@ const Register = () => {
               required
               autoComplete="name"
               placeholder="e.g. Dr. Priya Sharma"
+              maxLength={150}
               value={form.fullName}
               onChange={(e) => update("fullName", e.target.value)}
               className={inputCls}
@@ -89,37 +91,23 @@ const Register = () => {
               required
               autoComplete="email"
               placeholder="doctor@example.com"
+              maxLength={150}
               value={form.email}
               onChange={(e) => update("email", e.target.value)}
               className={inputCls}
             />
           </div>
 
-          <div>
-            <label htmlFor="mobile" className={labelCls}>
-              Mobile Number
-            </label>
-            <div className="flex">
-              <span className="flex h-11 items-center rounded-l-lg border border-r-0 border-form-border bg-ink-50 px-3 text-sm text-ink-600">
-                +91
-              </span>
-              <input
-                id="mobile"
-                type="tel"
-                inputMode="numeric"
-                required
-                maxLength={10}
-                pattern="[0-9]{10}"
-                autoComplete="tel-national"
-                placeholder="9820144521"
-                value={form.mobile}
-                onChange={(e) =>
-                  update("mobile", e.target.value.replace(/\D/g, ""))
-                }
-                className={`${inputCls} rounded-l-none tabular-nums`}
-              />
-            </div>
-          </div>
+          <PhoneInputField
+            name="mobile"
+            label="Mobile Number"
+            placeholder="Enter phone number"
+            defaultCountry="IN"
+            required
+            isFormik={false}
+            value={form.mobile}
+            onChange={(val) => update("mobile", val || "")}
+          />
 
           <div>
             <span className={labelCls}>Role</span>
@@ -132,7 +120,7 @@ const Register = () => {
                     type="button"
                     aria-pressed={active}
                     onClick={() => update("role", id)}
-                    className={`h-10 rounded-lg border text-[13px] font-medium transition ${
+                    className={`h-10 cursor-pointer rounded-lg border text-[13px] font-medium transition ${
                       active
                         ? "border-brand-600 bg-brand-50 text-brand-800"
                         : "border-form-border bg-surface text-ink-600 hover:border-form-border-hover"
@@ -153,7 +141,7 @@ const Register = () => {
               id="facility"
               value={form.facility}
               onChange={(e) => update("facility", e.target.value)}
-              className={inputCls}
+              className={`${inputCls} cursor-pointer`}
             >
               {facilities.map((f) => (
                 <option key={f.value} value={f.value}>
@@ -169,13 +157,13 @@ const Register = () => {
               required
               checked={form.agreed}
               onChange={(e) => update("agreed", e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded accent-form-check-accent"
+              className="mt-0.5 h-4 w-4 cursor-pointer rounded accent-form-check-accent"
             />
             <span>
               I agree to the{" "}
               <a
                 href="#"
-                className="font-medium text-brand-700 hover:underline"
+                className="cursor-pointer font-medium text-brand-700 hover:underline"
               >
                 Privacy Policy
               </a>{" "}
@@ -186,7 +174,7 @@ const Register = () => {
           <button
             type="submit"
             disabled={loading}
-            className="h-11 w-full rounded-lg bg-brand-600 text-sm font-semibold text-surface transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
+            className="h-11 w-full cursor-pointer rounded-lg bg-brand-600 text-sm font-semibold text-surface transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Sending OTP..." : "Send OTP & Continue"}
           </button>
@@ -196,7 +184,7 @@ const Register = () => {
           Already registered?{" "}
           <a
             href="/login"
-            className="font-medium text-brand-700 hover:underline"
+            className="cursor-pointer font-medium text-brand-700 hover:underline"
           >
             Sign in
           </a>

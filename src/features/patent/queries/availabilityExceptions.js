@@ -1,3 +1,5 @@
+// src/features/patent/queries/availabilityExceptions.js
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../lib/axios";
 import { useToast } from "../common/toast/ToastContext";
@@ -49,15 +51,24 @@ export const useAvailabilityExceptions = (params = {}) => {
             api
                 .get("/admin/provider-availability-exceptions", { params })
                 .then((r) => {
-                    const wrapper = r.data.data || {};
-                    const list = Array.isArray(wrapper.data) ? wrapper.data : [];
+                    const body = r.data;
+
+                    // Backend response: { success, message, data: [...], meta: {...} }
+                    // `data` is directly an array. Handle all shapes defensively.
+                    let list = [];
+                    if (Array.isArray(body?.data)) list = body.data;
+                    else if (Array.isArray(body?.data?.data)) list = body.data.data;
+                    else if (Array.isArray(body)) list = body;
+
+                    const meta = body?.meta || body?.data?.meta || {};
+
                     return {
                         list,
                         meta: {
-                            current_page: wrapper.current_page || 1,
-                            last_page: wrapper.last_page || 1,
-                            per_page: wrapper.per_page || 20,
-                            total: wrapper.total || 0,
+                            current_page: meta.current_page || 1,
+                            last_page: meta.last_page || 1,
+                            per_page: meta.per_page || 100,
+                            total: meta.total || list.length,
                         },
                     };
                 }),

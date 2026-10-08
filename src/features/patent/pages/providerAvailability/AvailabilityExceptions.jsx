@@ -1,3 +1,5 @@
+// src/features/patent/pages/providerAvailability/AvailabilityExceptions.jsx
+
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -206,6 +208,7 @@ const AvailabilityExceptions = () => {
     }
   };
 
+  // ==================== PERFORM SAVE (UPDATED + DEBUG LOGS) ====================
   const performSave = async (reason) => {
     if (!localSlots || !availability) return;
 
@@ -220,6 +223,25 @@ const AvailabilityExceptions = () => {
         .map((s, i) => (s.blocked ? i : -1))
         .filter((i) => i >= 0);
 
+      // ==================== DEBUG LOGS ====================
+      // eslint-disable-next-line no-console
+      console.log("🔍 ====== PERFORM SAVE DEBUG ======");
+      // eslint-disable-next-line no-console
+      console.log("🔍 selectedDate:", selectedDate);
+      // eslint-disable-next-line no-console
+      console.log("🔍 dateExceptions (existing):", dateExceptions);
+      // eslint-disable-next-line no-console
+      console.log("🔍 blockedIndices:", blockedIndices);
+      // eslint-disable-next-line no-console
+      console.log(
+        "🔍 localSlots (blocked only):",
+        localSlots.map((s, i) => ({ idx: i, ...s })).filter((s) => s.blocked),
+      );
+      // eslint-disable-next-line no-console
+      console.log("===================================");
+      // =======================================================
+
+      // ---------- Case 1: Nothing blocked → remove all exceptions for this date ----------
       if (blockedIndices.length === 0) {
         for (const ex of dateExceptions) {
           await deleteMutation.mutateAsync(ex.id);
@@ -231,26 +253,38 @@ const AvailabilityExceptions = () => {
         return;
       }
 
+      // ---------- Case 2: Build exceptions array with id-preservation ----------
       const allBlocked = blockedIndices.length === localSlots.length;
 
-      for (const ex of dateExceptions) {
-        await deleteMutation.mutateAsync(ex.id);
-      }
+      // Helper: find the original exception matching a specific slot's time
+      const findMatchingException = (startTime, endTime) => {
+        return dateExceptions.find((ex) => {
+          const exStart = toShortTime(ex.start_time);
+          const exEnd = toShortTime(ex.end_time);
+          return exStart === startTime && exEnd === endTime;
+        });
+      };
+
+      let exceptionsPayload = [];
 
       if (allBlocked) {
-        await bulkMutation.mutateAsync({
-          availability_id: Number(id),
-          exceptions: [
-            {
-              exception_date: selectedDate,
-              type: "blocked",
-              start_time: null,
-              end_time: null,
-              reason: trimmedReason,
-            },
-          ],
-        });
+        // Full day — one single exception
+        const existingFullDay = dateExceptions.find(
+          (ex) => !ex.start_time && !ex.end_time,
+        );
+
+        exceptionsPayload = [
+          {
+            ...(existingFullDay?.id && { id: existingFullDay.id }),
+            exception_date: selectedDate,
+            type: "blocked",
+            start_time: null,
+            end_time: null,
+            reason: trimmedReason,
+          },
+        ];
       } else {
+        // Group contiguous blocked indices
         const groups = [];
         let currentGroup = [blockedIndices[0]];
         for (let i = 1; i < blockedIndices.length; i++) {
@@ -263,10 +297,30 @@ const AvailabilityExceptions = () => {
         }
         groups.push(currentGroup);
 
-        const exceptions = groups.map((group) => {
+        // eslint-disable-next-line no-console
+        console.log("🔍 groups:", groups);
+
+        exceptionsPayload = groups.map((group) => {
           const firstSlot = localSlots[group[0]];
           const lastSlot = localSlots[group[group.length - 1]];
+
+          // Try to find a pre-existing exception matching this time range
+          const existing = findMatchingException(
+            firstSlot.start_time,
+            lastSlot.end_time,
+          );
+
+          // eslint-disable-next-line no-console
+          console.log("🔍 group mapping:", {
+            group,
+            firstSlotTime: firstSlot.start_time,
+            lastSlotTime: lastSlot.end_time,
+            matchedException: existing,
+          });
+
           return {
+            // Include id ONLY if an existing exception matches exactly
+            ...(existing?.id && { id: existing.id }),
             exception_date: selectedDate,
             type: "blocked",
             start_time: firstSlot.start_time,
@@ -274,18 +328,38 @@ const AvailabilityExceptions = () => {
             reason: trimmedReason,
           };
         });
-
-        await bulkMutation.mutateAsync({
-          availability_id: Number(id),
-          exceptions,
-        });
       }
+
+      // eslint-disable-next-line no-console
+      console.log("🔍 FINAL exceptionsPayload:", exceptionsPayload);
+
+      // ---------- Case 3: Delete orphaned exceptions ----------
+      const idsInPayload = new Set(
+        exceptionsPayload.filter((e) => e.id).map((e) => e.id),
+      );
+
+      const orphanedExceptions = dateExceptions.filter(
+        (ex) => !idsInPayload.has(ex.id),
+      );
+
+      // eslint-disable-next-line no-console
+      console.log("🔍 orphanedExceptions (will delete):", orphanedExceptions);
+
+      for (const ex of orphanedExceptions) {
+        await deleteMutation.mutateAsync(ex.id);
+      }
+
+      // ---------- Case 4: Bulk save (create + update mixed) ----------
+      await bulkMutation.mutateAsync({
+        availability_id: Number(id),
+        exceptions: exceptionsPayload,
+      });
 
       toast.success("Changes saved");
       await refetchExceptions();
       await refetchSlots();
     } catch (err) {
-      // errors toasted
+      // errors toasted by mutations
     } finally {
       setIsSaving(false);
     }
@@ -486,6 +560,7 @@ const AvailabilityExceptions = () => {
                   type="text"
                   placeholder="Search date (YYYY-MM)"
                   value={searchDate}
+                  maxLength={7}
                   onChange={(e) => setSearchDate(e.target.value)}
                   disabled={isSaving}
                   className="h-8 w-full rounded-md border border-ink-200 bg-surface pl-8 pr-2 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
@@ -803,6 +878,7 @@ const AvailabilityExceptions = () => {
                 <input
                   type="text"
                   value={saveReason}
+                  maxLength={500}
                   onChange={(e) => setSaveReason(e.target.value)}
                   placeholder="e.g. Doctor unavailable"
                   autoFocus

@@ -247,6 +247,7 @@ const PatientList = () => {
             type="text"
             placeholder="Search by name, patient ID, mobile, email..."
             value={search}
+            maxLength={150}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
