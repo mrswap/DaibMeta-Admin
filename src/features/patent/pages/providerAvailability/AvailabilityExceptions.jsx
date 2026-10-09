@@ -25,6 +25,7 @@ import {
   formatDateFull,
   toLocalDateString,
   toShortTime,
+  timeToMinutes,
 } from "../../queries/availabilityExceptions";
 import Loader from "../../common/Loader";
 import { useToast } from "../../common/toast/ToastContext";
@@ -118,6 +119,7 @@ const AvailabilityExceptions = () => {
       per_page: 100,
     });
 
+  // ==================== MERGE SLOTS + EXCEPTIONS ====================
   useEffect(() => {
     if (!slotsData || !Array.isArray(slotsData)) return;
 
@@ -130,64 +132,124 @@ const AvailabilityExceptions = () => {
     );
 
     const mergedSlots = slotsData.map((slot) => {
+      const backendStatus = slot.status;
+      const isBooked = backendStatus === "booked";
+
       const matchingEx = dateExceptions.find(
         (ex) =>
           toShortTime(ex.start_time) === slot.start_time &&
           toShortTime(ex.end_time) === slot.end_time,
       );
 
-      const isBlocked =
-        slot.available === false ||
-        slot.status === "blocked" ||
-        hasFullDay ||
-        !!matchingEx;
+      const isBlockedByException =
+        !isBooked &&
+        (backendStatus === "blocked" || hasFullDay || !!matchingEx);
+
+      let finalStatus = "available";
+      if (isBooked) finalStatus = "booked";
+      else if (isBlockedByException) finalStatus = "blocked";
+
+      const blockedForToggle = isBlockedByException;
 
       return {
         ...slot,
-        blocked: isBlocked,
+        backendStatus,
+        status: finalStatus,
+        blocked: blockedForToggle,
         exceptionId: matchingEx?.id || null,
-        wasBlockedInitially: isBlocked,
+        wasBlockedInitially: blockedForToggle,
+        isBooked,
       };
     });
 
     setLocalSlots(mergedSlots);
   }, [slotsData, exceptionsData, selectedDate]);
 
+  // ==================== EXCEPTIONS BY DATE ====================
+  // Count BLOCKED SLOTS (not exceptions) for each date
   const exceptionsByDate = useMemo(() => {
     const map = {};
+    const slotDuration = availability?.slot_duration || 30;
+
     (exceptionsData?.list || []).forEach((ex) => {
       const d = toLocalDateString(ex.exception_date);
       if (!d) return;
-      if (!map[d]) map[d] = { items: [], hasFullDay: false };
+
+      if (!map[d]) {
+        map[d] = {
+          items: [],
+          hasFullDay: false,
+          blockedSlotsCount: 0,
+        };
+      }
+
       map[d].items.push(ex);
+
+      // Full day → count all slots (we'll calculate from availability)
       if (!ex.start_time && !ex.end_time) {
         map[d].hasFullDay = true;
+        // Full day → all slots of the day
+        const totalSlots =
+          (timeToMinutes(availability?.end_time) -
+            timeToMinutes(availability?.start_time)) /
+          slotDuration;
+        map[d].blockedSlotsCount = Math.max(
+          map[d].blockedSlotsCount,
+          Math.floor(totalSlots),
+        );
+      } else {
+        // Count slots within this time range
+        const startMin = timeToMinutes(toShortTime(ex.start_time));
+        const endMin = timeToMinutes(toShortTime(ex.end_time));
+        const rangeMin = endMin - startMin;
+        const slotsInRange = Math.max(1, Math.round(rangeMin / slotDuration));
+        map[d].blockedSlotsCount += slotsInRange;
       }
     });
-    return map;
-  }, [exceptionsData]);
 
+    return map;
+  }, [exceptionsData, availability]);
+
+  // ==================== TOGGLE SLOT ====================
   const toggleSlot = (idx) => {
     if (isSaving) return;
     setLocalSlots((prev) => {
+      const slot = prev[idx];
+      if (slot.isBooked) return prev;
+
       const updated = [...prev];
-      updated[idx] = { ...updated[idx], blocked: !updated[idx].blocked };
+      const newBlocked = !updated[idx].blocked;
+      updated[idx] = {
+        ...updated[idx],
+        blocked: newBlocked,
+        status: newBlocked ? "blocked" : "available",
+      };
       return updated;
     });
   };
 
   const selectAll = () => {
     if (isSaving) return;
-    setLocalSlots((prev) => prev.map((s) => ({ ...s, blocked: true })));
+    setLocalSlots((prev) =>
+      prev.map((s) =>
+        s.isBooked ? s : { ...s, blocked: true, status: "blocked" },
+      ),
+    );
   };
 
   const clearAll = () => {
     if (isSaving) return;
-    setLocalSlots((prev) => prev.map((s) => ({ ...s, blocked: false })));
+    setLocalSlots((prev) =>
+      prev.map((s) =>
+        s.isBooked ? s : { ...s, blocked: false, status: "available" },
+      ),
+    );
   };
 
   const handleSelectDate = (dateStr) => {
     if (isSaving) return;
+    if (dateStr === selectedDate) return;
+
     if (isDirty) {
       const ok = window.confirm("Unsaved changes will be lost. Continue?");
       if (!ok) return;
@@ -208,7 +270,7 @@ const AvailabilityExceptions = () => {
     }
   };
 
-  // ==================== PERFORM SAVE (UPDATED + DEBUG LOGS) ====================
+  // ==================== PERFORM SAVE ====================
   const performSave = async (reason) => {
     if (!localSlots || !availability) return;
 
@@ -219,29 +281,14 @@ const AvailabilityExceptions = () => {
 
     try {
       const dateExceptions = exceptionsByDate[selectedDate]?.items || [];
+
       const blockedIndices = localSlots
-        .map((s, i) => (s.blocked ? i : -1))
+        .map((s, i) => (s.blocked && !s.isBooked ? i : -1))
         .filter((i) => i >= 0);
 
-      // ==================== DEBUG LOGS ====================
-      // eslint-disable-next-line no-console
-      console.log("🔍 ====== PERFORM SAVE DEBUG ======");
-      // eslint-disable-next-line no-console
-      console.log("🔍 selectedDate:", selectedDate);
-      // eslint-disable-next-line no-console
-      console.log("🔍 dateExceptions (existing):", dateExceptions);
-      // eslint-disable-next-line no-console
-      console.log("🔍 blockedIndices:", blockedIndices);
-      // eslint-disable-next-line no-console
-      console.log(
-        "🔍 localSlots (blocked only):",
-        localSlots.map((s, i) => ({ idx: i, ...s })).filter((s) => s.blocked),
-      );
-      // eslint-disable-next-line no-console
-      console.log("===================================");
-      // =======================================================
+      const nonBookedSlots = localSlots.filter((s) => !s.isBooked);
 
-      // ---------- Case 1: Nothing blocked → remove all exceptions for this date ----------
+      // Case 1: Nothing blocked
       if (blockedIndices.length === 0) {
         for (const ex of dateExceptions) {
           await deleteMutation.mutateAsync(ex.id);
@@ -253,10 +300,9 @@ const AvailabilityExceptions = () => {
         return;
       }
 
-      // ---------- Case 2: Build exceptions array with id-preservation ----------
-      const allBlocked = blockedIndices.length === localSlots.length;
+      const allNonBookedBlocked =
+        blockedIndices.length === nonBookedSlots.length;
 
-      // Helper: find the original exception matching a specific slot's time
       const findMatchingException = (startTime, endTime) => {
         return dateExceptions.find((ex) => {
           const exStart = toShortTime(ex.start_time);
@@ -267,8 +313,7 @@ const AvailabilityExceptions = () => {
 
       let exceptionsPayload = [];
 
-      if (allBlocked) {
-        // Full day — one single exception
+      if (allNonBookedBlocked) {
         const existingFullDay = dateExceptions.find(
           (ex) => !ex.start_time && !ex.end_time,
         );
@@ -284,7 +329,6 @@ const AvailabilityExceptions = () => {
           },
         ];
       } else {
-        // Group contiguous blocked indices
         const groups = [];
         let currentGroup = [blockedIndices[0]];
         for (let i = 1; i < blockedIndices.length; i++) {
@@ -297,29 +341,16 @@ const AvailabilityExceptions = () => {
         }
         groups.push(currentGroup);
 
-        // eslint-disable-next-line no-console
-        console.log("🔍 groups:", groups);
-
         exceptionsPayload = groups.map((group) => {
           const firstSlot = localSlots[group[0]];
           const lastSlot = localSlots[group[group.length - 1]];
 
-          // Try to find a pre-existing exception matching this time range
           const existing = findMatchingException(
             firstSlot.start_time,
             lastSlot.end_time,
           );
 
-          // eslint-disable-next-line no-console
-          console.log("🔍 group mapping:", {
-            group,
-            firstSlotTime: firstSlot.start_time,
-            lastSlotTime: lastSlot.end_time,
-            matchedException: existing,
-          });
-
           return {
-            // Include id ONLY if an existing exception matches exactly
             ...(existing?.id && { id: existing.id }),
             exception_date: selectedDate,
             type: "blocked",
@@ -330,10 +361,7 @@ const AvailabilityExceptions = () => {
         });
       }
 
-      // eslint-disable-next-line no-console
-      console.log("🔍 FINAL exceptionsPayload:", exceptionsPayload);
-
-      // ---------- Case 3: Delete orphaned exceptions ----------
+      // Delete orphaned
       const idsInPayload = new Set(
         exceptionsPayload.filter((e) => e.id).map((e) => e.id),
       );
@@ -342,14 +370,10 @@ const AvailabilityExceptions = () => {
         (ex) => !idsInPayload.has(ex.id),
       );
 
-      // eslint-disable-next-line no-console
-      console.log("🔍 orphanedExceptions (will delete):", orphanedExceptions);
-
       for (const ex of orphanedExceptions) {
         await deleteMutation.mutateAsync(ex.id);
       }
 
-      // ---------- Case 4: Bulk save (create + update mixed) ----------
       await bulkMutation.mutateAsync({
         availability_id: Number(id),
         exceptions: exceptionsPayload,
@@ -359,7 +383,7 @@ const AvailabilityExceptions = () => {
       await refetchExceptions();
       await refetchSlots();
     } catch (err) {
-      // errors toasted by mutations
+      // errors toasted
     } finally {
       setIsSaving(false);
     }
@@ -383,14 +407,16 @@ const AvailabilityExceptions = () => {
     );
   }
 
+  const editableSlots = localSlots?.filter((s) => !s.isBooked) || [];
   const isAllBlocked =
-    localSlots && localSlots.length > 0 && localSlots.every((s) => s.blocked);
+    editableSlots.length > 0 && editableSlots.every((s) => s.blocked);
   const isNoneBlocked =
-    localSlots && localSlots.length > 0 && localSlots.every((s) => !s.blocked);
+    editableSlots.length > 0 && editableSlots.every((s) => !s.blocked);
 
   const selectedDateInfo = exceptionsByDate[selectedDate] || {
     items: [],
     hasFullDay: false,
+    blockedSlotsCount: 0,
   };
 
   return (
@@ -583,7 +609,8 @@ const AvailabilityExceptions = () => {
                   const isActive = selectedDate === d.dateStr;
                   const info = exceptionsByDate[d.dateStr];
                   const isFullDay = info?.hasFullDay;
-                  const hasExceptions = info?.items?.length > 0;
+                  const blockedCount = info?.blockedSlotsCount || 0;
+                  const hasBlocks = blockedCount > 0;
                   const isDisabled = isSaving;
 
                   return (
@@ -625,12 +652,12 @@ const AvailabilityExceptions = () => {
                         {isFullDay ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-danger-600">
                             <FiLock className="h-2 w-2" />
-                            Blocked
+                            Fully blocked
                           </span>
-                        ) : hasExceptions ? (
-                          <span className="text-[10px] font-medium text-warn-700">
-                            {info.items.length} exception
-                            {info.items.length > 1 ? "s" : ""}
+                        ) : hasBlocks ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warn-700">
+                            <FiLock className="h-2 w-2" />
+                            {blockedCount} blocked
                           </span>
                         ) : (
                           <span className="text-[10px] font-medium text-brand-600">
@@ -673,10 +700,11 @@ const AvailabilityExceptions = () => {
                     <p className="mt-0.5 font-jakarta text-sm font-bold text-ink-900 sm:text-base">
                       {formatDateFull(selectedDate)}
                     </p>
-                    {selectedDateInfo.items.length > 0 && (
+                    {selectedDateInfo.blockedSlotsCount > 0 && (
                       <p className="mt-0.5 text-[11px] text-ink-500">
-                        {selectedDateInfo.items.length} exception
-                        {selectedDateInfo.items.length > 1 ? "s" : ""} applied
+                        {selectedDateInfo.blockedSlotsCount} slot
+                        {selectedDateInfo.blockedSlotsCount > 1 ? "s" : ""}{" "}
+                        blocked
                       </p>
                     )}
                   </div>
@@ -686,9 +714,11 @@ const AvailabilityExceptions = () => {
                       <button
                         type="button"
                         onClick={selectAll}
-                        disabled={isAllBlocked || isSaving}
+                        disabled={
+                          isAllBlocked || isSaving || editableSlots.length === 0
+                        }
                         className={`flex-1 rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition sm:flex-none sm:px-3 sm:text-xs ${
-                          isAllBlocked || isSaving
+                          isAllBlocked || isSaving || editableSlots.length === 0
                             ? "cursor-not-allowed border-ink-100 bg-ink-50 text-ink-400"
                             : "cursor-pointer border-ink-200 bg-surface text-ink-600 hover:bg-ink-50"
                         }`}
@@ -698,9 +728,15 @@ const AvailabilityExceptions = () => {
                       <button
                         type="button"
                         onClick={clearAll}
-                        disabled={isNoneBlocked || isSaving}
+                        disabled={
+                          isNoneBlocked ||
+                          isSaving ||
+                          editableSlots.length === 0
+                        }
                         className={`flex-1 rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition sm:flex-none sm:px-3 sm:text-xs ${
-                          isNoneBlocked || isSaving
+                          isNoneBlocked ||
+                          isSaving ||
+                          editableSlots.length === 0
                             ? "cursor-not-allowed border-ink-100 bg-ink-50 text-ink-400"
                             : "cursor-pointer border-ink-200 bg-surface text-ink-600 hover:bg-ink-50"
                         }`}
@@ -750,57 +786,77 @@ const AvailabilityExceptions = () => {
                   <>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                       {localSlots.map((slot, idx) => {
-                        const isBlocked = slot.blocked;
-                        const isExisting = slot.wasBlockedInitially;
+                        const { status, isBooked, wasBlockedInitially } = slot;
+
+                        let cardCls;
+                        let timeCls;
+                        let endCls;
+                        let iconBg;
+                        let icon;
+
+                        if (isBooked) {
+                          cardCls =
+                            "cursor-not-allowed border-ink-200 bg-ink-100";
+                          timeCls = "text-ink-500";
+                          endCls = "text-ink-400";
+                          iconBg = "bg-ink-400";
+                          icon = (
+                            <FiUser className="h-2.5 w-2.5 text-surface sm:h-3 sm:w-3" />
+                          );
+                        } else if (status === "blocked") {
+                          cardCls = isSaving
+                            ? "cursor-not-allowed opacity-60 border-danger-200 bg-danger-50"
+                            : "cursor-pointer border-danger-200 bg-danger-50 hover:bg-danger-100";
+                          timeCls = "text-danger-700 line-through";
+                          endCls = "text-danger-600";
+                          iconBg = "bg-danger-500";
+                          icon = (
+                            <FiLock className="h-2 w-2 text-surface sm:h-2.5 sm:w-2.5" />
+                          );
+                        } else {
+                          cardCls = isSaving
+                            ? "cursor-not-allowed opacity-60 border-ink-200 bg-surface"
+                            : "cursor-pointer border-ink-200 bg-surface hover:border-brand-200 hover:bg-brand-50/40";
+                          timeCls = "text-ink-800";
+                          endCls = "text-ink-500";
+                          iconBg = "bg-brand-500";
+                          icon = (
+                            <FiCheck className="h-2 w-2 text-surface sm:h-2.5 sm:w-2.5" />
+                          );
+                        }
 
                         return (
                           <button
                             key={idx}
                             type="button"
                             onClick={() => toggleSlot(idx)}
-                            disabled={isSaving}
-                            className={`flex flex-col gap-1 rounded-lg border p-2.5 text-left transition sm:p-3 ${
-                              isSaving
-                                ? "cursor-not-allowed opacity-60"
-                                : isBlocked
-                                  ? "cursor-pointer border-danger-200 bg-danger-50 hover:bg-danger-100"
-                                  : "cursor-pointer border-ink-200 bg-surface hover:border-brand-200 hover:bg-brand-50/40"
-                            }`}
+                            disabled={isSaving || isBooked}
+                            className={`flex flex-col gap-1 rounded-lg border p-2.5 text-left transition sm:p-3 ${cardCls}`}
                           >
                             <div className="flex items-center justify-between gap-1">
                               <span
-                                className={`text-[11px] font-semibold ${
-                                  isBlocked
-                                    ? "text-danger-700 line-through"
-                                    : "text-ink-800"
-                                }`}
+                                className={`text-[11px] font-semibold ${timeCls}`}
                               >
                                 {formatTime12(slot.start_time)}
                               </span>
                               <div
-                                className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full sm:h-4 sm:w-4 ${
-                                  isBlocked ? "bg-danger-500" : "bg-brand-500"
-                                }`}
+                                className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full sm:h-4 sm:w-4 ${iconBg}`}
                               >
-                                {isBlocked ? (
-                                  <FiLock className="h-2 w-2 text-surface sm:h-2.5 sm:w-2.5" />
-                                ) : (
-                                  <FiCheck className="h-2 w-2 text-surface sm:h-2.5 sm:w-2.5" />
-                                )}
+                                {icon}
                               </div>
                             </div>
-                            <p
-                              className={`truncate text-[10px] ${
-                                isBlocked ? "text-danger-600" : "text-ink-500"
-                              }`}
-                            >
+                            <p className={`truncate text-[10px] ${endCls}`}>
                               to {formatTime12(slot.end_time)}
                             </p>
-                            {isExisting && (
+                            {isBooked ? (
+                              <span className="text-[9px] font-semibold uppercase text-ink-500">
+                                booked
+                              </span>
+                            ) : wasBlockedInitially ? (
                               <span className="text-[9px] font-semibold uppercase text-ink-400">
                                 existing
                               </span>
-                            )}
+                            ) : null}
                           </button>
                         );
                       })}
@@ -818,6 +874,10 @@ const AvailabilityExceptions = () => {
                         <span className="text-[11px] text-ink-600">
                           Blocked
                         </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-2.5 w-2.5 rounded-full bg-ink-400" />
+                        <span className="text-[11px] text-ink-600">Booked</span>
                       </div>
                       <p className="ml-auto text-[11px] text-ink-500">
                         {isSaving ? "Saving…" : "Click a slot to toggle"}

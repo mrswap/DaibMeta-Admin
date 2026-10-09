@@ -1,3 +1,5 @@
+// src/features/patent/routes/AdminRoutes.jsx
+
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
@@ -32,6 +34,7 @@ import VisitEdit from "../pages/visits/VisitEdit";
 import VisitDetail from "../pages/visits/VisitDetail";
 
 import BookingCalendar from "../pages/bookingCalendar/BookingCalendar";
+import ExceptionManagementList from "../pages/exceptionManagement/ExceptionManagementList";
 
 import NotFound from "../pages/NotFound";
 import ComingSoon from "../pages/ComingSoon";
@@ -69,6 +72,12 @@ const AdminRoutes = () => {
 
           {/* ==================== Booking Calendar ==================== */}
           <Route path="booking-calendar" element={<BookingCalendar />} />
+
+          {/* ==================== Exception Management ==================== */}
+          <Route
+            path="exception-management"
+            element={<ExceptionManagementList />}
+          />
 
           {/* ==================== Visits ==================== */}
           <Route path="visits" element={<VisitList />} />

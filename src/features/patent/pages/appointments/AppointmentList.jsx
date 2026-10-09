@@ -1,4 +1,6 @@
-import { useState } from "react";
+// src/features/patent/pages/appointments/AppointmentList.jsx
+
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiPlus,
@@ -17,6 +19,7 @@ import {
   BOOKING_SOURCES,
   APPOINTMENT_STATUSES,
 } from "../../queries/appointments";
+import { useStaff } from "../../queries/staff";
 import AppointmentStatusBadge from "./components/AppointmentStatusBadge";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
@@ -47,6 +50,7 @@ const AppointmentList = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
   const [sourceFilter, setSourceFilter] = useState(null);
+  const [providerFilter, setProviderFilter] = useState(null);
   const [dateFromFilter, setDateFromFilter] = useState("");
   const [dateToFilter, setDateToFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -59,12 +63,26 @@ const AppointmentList = () => {
     item: null,
   });
 
+  // ==================== LOAD PROVIDERS ====================
+  const { data: staffData } = useStaff({ per_page: 100, status: 1 });
+
+  const providerOptions = useMemo(
+    () =>
+      (staffData?.list || []).map((s) => ({
+        value: String(s.id),
+        label: `${s.name}${s.role?.label ? ` — ${s.role.label}` : ""}`,
+      })),
+    [staffData],
+  );
+
+  // ==================== PARAMS ====================
   const params = {
     page,
     per_page: perPage,
     ...(search && { search }),
     ...(statusFilter?.value && { status: statusFilter.value }),
     ...(sourceFilter?.value && { booking_source: sourceFilter.value }),
+    ...(providerFilter?.value && { provider_id: providerFilter.value }),
     ...(dateFromFilter && { date_from: dateFromFilter }),
     ...(dateToFilter && { date_to: dateToFilter }),
   };
@@ -94,6 +112,7 @@ const AppointmentList = () => {
     setSearch("");
     setStatusFilter(null);
     setSourceFilter(null);
+    setProviderFilter(null);
     setDateFromFilter("");
     setDateToFilter("");
     setPage(1);
@@ -105,12 +124,18 @@ const AppointmentList = () => {
   const metaPerPage = meta.per_page || perPage;
 
   const hasActiveFilters =
-    search || statusFilter || sourceFilter || dateFromFilter || dateToFilter;
+    search ||
+    statusFilter ||
+    sourceFilter ||
+    providerFilter ||
+    dateFromFilter ||
+    dateToFilter;
 
   const activeFilterCount =
     (search ? 1 : 0) +
     (statusFilter ? 1 : 0) +
     (sourceFilter ? 1 : 0) +
+    (providerFilter ? 1 : 0) +
     (dateFromFilter ? 1 : 0) +
     (dateToFilter ? 1 : 0);
 
@@ -197,7 +222,8 @@ const AppointmentList = () => {
 
         {filtersOpen && (
           <div className="space-y-3 rounded-lg border border-ink-100 bg-ink-50/40 p-3 sm:p-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Status */}
               <div>
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Status
@@ -214,6 +240,7 @@ const AppointmentList = () => {
                 />
               </div>
 
+              {/* Source */}
               <div>
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Source
@@ -230,6 +257,25 @@ const AppointmentList = () => {
                 />
               </div>
 
+              {/* Provider */}
+              <div>
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
+                  Provider
+                </label>
+                <FilterSelect
+                  value={providerFilter}
+                  onChange={(v) => {
+                    setProviderFilter(v);
+                    setPage(1);
+                  }}
+                  options={providerOptions}
+                  placeholder="All Providers"
+                  isClearable
+                  isDisabled={providerOptions.length === 0}
+                />
+              </div>
+
+              {/* Date From */}
               <div>
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Date From
@@ -247,6 +293,7 @@ const AppointmentList = () => {
                 />
               </div>
 
+              {/* Date To */}
               <div>
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Date To
@@ -344,7 +391,6 @@ const AppointmentList = () => {
                       </div>
                     </Td>
                     <Td>
-                      {/* ========== 2 LINES: start + dash on line 1, end on line 2 ========== */}
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-ink-900">
                           {formatTime12(row.start_time)}
@@ -493,7 +539,6 @@ const MobileCard = ({ row, onView, onEdit, onDelete }) => {
             </span>
           </div>
           <div>
-            {/* 2 lines: start + dash, end */}
             <p className="text-xs font-semibold text-ink-800">
               {formatTime12(row.start_time)}
               <span className="ml-1 font-normal text-ink-500">–</span>
