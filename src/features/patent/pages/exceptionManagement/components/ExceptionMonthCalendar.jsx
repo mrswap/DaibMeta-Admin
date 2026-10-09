@@ -1,7 +1,12 @@
-// src/features/patent/pages/bookingCalendar/components/MonthCalendar.jsx
+// src/features/patent/pages/exceptionManagement/components/ExceptionMonthCalendar.jsx
 
 import { useMemo } from "react";
-import { FiChevronLeft, FiChevronRight, FiCalendar } from "react-icons/fi";
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiCalendar,
+  FiLock,
+} from "react-icons/fi";
 
 const MONTH_NAMES = [
   "January",
@@ -22,6 +27,7 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const MAX_DOTS = 4;
 
+// ==================== HELPERS ====================
 const parseDate = (str) => {
   if (!str) return null;
   const [y, m, d] = str.split("-").map(Number);
@@ -40,14 +46,15 @@ const getISODay = (date) => {
   return jsDay === 0 ? 7 : jsDay;
 };
 
-const MonthCalendar = ({
+const ExceptionMonthCalendar = ({
   selectedDate,
   onSelectDate,
-  dateProviderMap = {},
+  dateExceptionMap = {},
   activeProviderId,
   allProviders = [],
   viewMonth,
   setViewMonth,
+  onMonthChange,
 }) => {
   const today = useMemo(() => {
     const d = new Date();
@@ -58,20 +65,33 @@ const MonthCalendar = ({
   // ==================== MONTH NAVIGATION ====================
   const handlePrevMonth = () => {
     setViewMonth((v) => {
-      if (v.month === 0) return { year: v.year - 1, month: 11 };
-      return { year: v.year, month: v.month - 1 };
+      const next =
+        v.month === 0
+          ? { year: v.year - 1, month: 11 }
+          : { year: v.year, month: v.month - 1 };
+      if (onMonthChange) onMonthChange(next);
+      return next;
     });
   };
 
   const handleNextMonth = () => {
     setViewMonth((v) => {
-      if (v.month === 11) return { year: v.year + 1, month: 0 };
-      return { year: v.year, month: v.month + 1 };
+      const next =
+        v.month === 11
+          ? { year: v.year + 1, month: 0 }
+          : { year: v.year, month: v.month + 1 };
+      if (onMonthChange) onMonthChange(next);
+      return next;
     });
   };
 
   const handleToday = () => {
-    setViewMonth({ year: today.getFullYear(), month: today.getMonth() });
+    const next = {
+      year: today.getFullYear(),
+      month: today.getMonth(),
+    };
+    setViewMonth(next);
+    if (onMonthChange) onMonthChange(next);
     onSelectDate(formatDateStr(today));
   };
 
@@ -102,14 +122,23 @@ const MonthCalendar = ({
 
   const selectedDateObj = parseDate(selectedDate);
 
+  // ==================== PROVIDER LOOKUP ====================
+  const providerMap = useMemo(() => {
+    const map = new Map();
+    allProviders.forEach((p) => map.set(p.id, p));
+    return map;
+  }, [allProviders]);
+
+  // ==================== RENDER ====================
   return (
     <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
-      {/* Header */}
+      {/* ==================== HEADER ==================== */}
       <div className="flex items-center justify-between border-b border-ink-100 bg-ink-50/40 px-4 py-3">
         <button
           type="button"
           onClick={handlePrevMonth}
           className="cursor-pointer rounded-md p-1.5 text-ink-600 transition hover:bg-ink-100"
+          title="Previous month"
         >
           <FiChevronLeft className="h-4 w-4" />
         </button>
@@ -131,12 +160,13 @@ const MonthCalendar = ({
           type="button"
           onClick={handleNextMonth}
           className="cursor-pointer rounded-md p-1.5 text-ink-600 transition hover:bg-ink-100"
+          title="Next month"
         >
           <FiChevronRight className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Day labels */}
+      {/* ==================== DAY LABELS ==================== */}
       <div className="grid grid-cols-7 border-b border-ink-100">
         {DAY_LABELS.map((d) => (
           <div
@@ -148,7 +178,7 @@ const MonthCalendar = ({
         ))}
       </div>
 
-      {/* Calendar grid */}
+      {/* ==================== CALENDAR GRID ==================== */}
       <div className="grid grid-cols-7 gap-1 p-3">
         {cells.map((date, idx) => {
           if (!date) return <div key={`blank-${idx}`} />;
@@ -158,53 +188,87 @@ const MonthCalendar = ({
           const isToday = isSameDay(date, today);
           const isPast = date < today;
 
-          const availableProviders = dateProviderMap[dateStr] || [];
-          const hasProviders = availableProviders.length > 0;
+          const dateExceptions = dateExceptionMap[dateStr] || [];
 
-          const sortedProviders = [...availableProviders].sort((a, b) => {
+          const filteredExceptions = activeProviderId
+            ? dateExceptions.filter(
+                (ex) => ex.provider?.id === activeProviderId,
+              )
+            : dateExceptions;
+
+          const hasExceptions = dateExceptions.length > 0;
+          const hasFilteredExceptions = filteredExceptions.length > 0;
+
+          const uniqueProviders = [];
+          const seen = new Set();
+          filteredExceptions.forEach((ex) => {
+            if (ex.provider?.id && !seen.has(ex.provider.id)) {
+              seen.add(ex.provider.id);
+              const p = providerMap.get(ex.provider.id);
+              if (p) uniqueProviders.push(p);
+            }
+          });
+
+          const sortedProviders = [...uniqueProviders].sort((a, b) => {
             if (a.id === activeProviderId) return -1;
             if (b.id === activeProviderId) return 1;
             return 0;
           });
 
           const visibleDots = sortedProviders.slice(0, MAX_DOTS);
-          const extraCount = availableProviders.length - MAX_DOTS;
+          const extraCount = sortedProviders.length - MAX_DOTS;
 
-          // Cell background
+          // ==================== CELL STYLING ====================
           let cellCls;
-          if (isPast) {
-            cellCls = "cursor-not-allowed text-ink-300";
-          } else if (isSelected) {
+
+          if (isSelected) {
             cellCls =
               "cursor-pointer bg-brand-600 font-bold text-surface shadow-sm";
           } else if (isToday) {
             cellCls =
               "cursor-pointer bg-brand-50 text-brand-700 ring-1 ring-brand-200 hover:bg-brand-100";
-          } else if (hasProviders) {
+          } else if (hasFilteredExceptions && activeProviderId && !isPast) {
             cellCls =
-              "cursor-pointer bg-brand-50/60 text-ink-800 hover:bg-brand-100";
-          } else {
+              "cursor-pointer bg-danger-50/60 text-danger-700 hover:bg-danger-100/70";
+          } else if (hasExceptions && !activeProviderId && !isPast) {
+            cellCls =
+              "cursor-pointer bg-danger-50/60 text-danger-700 hover:bg-danger-100/70";
+          } else if (isPast) {
             cellCls = "cursor-pointer text-ink-400 hover:bg-ink-50";
+          } else {
+            cellCls = "cursor-pointer text-ink-600 hover:bg-ink-50";
           }
+
+          const tooltipText = hasExceptions
+            ? `${dateExceptions.length} blocked slot${
+                dateExceptions.length > 1 ? "s" : ""
+              }`
+            : undefined;
 
           return (
             <button
               key={dateStr}
               type="button"
               onClick={() => onSelectDate(dateStr)}
-              disabled={isPast}
-              title={
-                hasProviders
-                  ? `${availableProviders.length} provider${
-                      availableProviders.length > 1 ? "s" : ""
-                    } available`
-                  : undefined
-              }
-              className={`flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg text-xs font-medium transition ${cellCls}`}
+              title={tooltipText}
+              className={`relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg text-xs font-medium transition ${cellCls}`}
             >
               <span className="leading-none">{date.getDate()}</span>
 
-              {hasProviders && !isPast && (
+              {hasFilteredExceptions && activeProviderId && (
+                <span
+                  className={`inline-flex items-center gap-0.5 leading-none ${
+                    isSelected ? "text-surface" : "text-danger-600"
+                  }`}
+                >
+                  <FiLock className="h-2 w-2" />
+                  <span className="text-[8px] font-bold">
+                    {filteredExceptions.length}
+                  </span>
+                </span>
+              )}
+
+              {!activeProviderId && hasExceptions && !isSelected && (
                 <div className="flex items-center justify-center gap-0.5">
                   {visibleDots.map((p) => (
                     <span
@@ -217,22 +281,25 @@ const MonthCalendar = ({
                     />
                   ))}
                   {extraCount > 0 && (
-                    <span
-                      className={`text-[7px] font-bold leading-none ${
-                        isSelected ? "text-surface" : "text-ink-500"
-                      }`}
-                    >
+                    <span className="text-[7px] font-bold leading-none text-ink-500">
                       +{extraCount}
                     </span>
                   )}
                 </div>
+              )}
+
+              {activeProviderId && hasFilteredExceptions && !isSelected && (
+                <span
+                  className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-danger-500"
+                  title="Has blocked slots"
+                />
               )}
             </button>
           );
         })}
       </div>
 
-      {/* Legend */}
+      {/* ==================== LEGEND ==================== */}
       <div className="flex flex-wrap items-center gap-3 border-t border-ink-100 bg-ink-50/30 px-4 py-2.5">
         <div className="flex items-center gap-1.5">
           <FiCalendar className="h-3 w-3 text-ink-500" />
@@ -242,33 +309,19 @@ const MonthCalendar = ({
           </p>
         </div>
 
-        {activeProviderId &&
-          dateProviderMap[selectedDate] &&
-          dateProviderMap[selectedDate].length > 0 && (
-            <div className="ml-auto flex items-center gap-1.5">
-              <p className="text-[10px] text-ink-500">Available:</p>
-              <div className="flex items-center gap-1">
-                {dateProviderMap[selectedDate].slice(0, 5).map((p) => (
-                  <span
-                    key={p.id}
-                    className="inline-block h-1.5 w-1.5 rounded-full"
-                    style={{
-                      backgroundColor: p.color?.hex || "#9ca3af",
-                    }}
-                    title={p.name}
-                  />
-                ))}
-                {dateProviderMap[selectedDate].length > 5 && (
-                  <span className="text-[9px] font-bold text-ink-500">
-                    +{dateProviderMap[selectedDate].length - 5}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-danger-50 ring-1 ring-danger-200" />
+            <span className="text-[10px] text-ink-600">Has blocked</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-brand-50 ring-1 ring-brand-200" />
+            <span className="text-[10px] text-ink-600">Today</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default MonthCalendar;
+export default ExceptionMonthCalendar;

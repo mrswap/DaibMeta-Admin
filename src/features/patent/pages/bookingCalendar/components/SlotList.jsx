@@ -69,7 +69,8 @@ const toLocalDateString = (val) => {
 const SLOT_STYLES = {
   available:
     "cursor-pointer border-brand-200 bg-brand-50 text-brand-700 hover:border-brand-400 hover:bg-brand-100",
-  booked: "cursor-not-allowed border-ink-200 bg-ink-100 text-ink-500",
+  booked:
+    "cursor-pointer border-ink-200 bg-ink-100 text-ink-500 hover:border-ink-300",
   blocked: "cursor-not-allowed border-danger-200 bg-danger-50 text-danger-700",
 };
 
@@ -97,9 +98,10 @@ const SlotList = ({
   bookedAppointments = [],
   date,
   onSlotClick,
+  onBookedSlotClick,
   onAddAvailability,
 }) => {
-  // ==================== FETCH EXCEPTIONS (BLOCKED) ====================
+  // ==================== FETCH EXCEPTIONS ====================
   const { data: exceptions = [] } = useExceptionsForCalendar(availability?.id);
 
   const exceptionsList = Array.isArray(exceptions) ? exceptions : [];
@@ -114,23 +116,19 @@ const SlotList = ({
       availability.slot_duration,
     );
 
-    // Booked start times (set)
     const bookedStartTimes = new Set(
       bookedAppointments.map((a) => a.start_time?.slice(0, 5)),
     );
 
-    // Filter exceptions for this date only
     const dateExceptions = exceptionsList.filter(
       (ex) =>
         toLocalDateString(ex.exception_date) === date && ex.status !== false,
     );
 
-    // Full day block?
     const hasFullDay = dateExceptions.some(
       (ex) => !ex.start_time && !ex.end_time,
     );
 
-    // Blocked ranges (start, end) as minutes
     const blockedRanges = dateExceptions
       .filter((ex) => ex.start_time && ex.end_time)
       .map((ex) => ({
@@ -142,10 +140,12 @@ const SlotList = ({
       const slotStart = timeToMinutes(slot.start_time);
       const slotEnd = timeToMinutes(slot.end_time);
 
-      // Booked takes priority (booked via appointment)
-      const isBooked = bookedStartTimes.has(slot.start_time);
+      const bookedAppointment = bookedAppointments.find(
+        (a) => a.start_time?.slice(0, 5) === slot.start_time,
+      );
 
-      // Blocked: full day OR overlaps with any blocked range
+      const isBooked = !!bookedAppointment;
+
       const isBlocked =
         !isBooked &&
         (hasFullDay ||
@@ -155,12 +155,23 @@ const SlotList = ({
       if (isBooked) status = "booked";
       else if (isBlocked) status = "blocked";
 
+      const bookingMeta = bookedAppointment
+        ? {
+            id: bookedAppointment.id,
+            name: bookedAppointment.name || "—",
+            mobile: bookedAppointment.mobile || "—",
+            status: bookedAppointment.status,
+            status_label: bookedAppointment.status_label,
+            booking_source: bookedAppointment.booking_source,
+          }
+        : null;
+
       return {
         ...slot,
         status,
-        appointment: bookedAppointments.find(
-          (a) => a.start_time?.slice(0, 5) === slot.start_time,
-        ),
+        isBooked,
+        appointment: bookingMeta,
+        rawAppointment: bookedAppointment,
       };
     });
   }, [availability, bookedAppointments, exceptionsList, date]);
@@ -240,49 +251,59 @@ const SlotList = ({
         </div>
       </div>
 
-      {/* Slot grid */}
-      <div className="max-h-[420px] overflow-y-auto p-3">
+      {/* Slot grid — 3 columns only on xl+ screens (1280px+) */}
+      <div className="max-h-[480px] overflow-y-auto p-4">
         {slots.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-xs text-ink-500">No slots available.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
             {slots.map((slot, idx) => {
               const status = slot.status;
               const isAvailable = status === "available";
+              const isBooked = status === "booked";
+              const isBlocked = status === "blocked";
+
+              const handleClick = () => {
+                if (isAvailable) onSlotClick(slot);
+                else if (isBooked && onBookedSlotClick) onBookedSlotClick(slot);
+              };
 
               return (
                 <button
                   key={idx}
                   type="button"
-                  disabled={!isAvailable}
-                  onClick={() => isAvailable && onSlotClick(slot)}
+                  disabled={isBlocked}
+                  onClick={handleClick}
                   title={
-                    slot.appointment
-                      ? `Booked — ${slot.appointment.name || "—"}`
-                      : status === "blocked"
+                    isBooked
+                      ? `Booked — ${slot.appointment?.name || "—"} (click for details)`
+                      : isBlocked
                         ? "Blocked by availability exception"
                         : "Click to book"
                   }
-                  className={`flex flex-col gap-1 rounded-lg border p-2.5 text-left transition sm:p-3 ${SLOT_STYLES[status]}`}
+                  className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left transition ${SLOT_STYLES[status]}`}
                 >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[11px] font-semibold">
+                  {/* Left: time info */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-semibold leading-tight">
                       {formatTime12(slot.start_time)}
-                    </span>
-                    <div
-                      className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full sm:h-4 sm:w-4 ${SLOT_ICON_BG[status]}`}
-                    >
-                      {SLOT_ICONS[status]}
-                    </div>
+                    </p>
+                    <p className="mt-0.5 truncate text-[10px] leading-tight opacity-80">
+                      to {formatTime12(slot.end_time)}
+                    </p>
+                    <p className="mt-1 text-[9px] font-semibold uppercase tracking-wide opacity-60">
+                      {SLOT_LABELS[status]}
+                    </p>
                   </div>
-                  <p className="truncate text-[10px] opacity-80">
-                    to {formatTime12(slot.end_time)}
-                  </p>
-                  <p className="text-[9px] font-semibold uppercase opacity-60">
-                    {SLOT_LABELS[status]}
-                  </p>
+
+                  {/* Right: status icon */}
+                  <div
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${SLOT_ICON_BG[status]}`}
+                  >
+                    {SLOT_ICONS[status]}
+                  </div>
                 </button>
               );
             })}

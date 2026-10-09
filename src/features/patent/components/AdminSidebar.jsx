@@ -1,6 +1,15 @@
+// src/features/patent/components/AdminSidebar.jsx
+
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { FiX, FiCalendar, FiClock, FiActivity, FiGrid } from "react-icons/fi";
+import {
+  FiX,
+  FiCalendar,
+  FiClock,
+  FiActivity,
+  FiGrid,
+  FiAlertTriangle,
+} from "react-icons/fi";
 import {
   MdOutlineDashboard,
   MdOutlineBadge,
@@ -29,6 +38,11 @@ const menuSections = [
         name: "Booking Calendar",
         path: "/booking-calendar",
         icon: FiGrid,
+      },
+      {
+        name: "Exception Calendar",
+        path: "/exception-management",
+        icon: FiAlertTriangle,
       },
       {
         name: "Visits",

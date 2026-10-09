@@ -62,7 +62,7 @@ export const useAllAvailabilities = () => {
 };
 
 // ==================== EXCEPTIONS ====================
-// Backend URL: /admin/provider-availability-exceptions
+// Backend URL: /admin/provider-availability-exceptions 
 export const useExceptionsForCalendar = (availabilityId) => {
     return useQuery({
         queryKey: bookingCalendarKeys.exceptions(availabilityId),

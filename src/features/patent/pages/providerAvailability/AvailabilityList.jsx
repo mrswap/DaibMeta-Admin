@@ -1,4 +1,6 @@
-import { useState } from "react";
+// src/features/patent/pages/providerAvailability/AvailabilityList.jsx
+
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiPlus,
@@ -16,6 +18,7 @@ import {
   useToggleAvailabilityStatus,
   useDeleteAvailability,
 } from "../../queries/providerAvailabilities";
+import { useStaff } from "../../queries/staff";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
@@ -67,6 +70,7 @@ const AvailabilityList = () => {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
+  const [providerFilter, setProviderFilter] = useState(null);
   const [dateFromFilter, setDateFromFilter] = useState("");
   const [dateToFilter, setDateToFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -79,11 +83,25 @@ const AvailabilityList = () => {
     item: null,
   });
 
+  // ==================== LOAD PROVIDERS ====================
+  const { data: staffData } = useStaff({ per_page: 100, status: 1 });
+
+  const providerOptions = useMemo(
+    () =>
+      (staffData?.list || []).map((s) => ({
+        value: String(s.id),
+        label: `${s.name}${s.role?.label ? ` — ${s.role.label}` : ""}`,
+      })),
+    [staffData],
+  );
+
+  // ==================== PARAMS ====================
   const params = {
     page,
     per_page: perPage,
     ...(search && { search }),
     ...(statusFilter?.value && { status: statusFilter.value }),
+    ...(providerFilter?.value && { provider_id: providerFilter.value }),
     ...(dateFromFilter && { date_from: dateFromFilter }),
     ...(dateToFilter && { date_to: dateToFilter }),
   };
@@ -123,6 +141,7 @@ const AvailabilityList = () => {
   const clearFilters = () => {
     setSearch("");
     setStatusFilter(null);
+    setProviderFilter(null);
     setDateFromFilter("");
     setDateToFilter("");
     setPage(1);
@@ -136,6 +155,7 @@ const AvailabilityList = () => {
   const activeFilterCount =
     (search ? 1 : 0) +
     (statusFilter ? 1 : 0) +
+    (providerFilter ? 1 : 0) +
     (dateFromFilter ? 1 : 0) +
     (dateToFilter ? 1 : 0);
 
@@ -328,7 +348,8 @@ const AvailabilityList = () => {
 
         {filtersOpen && (
           <div className="space-y-3 rounded-lg border border-ink-100 bg-ink-50/40 p-3 sm:p-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Status */}
               <div>
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Status
@@ -345,6 +366,25 @@ const AvailabilityList = () => {
                 />
               </div>
 
+              {/* Provider */}
+              <div>
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
+                  Provider
+                </label>
+                <FilterSelect
+                  value={providerFilter}
+                  onChange={(v) => {
+                    setProviderFilter(v);
+                    setPage(1);
+                  }}
+                  options={providerOptions}
+                  placeholder="All Providers"
+                  isClearable
+                  isDisabled={providerOptions.length === 0}
+                />
+              </div>
+
+              {/* Date From */}
               <div>
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Date From
@@ -362,6 +402,7 @@ const AvailabilityList = () => {
                 />
               </div>
 
+              {/* Date To */}
               <div>
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Date To

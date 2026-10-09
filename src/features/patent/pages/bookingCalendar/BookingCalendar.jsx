@@ -1,6 +1,6 @@
 // src/features/patent/pages/bookingCalendar/BookingCalendar.jsx
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiCalendar } from "react-icons/fi";
 import {
@@ -12,6 +12,7 @@ import MonthCalendar from "./components/MonthCalendar";
 import ProviderTabs from "./components/ProviderTabs";
 import SlotList from "./components/SlotList";
 import QuickBookingModal from "./components/QuickBookingModal";
+import BookedSlotDetailsModal from "./components/BookedSlotDetailsModal";
 import Loader from "../../common/Loader";
 
 // ==================== HELPERS ====================
@@ -31,21 +32,51 @@ const getISODay = (dateStr) => {
   return jsDay === 0 ? 7 : jsDay;
 };
 
+const formatDateStr = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+// Pick first date of a month, or today if today is in that month
+const pickDateForMonth = (year, month) => {
+  const today = new Date();
+  if (today.getFullYear() === year && today.getMonth() === month) {
+    return formatDateStr(today);
+  }
+  return `${year}-${String(month + 1).padStart(2, "0")}-01`;
+};
+
 const BookingCalendar = () => {
   const navigate = useNavigate();
 
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [selectedProviderId, setSelectedProviderId] = useState(null);
+  const [viewMonth, setViewMonth] = useState(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  // Quick booking modal
   const [bookingModal, setBookingModal] = useState({
     open: false,
     slot: null,
     provider: null,
   });
 
-  // Load all availabilities (includes provider + appointment_type)
+  // Booked slot details modal
+  const [bookedSlotModal, setBookedSlotModal] = useState({
+    open: false,
+    slot: null,
+    provider: null,
+    date: null,
+  });
+
+  // Load all availabilities
   const { data: availabilities = [], isLoading } = useAllAvailabilities();
 
-  // Derive unique providers from availabilities
+  // Derive unique providers
   const providers = useMemo(() => {
     const map = new Map();
     availabilities.forEach((av) => {
@@ -77,6 +108,17 @@ const BookingCalendar = () => {
     );
   }, [availabilities, activeProviderId, selectedDate]);
 
+  // ==================== AUTO-ADJUST selectedDate WHEN MONTH CHANGES ====================
+  useEffect(() => {
+    if (!selectedDate) return;
+    const [sy, sm] = selectedDate.split("-").map(Number);
+    // If selectedDate is NOT in viewMonth, pick a sensible date
+    if (sy !== viewMonth.year || sm - 1 !== viewMonth.month) {
+      const newDate = pickDateForMonth(viewMonth.year, viewMonth.month);
+      setSelectedDate(newDate);
+    }
+  }, [viewMonth, selectedDate]);
+
   // ==================== DATE → PROVIDERS MAP ====================
   const dateProviderMap = useMemo(() => {
     const map = {};
@@ -85,10 +127,10 @@ const BookingCalendar = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const start = new Date(today);
-    start.setMonth(start.getMonth() - 1);
-    const end = new Date(today);
-    end.setMonth(end.getMonth() + 4);
+    // Cover ±4 months from viewMonth (so month navigation is smooth)
+    const { year, month } = viewMonth;
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month + 2, 0);
 
     const current = new Date(start);
     while (current <= end) {
@@ -125,12 +167,11 @@ const BookingCalendar = () => {
     }
 
     return map;
-  }, [availabilities]);
+  }, [availabilities, viewMonth]);
 
-  // ==================== BOOKED SLOTS (single date call) ====================
+  // ==================== BOOKED SLOTS ====================
   const { data: bookedAppointments = [] } = useBookedSlotsByDate(selectedDate);
 
-  // Filter to active provider
   const activeBookedAppointments = useMemo(
     () =>
       bookedAppointments.filter(
@@ -139,6 +180,7 @@ const BookingCalendar = () => {
     [bookedAppointments, activeProviderId],
   );
 
+  // ==================== HANDLERS ====================
   const handleSlotClick = (slot) => {
     if (!activeProvider) return;
     setBookingModal({
@@ -146,6 +188,16 @@ const BookingCalendar = () => {
       slot,
       provider: activeProvider,
       appointmentTypeId: activeAvailability?.appointment_type?.id,
+    });
+  };
+
+  const handleBookedSlotClick = (slot) => {
+    if (!activeProvider) return;
+    setBookedSlotModal({
+      open: true,
+      slot,
+      provider: activeProvider,
+      date: selectedDate,
     });
   };
 
@@ -183,7 +235,9 @@ const BookingCalendar = () => {
             onSelectDate={setSelectedDate}
             dateProviderMap={dateProviderMap}
             activeProviderId={activeProviderId}
-            allProviders={providers} // ← ADD
+            allProviders={providers}
+            viewMonth={viewMonth}
+            setViewMonth={setViewMonth}
           />
         </div>
 
@@ -214,6 +268,7 @@ const BookingCalendar = () => {
                 providerColor={getProviderColor(activeProvider)}
                 date={selectedDate}
                 onSlotClick={handleSlotClick}
+                onBookedSlotClick={handleBookedSlotClick}
                 onAddAvailability={handleAddAvailability}
               />
             </div>
@@ -221,16 +276,37 @@ const BookingCalendar = () => {
         </div>
       </div>
 
+      {/* Quick Booking Modal */}
       <QuickBookingModal
         open={bookingModal.open}
         onClose={() =>
-          setBookingModal({ open: false, slot: null, provider: null })
+          setBookingModal({
+            open: false,
+            slot: null,
+            provider: null,
+          })
         }
         slot={bookingModal.slot}
         provider={bookingModal.provider}
         appointmentTypeId={bookingModal.appointmentTypeId}
         date={selectedDate}
         onSuccess={handleBookingSuccess}
+      />
+
+      {/* Booked Slot Details Modal */}
+      <BookedSlotDetailsModal
+        open={bookedSlotModal.open}
+        onClose={() =>
+          setBookedSlotModal({
+            open: false,
+            slot: null,
+            provider: null,
+            date: null,
+          })
+        }
+        slot={bookedSlotModal.slot}
+        provider={bookedSlotModal.provider}
+        date={bookedSlotModal.date}
       />
     </div>
   );
