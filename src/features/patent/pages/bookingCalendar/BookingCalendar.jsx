@@ -8,6 +8,7 @@ import {
   useBookedSlotsByDate,
   getProviderColor,
 } from "../../queries/bookingCalendar";
+import { useVisits } from "../../queries/visits";
 import MonthCalendar from "./components/MonthCalendar";
 import ProviderTabs from "./components/ProviderTabs";
 import SlotList from "./components/SlotList";
@@ -39,13 +40,19 @@ const formatDateStr = (date) => {
   return `${y}-${m}-${d}`;
 };
 
-// Pick first date of a month, or today if today is in that month
 const pickDateForMonth = (year, month) => {
   const today = new Date();
   if (today.getFullYear() === year && today.getMonth() === month) {
     return formatDateStr(today);
   }
   return `${year}-${String(month + 1).padStart(2, "0")}-01`;
+};
+
+// Normalize visit schedule date (handles "2026-10-12" and "2026-10-12 15:12:15")
+const toDateOnly = (val) => {
+  if (!val) return "";
+  if (typeof val === "string") return val.slice(0, 10);
+  return "";
 };
 
 const BookingCalendar = () => {
@@ -58,14 +65,12 @@ const BookingCalendar = () => {
     return { year: d.getFullYear(), month: d.getMonth() };
   });
 
-  // Quick booking modal
   const [bookingModal, setBookingModal] = useState({
     open: false,
     slot: null,
     provider: null,
   });
 
-  // Booked slot details modal
   const [bookedSlotModal, setBookedSlotModal] = useState({
     open: false,
     slot: null,
@@ -73,10 +78,26 @@ const BookingCalendar = () => {
     date: null,
   });
 
-  // Load all availabilities
+  // ==================== AVAILABILITIES ====================
   const { data: availabilities = [], isLoading } = useAllAvailabilities();
 
-  // Derive unique providers
+  // ==================== VISITS (for appointment → visit mapping) ====================
+  const { data: visitsData } = useVisits({ per_page: 500 });
+  const allVisits = visitsData?.list || [];
+
+  // appointmentId → visit map
+  const appointmentVisitMap = useMemo(() => {
+    const map = {};
+    allVisits.forEach((v) => {
+      const apptId = v.appointment?.id;
+      if (apptId) {
+        map[apptId] = v;
+      }
+    });
+    return map;
+  }, [allVisits]);
+
+  // ==================== PROVIDERS ====================
   const providers = useMemo(() => {
     const map = new Map();
     availabilities.forEach((av) => {
@@ -87,11 +108,10 @@ const BookingCalendar = () => {
     return Array.from(map.values());
   }, [availabilities]);
 
-  // Auto-select first provider
   const activeProviderId = selectedProviderId || providers[0]?.id || null;
   const activeProvider = providers.find((p) => p.id === activeProviderId);
 
-  // Active availability for selected provider + date
+  // ==================== ACTIVE AVAILABILITY ====================
   const activeAvailability = useMemo(() => {
     if (!activeProviderId || !selectedDate) return null;
     const isoDay = getISODay(selectedDate);
@@ -108,11 +128,10 @@ const BookingCalendar = () => {
     );
   }, [availabilities, activeProviderId, selectedDate]);
 
-  // ==================== AUTO-ADJUST selectedDate WHEN MONTH CHANGES ====================
+  // ==================== AUTO-ADJUST selectedDate ====================
   useEffect(() => {
     if (!selectedDate) return;
     const [sy, sm] = selectedDate.split("-").map(Number);
-    // If selectedDate is NOT in viewMonth, pick a sensible date
     if (sy !== viewMonth.year || sm - 1 !== viewMonth.month) {
       const newDate = pickDateForMonth(viewMonth.year, viewMonth.month);
       setSelectedDate(newDate);
@@ -124,10 +143,6 @@ const BookingCalendar = () => {
     const map = {};
     if (!availabilities.length) return map;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Cover ±4 months from viewMonth (so month navigation is smooth)
     const { year, month } = viewMonth;
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month + 2, 0);
@@ -169,7 +184,7 @@ const BookingCalendar = () => {
     return map;
   }, [availabilities, viewMonth]);
 
-  // ==================== BOOKED SLOTS ====================
+  // ==================== BOOKED APPOINTMENTS ====================
   const { data: bookedAppointments = [] } = useBookedSlotsByDate(selectedDate);
 
   const activeBookedAppointments = useMemo(
@@ -193,9 +208,14 @@ const BookingCalendar = () => {
 
   const handleBookedSlotClick = (slot) => {
     if (!activeProvider) return;
+    // Attach visit if exists
+    const visit = slot.appointment?.id
+      ? appointmentVisitMap[slot.appointment.id] || null
+      : null;
+
     setBookedSlotModal({
       open: true,
-      slot,
+      slot: { ...slot, visit },
       provider: activeProvider,
       date: selectedDate,
     });
@@ -217,6 +237,7 @@ const BookingCalendar = () => {
 
   return (
     <div className="space-y-4 sm:space-y-5">
+      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="font-jakarta text-xl font-bold text-ink-900 sm:text-2xl">
@@ -228,6 +249,7 @@ const BookingCalendar = () => {
         </div>
       </div>
 
+      {/* Split layout */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr] lg:gap-5">
         <div className="min-w-0">
           <MonthCalendar
@@ -265,6 +287,7 @@ const BookingCalendar = () => {
               <SlotList
                 availability={activeAvailability}
                 bookedAppointments={activeBookedAppointments}
+                appointmentVisitMap={appointmentVisitMap}
                 providerColor={getProviderColor(activeProvider)}
                 date={selectedDate}
                 onSlotClick={handleSlotClick}
