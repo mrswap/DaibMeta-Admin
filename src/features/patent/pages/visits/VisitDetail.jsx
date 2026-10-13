@@ -101,7 +101,7 @@ const getNextAction = (status) => {
       title: "Patient is waiting",
       description:
         "Start consultation to record clinical information and begin the visit.",
-      buttonLabel: "Start Consultation",
+      buttonLabel: "Change Visit Status",
       buttonIcon: FiPlayCircle,
       variant: "brand",
     };

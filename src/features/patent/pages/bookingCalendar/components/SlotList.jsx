@@ -8,6 +8,7 @@ import {
   FiCheck,
   FiLock,
   FiUser,
+  FiCheckCircle,
 } from "react-icons/fi";
 import { useExceptionsForCalendar } from "../../../queries/bookingCalendar";
 
@@ -65,43 +66,66 @@ const toLocalDateString = (val) => {
   return `${y}-${m}-${d}`;
 };
 
+// ==================== STATUS CLASSIFIER ====================
+const BOOKED_ONLY_STATUS = "booked";
+
+const classifySlotStatus = (apptStatus, hasVisit) => {
+  if (hasVisit) return "checked_in";
+  if (apptStatus === BOOKED_ONLY_STATUS) return "booked";
+  return "checked_in";
+};
+
+// ==================== LABEL LOGIC ====================
+const getSlotLabel = (status, visit, appointment) => {
+  if (status === "available") return "Available";
+  if (status === "blocked") return "Blocked";
+
+  if (status === "checked_in") {
+    return visit?.status_label || appointment?.status_label || "Checked In";
+  }
+
+  if (status === "booked") {
+    return "Booked";
+  }
+
+  return status;
+};
+
 // ==================== SLOT STYLES ====================
 const SLOT_STYLES = {
   available:
     "cursor-pointer border-brand-200 bg-brand-50 text-brand-700 hover:border-brand-400 hover:bg-brand-100",
   booked:
-    "cursor-pointer border-ink-200 bg-ink-100 text-ink-500 hover:border-ink-300",
+    "cursor-pointer border-ink-200 bg-ink-100 text-ink-600 hover:border-ink-300 hover:bg-ink-50",
+  checked_in:
+    "cursor-pointer border-accent-200 bg-accent-50 text-accent-800 hover:border-accent-400 hover:bg-accent-100",
   blocked: "cursor-not-allowed border-danger-200 bg-danger-50 text-danger-700",
 };
 
 const SLOT_ICONS = {
   available: <FiCheck className="h-3.5 w-3.5 text-surface" />,
   booked: <FiUser className="h-3.5 w-3.5 text-surface" />,
+  checked_in: <FiCheckCircle className="h-3.5 w-3.5 text-surface" />,
   blocked: <FiLock className="h-3.5 w-3.5 text-surface" />,
 };
 
 const SLOT_ICON_BG = {
   available: "bg-brand-500",
   booked: "bg-ink-400",
+  checked_in: "bg-accent-600",
   blocked: "bg-danger-500",
-};
-
-const SLOT_LABELS = {
-  available: "Available",
-  booked: "Booked",
-  blocked: "Blocked",
 };
 
 // ==================== COMPONENT ====================
 const SlotList = ({
   availability,
   bookedAppointments = [],
+  appointmentVisitMap = {},
   date,
   onSlotClick,
   onBookedSlotClick,
   onAddAvailability,
 }) => {
-  // ==================== FETCH EXCEPTIONS ====================
   const { data: exceptions = [] } = useExceptionsForCalendar(availability?.id);
 
   const exceptionsList = Array.isArray(exceptions) ? exceptions : [];
@@ -114,10 +138,6 @@ const SlotList = ({
       availability.start_time,
       availability.end_time,
       availability.slot_duration,
-    );
-
-    const bookedStartTimes = new Set(
-      bookedAppointments.map((a) => a.start_time?.slice(0, 5)),
     );
 
     const dateExceptions = exceptionsList.filter(
@@ -151,9 +171,16 @@ const SlotList = ({
         (hasFullDay ||
           blockedRanges.some((r) => slotStart < r.end && slotEnd > r.start));
 
+      const visit = bookedAppointment?.id
+        ? appointmentVisitMap[bookedAppointment.id] || null
+        : null;
+
       let status = "available";
-      if (isBooked) status = "booked";
-      else if (isBlocked) status = "blocked";
+      if (isBooked) {
+        status = classifySlotStatus(bookedAppointment.status, !!visit);
+      } else if (isBlocked) {
+        status = "blocked";
+      }
 
       const bookingMeta = bookedAppointment
         ? {
@@ -163,6 +190,10 @@ const SlotList = ({
             status: bookedAppointment.status,
             status_label: bookedAppointment.status_label,
             booking_source: bookedAppointment.booking_source,
+            patient_id:
+              bookedAppointment.patient?.id ||
+              bookedAppointment.patient_id ||
+              null,
           }
         : null;
 
@@ -172,16 +203,30 @@ const SlotList = ({
         isBooked,
         appointment: bookingMeta,
         rawAppointment: bookedAppointment,
+        visit,
       };
     });
-  }, [availability, bookedAppointments, exceptionsList, date]);
+  }, [
+    availability,
+    bookedAppointments,
+    exceptionsList,
+    date,
+    appointmentVisitMap,
+  ]);
 
   // ==================== STATS ====================
   const stats = useMemo(() => {
     const available = slots.filter((s) => s.status === "available").length;
     const booked = slots.filter((s) => s.status === "booked").length;
+    const checkedIn = slots.filter((s) => s.status === "checked_in").length;
     const blocked = slots.filter((s) => s.status === "blocked").length;
-    return { available, booked, blocked, total: slots.length };
+    return {
+      available,
+      booked,
+      checkedIn,
+      blocked,
+      total: slots.length,
+    };
   }, [slots]);
 
   // ==================== NO AVAILABILITY ====================
@@ -233,13 +278,18 @@ const SlotList = ({
               Slots for {date}
             </p>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="rounded-md bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
               {stats.available} available
             </span>
             {stats.booked > 0 && (
               <span className="rounded-md bg-ink-100 px-2 py-0.5 text-[10px] font-semibold text-ink-600">
                 {stats.booked} booked
+              </span>
+            )}
+            {stats.checkedIn > 0 && (
+              <span className="rounded-md bg-accent-100 px-2 py-0.5 text-[10px] font-semibold text-accent-800">
+                {stats.checkedIn} checked in
               </span>
             )}
             {stats.blocked > 0 && (
@@ -251,7 +301,7 @@ const SlotList = ({
         </div>
       </div>
 
-      {/* Slot grid — 3 columns only on xl+ screens (1280px+) */}
+      {/* Slot grid */}
       <div className="max-h-[480px] overflow-y-auto p-4">
         {slots.length === 0 ? (
           <div className="py-8 text-center">
@@ -263,12 +313,34 @@ const SlotList = ({
               const status = slot.status;
               const isAvailable = status === "available";
               const isBooked = status === "booked";
+              const isCheckedIn = status === "checked_in";
               const isBlocked = status === "blocked";
 
+              const hasPatientId = !!slot.appointment?.patient_id;
+              const isWalkIn = (isBooked || isCheckedIn) && !hasPatientId;
+
               const handleClick = () => {
-                if (isAvailable) onSlotClick(slot);
-                else if (isBooked && onBookedSlotClick) onBookedSlotClick(slot);
+                if (isAvailable) {
+                  onSlotClick(slot);
+                } else if ((isBooked || isCheckedIn) && onBookedSlotClick) {
+                  onBookedSlotClick(slot);
+                }
               };
+
+              const label = getSlotLabel(status, slot.visit, slot.appointment);
+
+              let tooltip = "Click to book";
+              if (isBooked) {
+                tooltip = hasPatientId
+                  ? `Booked — ${slot.appointment?.name || "—"}`
+                  : `Booked — ${slot.appointment?.name || "—"} (Patient ID NA)`;
+              } else if (isCheckedIn) {
+                tooltip = slot.visit
+                  ? `Visit #${slot.visit.id} (${label}) — click to view`
+                  : `${label} — click for details`;
+              } else if (isBlocked) {
+                tooltip = "Blocked by availability exception";
+              }
 
               return (
                 <button
@@ -276,16 +348,10 @@ const SlotList = ({
                   type="button"
                   disabled={isBlocked}
                   onClick={handleClick}
-                  title={
-                    isBooked
-                      ? `Booked — ${slot.appointment?.name || "—"} (click for details)`
-                      : isBlocked
-                        ? "Blocked by availability exception"
-                        : "Click to book"
-                  }
+                  title={tooltip}
                   className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left transition ${SLOT_STYLES[status]}`}
                 >
-                  {/* Left: time info */}
+                  {/* Left: time + label + sub-label */}
                   <div className="min-w-0 flex-1">
                     <p className="text-[12px] font-semibold leading-tight">
                       {formatTime12(slot.start_time)}
@@ -293,9 +359,15 @@ const SlotList = ({
                     <p className="mt-0.5 truncate text-[10px] leading-tight opacity-80">
                       to {formatTime12(slot.end_time)}
                     </p>
-                    <p className="mt-1 text-[9px] font-semibold uppercase tracking-wide opacity-60">
-                      {SLOT_LABELS[status]}
+                    <p className="mt-1 truncate text-[9px] font-semibold uppercase tracking-wide opacity-80">
+                      {label}
                     </p>
+                    {/* Sub-line: Patient ID NA */}
+                    {isWalkIn && (
+                      <p className="mt-0.5 break-words text-[8px] font-bold uppercase leading-tight tracking-wide text-warn-800">
+                        Patient ID NA
+                      </p>
+                    )}
                   </div>
 
                   {/* Right: status icon */}
@@ -311,12 +383,31 @@ const SlotList = ({
         )}
       </div>
 
-      {/* Footer */}
+      {/* Legend footer */}
       <div className="border-t border-ink-100 bg-ink-50/30 px-3 py-2.5">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-500" />
+            <span className="text-[10px] text-ink-600">Available</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-ink-400" />
+            <span className="text-[10px] text-ink-600">Booked</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent-600" />
+            <span className="text-[10px] text-ink-600">Checked In</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-danger-500" />
+            <span className="text-[10px] text-ink-600">Blocked</span>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={onAddAvailability}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100"
+          className="mt-2.5 inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100"
         >
           <FiPlus className="h-3.5 w-3.5" />
           Add / Manage Availability

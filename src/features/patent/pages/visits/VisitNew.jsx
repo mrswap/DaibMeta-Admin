@@ -39,6 +39,13 @@ const todayStr = () => {
   return `${y}-${m}-${day}`;
 };
 
+// ==================== SEX OPTIONS ====================
+const SEX_OPTIONS = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+];
+
 // ==================== MODES ====================
 const MODES = [
   {
@@ -93,7 +100,6 @@ const VisitNewInner = ({
     if (val?.raw) {
       const appt = val.raw;
 
-      // Auto-select provider
       if (appt.provider?.id) {
         setFieldValue("provider_id", {
           value: appt.provider.id,
@@ -101,13 +107,11 @@ const VisitNewInner = ({
         });
       }
 
-      // Auto-fill date
       if (appt.appointment_date) {
         setSelectedDate(appt.appointment_date);
         setFieldValue("visit_date", appt.appointment_date);
       }
 
-      // Auto-fill slot
       if (appt.start_time && appt.end_time) {
         const slot = {
           start_time: appt.start_time.slice(0, 5),
@@ -118,7 +122,6 @@ const VisitNewInner = ({
         setFieldValue("slot_end_time", slot.end_time);
       }
 
-      // Auto-set visit_type → "consultation" (since appointment linked)
       setFieldValue("visit_type", {
         value: "consultation",
         label: "Consultation",
@@ -141,7 +144,6 @@ const VisitNewInner = ({
 
   const isAppointmentMode = mode === "appointment";
 
-  // Is appointment linked to a registered patient?
   const apptHasPatient = !!selectedAppointment?.raw?.patient?.id;
   const apptNeedsPatientCreate =
     isAppointmentMode &&
@@ -268,7 +270,6 @@ const VisitNewInner = ({
                   </div>
                 </div>
 
-                {/* Info banner — patient auto-create */}
                 {apptNeedsPatientCreate && (
                   <div className="flex items-start gap-2 rounded-lg border border-accent-200 bg-accent-50/60 px-3 py-2.5">
                     <FiAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-700" />
@@ -294,8 +295,9 @@ const VisitNewInner = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
+          <div className="p-4">
+            {/* Row 1 — Name + Mobile (2 cols on sm+) */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <TextInput
                 label="Patient Name"
                 name="patient_name"
@@ -303,9 +305,7 @@ const VisitNewInner = ({
                 maxLength={150}
                 required
               />
-            </div>
 
-            <div className="sm:col-span-2">
               <PhoneInputField
                 label="Mobile Number"
                 name="patient_mobile"
@@ -315,7 +315,28 @@ const VisitNewInner = ({
               />
             </div>
 
-            <div className="sm:col-span-2 rounded-lg border border-accent-200 bg-accent-50/50 px-3 py-2.5">
+            {/* Row 2 — Age + Sex (2 cols on sm+) */}
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <TextInput
+                label="Age"
+                name="patient_age"
+                type="number"
+                placeholder="Enter age"
+                maxLength={3}
+                required
+              />
+
+              <SelectField
+                label="Sex"
+                name="patient_sex"
+                options={SEX_OPTIONS}
+                placeholder="Select sex..."
+                required
+              />
+            </div>
+
+            {/* Info banner */}
+            <div className="mt-4 rounded-lg border border-accent-200 bg-accent-50/50 px-3 py-2.5">
               <div className="flex items-start gap-2">
                 <FiInfo className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent-700" />
                 <p className="text-[11px] text-accent-800">
@@ -477,7 +498,6 @@ const VisitNew = () => {
     [appointmentsData],
   );
 
-  // Reset submit error when mode changes
   useEffect(() => {
     setSubmitError(null);
   }, [mode]);
@@ -490,6 +510,8 @@ const VisitNew = () => {
     // Walk-in mode
     patient_name: "",
     patient_mobile: "",
+    patient_sex: null,
+    patient_age: "",
 
     // Common
     provider_id: null,
@@ -522,6 +544,22 @@ const VisitNew = () => {
             .test("phone", "Invalid mobile", validatePhone),
         otherwise: (s) => s.nullable(),
       }),
+      patient_sex: Yup.object().when([], {
+        is: () => mode === "walk_in",
+        then: (s) => s.nullable().required("Sex is required"),
+        otherwise: (s) => s.nullable(),
+      }),
+      patient_age: Yup.number().when([], {
+        is: () => mode === "walk_in",
+        then: (s) =>
+          s
+            .typeError("Age must be a number")
+            .required("Age is required")
+            .integer("Must be a whole number")
+            .min(0, "Must be 0 or more")
+            .max(150, "Invalid age"),
+        otherwise: (s) => s.nullable(),
+      }),
       provider_id: Yup.object().nullable().required("Provider is required"),
       visit_date: Yup.string().required("Date is required"),
       visit_type: Yup.object().nullable().required("Visit type is required"),
@@ -531,18 +569,31 @@ const VisitNew = () => {
       slot_start_time: Yup.string().required("Slot start time is required"),
       slot_end_time: Yup.string().required("Slot end time is required"),
     },
-    [["appointment_id", "patient_name", "patient_mobile"]],
+    [
+      [
+        "appointment_id",
+        "patient_name",
+        "patient_mobile",
+        "patient_sex",
+        "patient_age",
+      ],
+    ],
   );
 
   // ==================== CREATE PATIENT HELPER ====================
-  const createPatientFromData = async (name, mobile) => {
+  const createPatientFromData = async (
+    name,
+    mobile,
+    sex = "other",
+    age = 0,
+  ) => {
     const patientRes = await createPatient.mutateAsync({
       name: name.trim(),
       mobile: mobile.trim(),
       status: true,
       pin: "0000",
-      age: 0,
-      sex: "other",
+      age: Number(age) || 0,
+      sex: sex || "other",
     });
 
     const patientData =
@@ -564,21 +615,24 @@ const VisitNew = () => {
       let patientId = null;
 
       if (mode === "walk_in") {
-        // WALK-IN → create patient from form values
         patientId = await createPatientFromData(
           values.patient_name,
           values.patient_mobile,
+          values.patient_sex?.value || "other",
+          values.patient_age || 0,
         );
       } else {
-        // APPOINTMENT MODE
         const appt = selectedAppointment?.raw;
 
         if (appt?.patient?.id) {
-          // Patient already linked
           patientId = appt.patient.id;
         } else if (appt?.name && appt?.mobile) {
-          // Walk-in appointment — create patient from appointment data
-          patientId = await createPatientFromData(appt.name, appt.mobile);
+          patientId = await createPatientFromData(
+            appt.name,
+            appt.mobile,
+            "other",
+            0,
+          );
         } else {
           throw new Error(
             "Appointment is missing patient information. Please select a valid appointment.",
@@ -586,7 +640,6 @@ const VisitNew = () => {
         }
       }
 
-      // Build visit payload
       const payload = {
         appointment_id:
           mode === "appointment" ? values.appointment_id?.value : null,
