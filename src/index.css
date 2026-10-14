@@ -463,3 +463,177 @@
 }
 
 /* ==================== END PHONE INPUT ==================== */
+
+
+
+
+
+/* ==================== QUILL EDITOR (FormikEditorField) ==================== */
+.quill-wrapper .ql-toolbar.ql-snow {
+    border: none;
+    border-bottom: 1px solid var(--color-form-border);
+    background-color: var(--color-ink-50);
+    padding: 8px 12px;
+    font-family: var(--font-inter);
+}
+
+.quill-wrapper .ql-container.ql-snow {
+    border: none;
+    font-family: var(--font-inter);
+    font-size: 14px;
+    color: var(--color-form-text);
+    background-color: var(--color-form-bg);
+}
+
+.quill-wrapper .ql-editor {
+    min-height: var(--quill-min-height, 200px);
+    padding: 16px;
+    line-height: 1.6;
+}
+
+.quill-wrapper .ql-editor.ql-blank::before {
+    color: var(--color-form-placeholder);
+    font-style: normal;
+    left: 16px;
+    right: 16px;
+}
+
+.quill-wrapper .ql-editor h1 {
+    font-size: 1.75em;
+    font-weight: 700;
+    margin: 0.67em 0;
+    color: var(--color-ink-900);
+}
+
+.quill-wrapper .ql-editor h2 {
+    font-size: 1.4em;
+    font-weight: 700;
+    margin: 0.75em 0;
+    color: var(--color-ink-900);
+}
+
+.quill-wrapper .ql-editor h3 {
+    font-size: 1.15em;
+    font-weight: 600;
+    margin: 0.83em 0;
+    color: var(--color-ink-900);
+}
+
+.quill-wrapper .ql-editor p {
+    margin: 0.4em 0;
+}
+
+.quill-wrapper .ql-editor ul,
+.quill-wrapper .ql-editor ol {
+    padding-left: 1.5em;
+    margin: 0.5em 0;
+}
+
+.quill-wrapper .ql-editor blockquote {
+    border-left: 3px solid var(--color-brand-500);
+    padding-left: 12px;
+    margin: 0.5em 0;
+    color: var(--color-ink-600);
+}
+
+.quill-wrapper .ql-editor a {
+    color: var(--color-accent-600);
+    text-decoration: underline;
+}
+
+/* Toolbar buttons hover / active */
+.quill-wrapper .ql-snow .ql-stroke {
+    stroke: var(--color-ink-600);
+}
+
+.quill-wrapper .ql-snow .ql-fill {
+    fill: var(--color-ink-600);
+}
+
+.quill-wrapper .ql-snow .ql-picker {
+    color: var(--color-ink-700);
+}
+
+.quill-wrapper .ql-snow .ql-picker-options {
+    border-color: var(--color-form-border);
+    background-color: var(--color-form-bg);
+}
+
+.quill-wrapper .ql-snow button:hover .ql-stroke,
+.quill-wrapper .ql-snow button.ql-active .ql-stroke {
+    stroke: var(--color-brand-600);
+}
+
+.quill-wrapper .ql-snow button:hover .ql-fill,
+.quill-wrapper .ql-snow button.ql-active .ql-fill {
+    fill: var(--color-brand-600);
+}
+
+.quill-wrapper .ql-snow .ql-picker-label:hover,
+.quill-wrapper .ql-snow .ql-picker-item:hover,
+.quill-wrapper .ql-snow .ql-picker-label.ql-active {
+    color: var(--color-brand-600);
+}
+
+.quill-wrapper .ql-snow .ql-picker-label:hover .ql-stroke,
+.quill-wrapper .ql-snow .ql-picker-item:hover .ql-stroke,
+.quill-wrapper .ql-snow .ql-picker-label.ql-active .ql-stroke {
+    stroke: var(--color-brand-600);
+}
+
+/* Focus state */
+.quill-wrapper:focus-within {
+    border-color: var(--color-form-border-focus);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-form-ring) 20%, transparent);
+}
+
+/* ==================== END QUILL ==================== */
+
+
+
+/* ==================== RANGE SLIDER THUMB ==================== */
+.range-thumb::-webkit-slider-thumb {
+    pointer-events: all;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background-color: var(--color-surface);
+    border: 2px solid var(--color-brand-600);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.15s ease;
+}
+
+.range-thumb::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    background-color: var(--color-brand-50);
+}
+
+.range-thumb::-moz-range-thumb {
+    pointer-events: all;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background-color: var(--color-surface);
+    border: 2px solid var(--color-brand-600);
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.15s ease;
+}
+
+.range-thumb::-moz-range-thumb:hover {
+    transform: scale(1.15);
+    background-color: var(--color-brand-50);
+}
+
+.range-thumb::-webkit-slider-runnable-track {
+    background: transparent;
+}
+
+.range-thumb::-moz-range-track {
+    background: transparent;
+}
+
+/* ==================== END RANGE SLIDER ==================== */

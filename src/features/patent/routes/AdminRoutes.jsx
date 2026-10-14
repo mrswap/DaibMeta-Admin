@@ -36,6 +36,15 @@ import VisitDetail from "../pages/visits/VisitDetail";
 import BookingCalendar from "../pages/bookingCalendar/BookingCalendar";
 import ExceptionManagementList from "../pages/exceptionManagement/ExceptionManagementList";
 
+import ServiceManagerList from "../pages/serviceManager/ServiceManagerList";
+import ServiceManagerView from "../pages/serviceManager/ServiceManagerView";
+import ServiceManagerForm from "../pages/serviceManager/ServiceManagerForm";
+import ServiceItemForm from "../pages/serviceManager/ServiceItemForm";
+
+import HealthTipsList from "../pages/healthTips/HealthTipsList";
+import HealthTipsView from "../pages/healthTips/HealthTipsView";
+import HealthTipsForm from "../pages/healthTips/HealthTipsForm";
+
 import NotFound from "../pages/NotFound";
 import ComingSoon from "../pages/ComingSoon";
 import ProtectedRoute from "./ProtectedRoute";
@@ -106,6 +115,29 @@ const AdminRoutes = () => {
             path="provider-availabilities/:id/exceptions"
             element={<AvailabilityExceptions />}
           />
+
+          {/* ==================== Service Manager ==================== */}
+          <Route path="service-manager" element={<ServiceManagerList />} />
+          <Route path="service-manager/new" element={<ServiceManagerForm />} />
+          <Route path="service-manager/:id" element={<ServiceManagerView />} />
+          <Route
+            path="service-manager/:id/edit"
+            element={<ServiceManagerForm />}
+          />
+          <Route
+            path="service-manager/:id/items/new"
+            element={<ServiceItemForm />}
+          />
+          <Route
+            path="service-manager/:id/items/:itemId/edit"
+            element={<ServiceItemForm />}
+          />
+
+          {/* ==================== Health Tips ==================== */}
+          <Route path="health-tips" element={<HealthTipsList />} />
+          <Route path="health-tips/new" element={<HealthTipsForm />} />
+          <Route path="health-tips/:id" element={<HealthTipsView />} />
+          <Route path="health-tips/:id/edit" element={<HealthTipsForm />} />
 
           {/* ==================== Team ==================== */}
           <Route path="staff" element={<StaffList />} />
