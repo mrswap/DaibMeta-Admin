@@ -9,9 +9,9 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
-  FiCalendar,
   FiFilter,
   FiX,
+  FiCalendar,
 } from "react-icons/fi";
 import {
   useAppointments,
@@ -23,6 +23,7 @@ import { useStaff } from "../../queries/staff";
 import AppointmentStatusBadge from "./components/AppointmentStatusBadge";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
+import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect, DatePicker } from "../../common/form";
 
 const STATUS_OPTIONS = APPOINTMENT_STATUSES.map((s) => ({
@@ -142,13 +143,105 @@ const AppointmentList = () => {
   const startItem = total === 0 ? 0 : (currentPage - 1) * metaPerPage + 1;
   const endItem = Math.min(currentPage * metaPerPage, total);
 
-  const confirmConfig = {
-    title: "Delete Appointment",
-    message:
-      "Are you sure you want to delete this appointment? This action cannot be undone.",
-    confirmText: "Delete",
-    variant: "danger",
-  };
+  // ==================== COLUMNS ====================
+  const columns = [
+    {
+      header: "Date",
+      render: (_, row) => (
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+            <span className="text-[9px] font-bold uppercase leading-none">
+              {row.appointment_date
+                ? new Date(row.appointment_date).toLocaleDateString("en-GB", {
+                    month: "short",
+                  })
+                : "—"}
+            </span>
+            <span className="mt-0.5 text-xs font-bold leading-none">
+              {row.appointment_date
+                ? new Date(row.appointment_date).getDate()
+                : "—"}
+            </span>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-ink-700">
+              {row.appointment_date
+                ? new Date(row.appointment_date).toLocaleDateString("en-GB", {
+                    weekday: "short",
+                  })
+                : ""}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Time",
+      render: (_, row) => (
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-ink-900">
+            {formatTime12(row.start_time)}
+            <span className="ml-1 font-normal text-ink-500">–</span>
+          </p>
+          <p className="mt-0.5 text-xs font-semibold text-ink-900">
+            {formatTime12(row.end_time)}
+          </p>
+        </div>
+      ),
+    },
+    {
+      header: "Patient",
+      render: (_, row) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium text-ink-900">{row.name || "—"}</p>
+          <p className="truncate text-[11px] text-ink-500">
+            {row.mobile || "—"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      header: "Provider",
+      render: (_, row) => (
+        <span className="text-xs text-ink-700">
+          {row.provider?.name || "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Type",
+      render: (_, row) => (
+        <span className="text-xs text-ink-600">
+          {row.appointment_type?.name || "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Source",
+      render: (_, row) => <SourceBadge source={row.booking_source} />,
+    },
+    {
+      header: "Status",
+      render: (_, row) => <AppointmentStatusBadge status={row.status} />,
+    },
+    {
+      header: "Actions",
+      align: "right",
+      render: (_, row) => (
+        <div className="flex items-center justify-end gap-1">
+          <IconBtn title="View" onClick={() => handleView(row)}>
+            <FiEye className="h-4 w-4" />
+          </IconBtn>
+          <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+            <FiEdit2 className="h-4 w-4" />
+          </IconBtn>
+          <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
+            <FiTrash2 className="h-4 w-4" />
+          </IconBtn>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -337,165 +430,30 @@ const AppointmentList = () => {
           onBook={handleBook}
         />
       ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden overflow-hidden rounded-xl border border-ink-100 bg-surface lg:block">
-            <table className="w-full">
-              <thead className="border-b border-ink-100 bg-ink-50/60">
-                <tr>
-                  <Th>Date</Th>
-                  <Th>Time</Th>
-                  <Th>Patient</Th>
-                  <Th>Provider</Th>
-                  <Th>Type</Th>
-                  <Th>Source</Th>
-                  <Th>Status</Th>
-                  <Th align="right">Actions</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b border-ink-100 transition hover:bg-ink-50/40"
-                  >
-                    <Td>
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-brand-50 text-brand-700">
-                          <span className="text-[9px] font-bold uppercase leading-none">
-                            {row.appointment_date
-                              ? new Date(
-                                  row.appointment_date,
-                                ).toLocaleDateString("en-GB", {
-                                  month: "short",
-                                })
-                              : "—"}
-                          </span>
-                          <span className="mt-0.5 text-xs font-bold leading-none">
-                            {row.appointment_date
-                              ? new Date(row.appointment_date).getDate()
-                              : "—"}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-ink-700">
-                            {row.appointment_date
-                              ? new Date(
-                                  row.appointment_date,
-                                ).toLocaleDateString("en-GB", {
-                                  weekday: "short",
-                                })
-                              : ""}
-                          </p>
-                        </div>
-                      </div>
-                    </Td>
-                    <Td>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-ink-900">
-                          {formatTime12(row.start_time)}
-                          <span className="ml-1 font-normal text-ink-500">
-                            –
-                          </span>
-                        </p>
-                        <p className="mt-0.5 text-xs font-semibold text-ink-900">
-                          {formatTime12(row.end_time)}
-                        </p>
-                      </div>
-                    </Td>
-                    <Td>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-ink-900">
-                          {row.name || "—"}
-                        </p>
-                        <p className="truncate text-[11px] text-ink-500">
-                          {row.mobile || "—"}
-                        </p>
-                      </div>
-                    </Td>
-                    <Td>
-                      <span className="text-xs text-ink-700">
-                        {row.provider?.name || "—"}
-                      </span>
-                    </Td>
-                    <Td>
-                      <span className="text-xs text-ink-600">
-                        {row.appointment_type?.name || "—"}
-                      </span>
-                    </Td>
-                    <Td>
-                      <SourceBadge source={row.booking_source} />
-                    </Td>
-                    <Td>
-                      <AppointmentStatusBadge status={row.status} />
-                    </Td>
-                    <Td align="right">
-                      <div className="flex items-center justify-end gap-1">
-                        <IconBtn title="View" onClick={() => handleView(row)}>
-                          <FiEye className="h-4 w-4" />
-                        </IconBtn>
-                        <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-                          <FiEdit2 className="h-4 w-4" />
-                        </IconBtn>
-                        <IconBtn
-                          title="Delete"
-                          onClick={() => handleDeleteClick(row)}
-                          danger
-                        >
-                          <FiTrash2 className="h-4 w-4" />
-                        </IconBtn>
-                      </div>
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {lastPage > 1 && (
-              <Pagination
-                currentPage={currentPage}
-                lastPage={lastPage}
-                total={total}
-                startItem={startItem}
-                endItem={endItem}
-                onPageChange={setPage}
-              />
-            )}
-          </div>
-
-          {/* Mobile cards */}
-          <div className="space-y-3 lg:hidden">
-            {list.map((row) => (
-              <MobileCard
-                key={row.id}
-                row={row}
-                onView={() => handleView(row)}
-                onEdit={() => handleEdit(row)}
-                onDelete={() => handleDeleteClick(row)}
-              />
-            ))}
-
-            {lastPage > 1 && (
-              <Pagination
-                currentPage={currentPage}
-                lastPage={lastPage}
-                total={total}
-                startItem={startItem}
-                endItem={endItem}
-                onPageChange={setPage}
-                compact
-              />
-            )}
-          </div>
-        </>
+        <CustomeTable
+          columns={columns}
+          data={list}
+          serverSide
+          currentPage={currentPage}
+          totalPages={lastPage}
+          totalItems={total}
+          itemsPerPage={metaPerPage}
+          onPageChange={(p) => setPage(p)}
+          emptyText={
+            hasActiveFilters
+              ? "No appointments found for your filters."
+              : "No appointments found."
+          }
+        />
       )}
 
+      {/* Confirm Modal */}
       <ConfirmModal
         open={confirm.open}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        confirmText={confirmConfig.confirmText}
-        variant={confirmConfig.variant}
+        title="Delete Appointment"
+        message="Are you sure you want to delete this appointment? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
         onConfirm={handleConfirm}
         onCancel={() => setConfirm({ open: false, type: null, item: null })}
         loading={deleteMutation.isPending}
@@ -511,110 +469,6 @@ const SourceBadge = ({ source }) => {
     <span className="inline-flex rounded-full bg-ink-100 px-2 py-0.5 text-[10px] font-medium text-ink-600">
       {found?.label || source || "—"}
     </span>
-  );
-};
-
-const MobileCard = ({ row, onView, onEdit, onDelete }) => {
-  const sourceLabel =
-    BOOKING_SOURCES.find((s) => s.value === row.booking_source)?.label ||
-    row.booking_source ||
-    "—";
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
-      <div className="flex items-center justify-between border-b border-ink-100 bg-ink-50/40 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-brand-600 text-surface">
-            <span className="text-[9px] font-bold uppercase leading-none">
-              {row.appointment_date
-                ? new Date(row.appointment_date).toLocaleDateString("en-GB", {
-                    month: "short",
-                  })
-                : "—"}
-            </span>
-            <span className="mt-0.5 text-sm font-bold leading-none">
-              {row.appointment_date
-                ? new Date(row.appointment_date).getDate()
-                : "—"}
-            </span>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-ink-800">
-              {formatTime12(row.start_time)}
-              <span className="ml-1 font-normal text-ink-500">–</span>
-            </p>
-            <p className="mt-0.5 text-xs font-semibold text-ink-800">
-              {formatTime12(row.end_time)}
-            </p>
-            <p className="mt-1 text-[10px] text-ink-500">
-              {row.appointment_date
-                ? new Date(row.appointment_date).toLocaleDateString("en-GB", {
-                    weekday: "short",
-                    day: "2-digit",
-                    month: "short",
-                  })
-                : ""}
-            </p>
-          </div>
-        </div>
-        <AppointmentStatusBadge status={row.status} />
-      </div>
-
-      <div className="space-y-2.5 p-4">
-        <div className="flex items-start gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[11px] font-bold text-surface">
-            {(row.name || "?")
-              .split(/\s+/)
-              .filter(Boolean)
-              .slice(0, 2)
-              .map((w) => w[0])
-              .join("")
-              .toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-ink-900">
-              {row.name || "—"}
-            </p>
-            <p className="truncate text-[11px] text-ink-500">
-              {row.mobile || "—"}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 rounded-lg bg-ink-50/50 p-2.5 text-[11px]">
-          <div>
-            <p className="font-medium text-ink-500">Provider</p>
-            <p className="mt-0.5 truncate font-semibold text-ink-800">
-              {row.provider?.name || "—"}
-            </p>
-          </div>
-          <div>
-            <p className="font-medium text-ink-500">Type</p>
-            <p className="mt-0.5 truncate font-semibold text-ink-800">
-              {row.appointment_type?.name || "—"}
-            </p>
-          </div>
-          <div className="col-span-2">
-            <p className="font-medium text-ink-500">Source</p>
-            <p className="mt-0.5 truncate font-semibold text-ink-800">
-              {sourceLabel}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-end gap-1 border-t border-ink-100 bg-ink-50/30 px-2 py-1.5">
-        <IconBtn title="View" onClick={onView}>
-          <FiEye className="h-4 w-4" />
-        </IconBtn>
-        <IconBtn title="Edit" onClick={onEdit}>
-          <FiEdit2 className="h-4 w-4" />
-        </IconBtn>
-        <IconBtn title="Delete" onClick={onDelete} danger>
-          <FiTrash2 className="h-4 w-4" />
-        </IconBtn>
-      </div>
-    </div>
   );
 };
 
@@ -651,59 +505,6 @@ const EmptyState = ({ hasFilters, onClear, onBook }) => (
       )}
     </div>
   </div>
-);
-
-const Pagination = ({
-  currentPage,
-  lastPage,
-  total,
-  startItem,
-  endItem,
-  onPageChange,
-  compact = false,
-}) => (
-  <div
-    className={`flex flex-col items-center gap-3 border-t border-ink-100 ${
-      compact ? "px-3 py-3" : "justify-between px-5 py-3 sm:flex-row"
-    }`}
-  >
-    <p className="text-[11px] text-ink-500">
-      Showing <strong className="text-ink-700">{startItem}</strong>–
-      <strong className="text-ink-700">{endItem}</strong> of{" "}
-      <strong className="text-ink-700">{total}</strong>
-    </p>
-    <div className="flex items-center gap-1">
-      <button
-        disabled={currentPage <= 1}
-        onClick={() => onPageChange(currentPage - 1)}
-        className="cursor-pointer rounded-md border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:border-brand-300 hover:text-brand-700 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400 disabled:hover:border-ink-200 disabled:hover:text-ink-400"
-      >
-        Previous
-      </button>
-      <span className="px-2 text-xs text-ink-500">
-        {currentPage} / {lastPage}
-      </span>
-      <button
-        disabled={currentPage >= lastPage}
-        onClick={() => onPageChange(currentPage + 1)}
-        className="cursor-pointer rounded-md border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:border-brand-300 hover:text-brand-700 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400 disabled:hover:border-ink-200 disabled:hover:text-ink-400"
-      >
-        Next
-      </button>
-    </div>
-  </div>
-);
-
-const Th = ({ children, align = "left" }) => (
-  <th
-    className={`px-4 py-3 text-${align} text-[11px] font-semibold uppercase tracking-wide text-ink-500`}
-  >
-    {children}
-  </th>
-);
-
-const Td = ({ children, align = "left" }) => (
-  <td className={`px-4 py-3 text-sm text-${align}`}>{children}</td>
 );
 
 const IconBtn = ({ children, title, onClick, disabled, danger }) => (

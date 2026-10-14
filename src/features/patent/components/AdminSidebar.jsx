@@ -1,7 +1,7 @@
 // src/features/patent/components/AdminSidebar.jsx
 
-import React from "react";
-import { NavLink } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   FiX,
   FiCalendar,
@@ -9,6 +9,15 @@ import {
   FiActivity,
   FiGrid,
   FiAlertTriangle,
+  FiBriefcase,
+  FiHeart,
+  FiBookOpen,
+  FiClipboard,
+  FiBell,
+  FiCamera,
+  FiTrendingUp,
+  FiFolder,
+  FiChevronDown,
 } from "react-icons/fi";
 import {
   MdOutlineDashboard,
@@ -92,8 +101,75 @@ const menuSections = [
     ],
   },
   {
+    title: "CMS",
+    collapsible: true,
+    icon: FiGrid,
+    items: [
+      {
+        name: "Book Appointment",
+        path: "/cms/book-appointment",
+        icon: FiCalendar,
+      },
+      {
+        name: "BMI",
+        path: "/cms/bmi",
+        icon: FiActivity,
+      },
+      {
+        name: "Diabetes",
+        path: "/cms/diabetes",
+        icon: FiHeart,
+      },
+      {
+        name: "Sugar",
+        path: "/cms/sugar",
+        icon: FiBookOpen,
+      },
+      {
+        name: "Disease",
+        path: "/cms/disease",
+        icon: FiClipboard,
+      },
+      {
+        name: "Reminder",
+        path: "/cms/reminder",
+        icon: FiBell,
+      },
+      {
+        name: "Scan Food",
+        path: "/cms/scan-food",
+        icon: FiCamera,
+      },
+      {
+        name: "Calories",
+        path: "/cms/calories",
+        icon: FiTrendingUp,
+      },
+      {
+        name: "Records",
+        path: "/cms/records",
+        icon: FiFolder,
+      },
+      {
+        name: "Period",
+        path: "/cms/period",
+        icon: FiCalendar,
+      },
+    ],
+  },
+  {
     title: "Operations",
     items: [
+      {
+        name: "Service Manager",
+        path: "/service-manager",
+        icon: FiBriefcase,
+      },
+      {
+        name: "Health Tips",
+        path: "/health-tips",
+        icon: FiHeart,
+      },
       {
         name: "Settings",
         path: "/settings",
@@ -104,6 +180,16 @@ const menuSections = [
 ];
 
 const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
+  const location = useLocation();
+  const [cmsOpen, setCmsOpen] = useState(false);
+
+  // Auto-open CMS if any CMS route is active
+  useEffect(() => {
+    if (location.pathname.startsWith("/cms")) {
+      setCmsOpen(true);
+    }
+  }, [location.pathname]);
+
   return (
     <>
       {sidebarOpen && (
@@ -130,32 +216,101 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
         </div>
 
         <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-4">
-          {menuSections.map((section) => (
-            <div key={section.title}>
-              <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
-                {section.title}
-              </p>
-              <div className="space-y-0.5">
-                {section.items.map(({ name, path, icon: Icon }) => (
-                  <NavLink
-                    key={name}
-                    to={path}
-                    onClick={() => setSidebarOpen(false)}
-                    className={({ isActive }) =>
-                      `flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                        isActive
-                          ? "bg-brand-50 font-semibold text-brand-700"
-                          : "text-ink-700 hover:bg-ink-50 hover:text-ink-900"
-                      }`
-                    }
+          {menuSections.map((section) => {
+            // ==================== COLLAPSIBLE SECTION (CMS) ====================
+            if (section.collapsible) {
+              const SectionIcon = section.icon;
+              const hasActiveChild = section.items.some((item) =>
+                location.pathname.startsWith(
+                  item.path.split("/").slice(0, 2).join("/"),
+                ),
+              );
+
+              return (
+                <div key={section.title}>
+                  <button
+                    type="button"
+                    onClick={() => setCmsOpen((v) => !v)}
+                    className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-left transition-colors ${
+                      hasActiveChild
+                        ? "text-brand-700"
+                        : "text-ink-700 hover:bg-ink-50 hover:text-ink-900"
+                    }`}
                   >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {name}
-                  </NavLink>
-                ))}
+                    <div className="flex items-center gap-2">
+                      <SectionIcon className="h-4 w-4 shrink-0" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wide">
+                        {section.title}
+                      </span>
+                    </div>
+                    <FiChevronDown
+                      className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
+                        cmsOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  <div
+                    className={`grid transition-all duration-200 ease-out ${
+                      cmsOpen
+                        ? "grid-rows-[1fr] opacity-100 mt-1"
+                        : "grid-rows-[0fr] opacity-0"
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="space-y-0.5 pl-2">
+                        {section.items.map(({ name, path, icon: Icon }) => (
+                          <NavLink
+                            key={name}
+                            to={path}
+                            onClick={() => setSidebarOpen(false)}
+                            className={({ isActive }) =>
+                              `flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                                isActive
+                                  ? "bg-brand-50 font-semibold text-brand-700"
+                                  : "text-ink-700 hover:bg-ink-50 hover:text-ink-900"
+                              }`
+                            }
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            {name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // ==================== NORMAL SECTION ====================
+            return (
+              <div key={section.title}>
+                <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+                  {section.title}
+                </p>
+                <div className="space-y-0.5">
+                  {section.items.map(({ name, path, icon: Icon }) => (
+                    <NavLink
+                      key={name}
+                      to={path}
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) =>
+                        `flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                          isActive
+                            ? "bg-brand-50 font-semibold text-brand-700"
+                            : "text-ink-700 hover:bg-ink-50 hover:text-ink-900"
+                        }`
+                      }
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                      {name}
+                    </NavLink>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
       </aside>
     </>
