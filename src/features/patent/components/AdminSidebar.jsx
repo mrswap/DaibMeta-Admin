@@ -164,11 +164,13 @@ const menuSections = [
         name: "Service Manager",
         path: "/service-manager",
         icon: FiBriefcase,
+        isStatic: true,
       },
       {
         name: "Health Tips",
         path: "/health-tips",
         icon: FiHeart,
+        isStatic: true,
       },
       {
         name: "Settings",
@@ -290,7 +292,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   {section.title}
                 </p>
                 <div className="space-y-0.5">
-                  {section.items.map(({ name, path, icon: Icon }) => (
+                  {section.items.map(({ name, path, icon: Icon, isStatic }) => (
                     <NavLink
                       key={name}
                       to={path}
@@ -304,7 +306,12 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
                       }
                     >
                       <Icon className="h-5 w-5 shrink-0" />
-                      {name}
+                      <span className="relative inline-block">
+                        {name}
+                        {isStatic && (
+                          <span className="pointer-events-none absolute left-0 right-0 top-1/2 h-[1.5px] -translate-y-1/2 bg-danger-500" />
+                        )}
+                      </span>
                     </NavLink>
                   ))}
                 </div>
