@@ -11,13 +11,14 @@ import {
   FiAlertTriangle,
   FiBriefcase,
   FiHeart,
-  FiBookOpen,
   FiClipboard,
   FiBell,
   FiCamera,
   FiTrendingUp,
   FiFolder,
   FiChevronDown,
+  FiPackage,
+  FiDroplet,
 } from "react-icons/fi";
 import {
   MdOutlineDashboard,
@@ -33,56 +34,24 @@ const menuSections = [
   {
     title: "Clinical",
     items: [
-      {
-        name: "Dashboard",
-        path: "/dashboard",
-        icon: MdOutlineDashboard,
-      },
-      {
-        name: "Appointments",
-        path: "/appointments",
-        icon: FiCalendar,
-      },
-      {
-        name: "Booking Calendar",
-        path: "/booking-calendar",
-        icon: FiGrid,
-      },
+      { name: "Dashboard", path: "/dashboard", icon: MdOutlineDashboard },
+      { name: "Appointments", path: "/appointments", icon: FiCalendar },
+      { name: "Booking Calendar", path: "/booking-calendar", icon: FiGrid },
       {
         name: "Exception Calendar",
         path: "/exception-management",
         icon: FiAlertTriangle,
       },
-      {
-        name: "Visits",
-        path: "/visits",
-        icon: FiActivity,
-      },
-      {
-        name: "Patients",
-        path: "/patients",
-        icon: LuUserRound,
-      },
-      {
-        name: "Availability",
-        path: "/provider-availabilities",
-        icon: FiClock,
-      },
+      { name: "Visits", path: "/visits", icon: FiActivity },
+      { name: "Patients", path: "/patients", icon: LuUserRound },
+      { name: "Availability", path: "/provider-availabilities", icon: FiClock },
     ],
   },
   {
     title: "Team",
     items: [
-      {
-        name: "Staff",
-        path: "/staff",
-        icon: MdOutlineBadge,
-      },
-      {
-        name: "Roles",
-        path: "/roles",
-        icon: MdOutlineAdminPanelSettings,
-      },
+      { name: "Staff", path: "/staff", icon: MdOutlineBadge },
+      { name: "Roles", path: "/roles", icon: MdOutlineAdminPanelSettings },
     ],
   },
   {
@@ -110,73 +79,29 @@ const menuSections = [
         path: "/cms/book-appointment",
         icon: FiCalendar,
       },
+      { name: "BMI", path: "/cms/bmi", icon: FiActivity },
+      { name: "Diabetes", path: "/cms/diabetes", icon: FiHeart },
+      { name: "BP and Sugar", path: "/cms/sugar", icon: FiDroplet },
+      { name: "Know Your Diseases", path: "/cms/disease", icon: FiClipboard },
       {
-        name: "BMI",
-        path: "/cms/bmi",
-        icon: FiActivity,
-      },
-      {
-        name: "Diabetes",
-        path: "/cms/diabetes",
-        icon: FiHeart,
-      },
-      {
-        name: "Sugar",
-        path: "/cms/sugar",
-        icon: FiBookOpen,
-      },
-      {
-        name: "Disease",
-        path: "/cms/disease",
-        icon: FiClipboard,
-      },
-      {
-        name: "Reminder",
-        path: "/cms/reminder",
-        icon: FiBell,
-      },
-      {
-        name: "Scan Food",
-        path: "/cms/scan-food",
-        icon: FiCamera,
-      },
-      {
-        name: "Calories",
-        path: "/cms/calories",
-        icon: FiTrendingUp,
-      },
-      {
-        name: "Records",
-        path: "/cms/records",
-        icon: FiFolder,
-      },
-      {
-        name: "Period",
-        path: "/cms/period",
-        icon: FiCalendar,
-      },
+        name: "Know Your Symptoms",
+        path: "/cms/symptoms",
+        icon: FiAlertTriangle,
+      }, // NAYA ITEM
+      { name: "Pill Reminder", path: "/cms/reminder", icon: FiBell },
+      { name: "Scan Food", path: "/cms/scan-food", icon: FiCamera },
+      { name: "Calories", path: "/cms/calories", icon: FiTrendingUp },
+      { name: "Records", path: "/cms/records", icon: FiFolder },
+      { name: "Period Tracker", path: "/cms/period", icon: FiCalendar },
     ],
   },
   {
     title: "Operations",
     items: [
-      {
-        name: "Service Manager",
-        path: "/service-manager",
-        icon: FiBriefcase,
-        isStatic: true,
-      },
-      {
-        name: "Health Tips",
-        path: "/health-tips",
-        icon: FiHeart,
-        isStatic: true,
-      },
-      {
-        name: "Settings",
-        path: "/settings",
-        icon: MdOutlineSettings,
-      },
+      { name: "Health Packages", path: "/health-packages", icon: FiPackage },
+      { name: "Service Manager", path: "/service-manager", icon: FiBriefcase },
+      { name: "Health Tips", path: "/health-tips", icon: FiHeart },
+      { name: "Settings", path: "/settings", icon: MdOutlineSettings },
     ],
   },
 ];
@@ -292,7 +217,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   {section.title}
                 </p>
                 <div className="space-y-0.5">
-                  {section.items.map(({ name, path, icon: Icon, isStatic }) => (
+                  {section.items.map(({ name, path, icon: Icon }) => (
                     <NavLink
                       key={name}
                       to={path}
@@ -306,12 +231,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
                       }
                     >
                       <Icon className="h-5 w-5 shrink-0" />
-                      <span className="relative inline-block">
-                        {name}
-                        {isStatic && (
-                          <span className="pointer-events-none absolute left-0 right-0 top-1/2 h-[1.5px] -translate-y-1/2 bg-danger-500" />
-                        )}
-                      </span>
+                      {name}
                     </NavLink>
                   ))}
                 </div>

@@ -45,6 +45,36 @@ import HealthTipsList from "../pages/healthTips/HealthTipsList";
 import HealthTipsView from "../pages/healthTips/HealthTipsView";
 import HealthTipsForm from "../pages/healthTips/HealthTipsForm";
 
+import HealthPackagesList from "../pages/healthPackages/HealthPackagesList";
+import HealthPackagesView from "../pages/healthPackages/HealthPackagesView";
+import HealthPackagesForm from "../pages/healthPackages/HealthPackagesForm";
+
+// ==================== CMS IMPORTS ====================
+import BookAppointmentUI from "../pages/cms/BookAppointment/BookAppointmentUI";
+import BmiUI from "../pages/cms/Bmi/BmiUI";
+import DiabetesUI from "../pages/cms/Diabetes/DiabetesUI";
+import SugarUI from "../pages/cms/Sugar/SugarUI";
+
+// Disease Imports
+import DiseaseUI from "../pages/cms/Disease/DiseaseUI";
+import DiseaseList from "../pages/cms/Disease/DiseaseList";
+import DiseaseForm from "../pages/cms/Disease/DiseaseForm";
+
+// Symptoms Imports
+import SymptomsUI from "../pages/cms/Symptoms/SymptomsUI";
+import SymptomsList from "../pages/cms/Symptoms/SymptomsList";
+import SymptomsForm from "../pages/cms/Symptoms/SymptomsForm";
+
+// Period Imports
+import PeriodUI from "../pages/cms/Period/PeriodUI";
+import PeriodHealthGuide from "../pages/cms/Period/PeriodHealthGuide";
+import PeriodForm from "../pages/cms/Period/PeriodForm";
+
+import ReminderUI from "../pages/cms/Reminder/ReminderUI";
+import ScanFoodUI from "../pages/cms/ScanFood/ScanFoodUI";
+import CaloriesUI from "../pages/cms/Calories/CaloriesUI";
+import RecordsUI from "../pages/cms/Records/RecordsUI";
+
 import NotFound from "../pages/NotFound";
 import ComingSoon from "../pages/ComingSoon";
 import ProtectedRoute from "./ProtectedRoute";
@@ -72,29 +102,19 @@ const AdminRoutes = () => {
 
           {/* ==================== Clinical ==================== */}
           <Route path="patients" element={<PatientList />} />
-
-          {/* ==================== Appointments ==================== */}
           <Route path="appointments" element={<AppointmentList />} />
           <Route path="appointments/book" element={<AppointmentBooking />} />
           <Route path="appointments/:id" element={<AppointmentView />} />
           <Route path="appointments/:id/edit" element={<AppointmentEdit />} />
-
-          {/* ==================== Booking Calendar ==================== */}
           <Route path="booking-calendar" element={<BookingCalendar />} />
-
-          {/* ==================== Exception Management ==================== */}
           <Route
             path="exception-management"
             element={<ExceptionManagementList />}
           />
-
-          {/* ==================== Visits ==================== */}
           <Route path="visits" element={<VisitList />} />
           <Route path="visits/new" element={<VisitNew />} />
           <Route path="visits/:id" element={<VisitDetail />} />
           <Route path="visits/:id/edit" element={<VisitEdit />} />
-
-          {/* ==================== Provider Availability ==================== */}
           <Route
             path="provider-availabilities"
             element={<AvailabilityList />}
@@ -116,7 +136,7 @@ const AdminRoutes = () => {
             element={<AvailabilityExceptions />}
           />
 
-          {/* ==================== Service Manager ==================== */}
+          {/* ==================== Service Manager & Packages ==================== */}
           <Route path="service-manager" element={<ServiceManagerList />} />
           <Route path="service-manager/new" element={<ServiceManagerForm />} />
           <Route path="service-manager/:id" element={<ServiceManagerView />} />
@@ -133,21 +153,53 @@ const AdminRoutes = () => {
             element={<ServiceItemForm />}
           />
 
-          {/* ==================== Health Tips ==================== */}
+          <Route path="health-packages" element={<HealthPackagesList />} />
+          <Route path="health-packages/new" element={<HealthPackagesForm />} />
+          <Route path="health-packages/:id" element={<HealthPackagesView />} />
+          <Route
+            path="health-packages/:id/edit"
+            element={<HealthPackagesForm />}
+          />
+
           <Route path="health-tips" element={<HealthTipsList />} />
           <Route path="health-tips/new" element={<HealthTipsForm />} />
           <Route path="health-tips/:id" element={<HealthTipsView />} />
           <Route path="health-tips/:id/edit" element={<HealthTipsForm />} />
 
-          {/* ==================== Team ==================== */}
+          {/* ==================== CMS (Patient App) ==================== */}
+          <Route path="cms/book-appointment" element={<BookAppointmentUI />} />
+          <Route path="cms/bmi" element={<BmiUI />} />
+          <Route path="cms/diabetes" element={<DiabetesUI />} />
+          <Route path="cms/sugar" element={<SugarUI />} />
+
+          {/* Disease Routes */}
+          <Route path="cms/disease" element={<DiseaseUI />} />
+          <Route path="cms/disease/list" element={<DiseaseList />} />
+          <Route path="cms/disease/:id" element={<DiseaseForm />} />
+
+          {/* Symptoms Routes */}
+          <Route path="cms/symptoms" element={<SymptomsUI />} />
+          <Route path="cms/symptoms/list" element={<SymptomsList />} />
+          <Route path="cms/symptoms/:id" element={<SymptomsForm />} />
+
+          {/* Period Tracker Routes */}
+          <Route path="cms/period" element={<PeriodUI />} />
+          <Route
+            path="cms/period/health-guide"
+            element={<PeriodHealthGuide />}
+          />
+          <Route path="cms/period/:id" element={<PeriodForm />} />
+
+          <Route path="cms/reminder" element={<ReminderUI />} />
+          <Route path="cms/scan-food" element={<ScanFoodUI />} />
+          <Route path="cms/calories" element={<CaloriesUI />} />
+          <Route path="cms/records" element={<RecordsUI />} />
+
+          {/* ==================== Team & Masters ==================== */}
           <Route path="staff" element={<StaffList />} />
           <Route path="roles" element={<RoleList />} />
-
-          {/* ==================== Masters ==================== */}
           <Route path="specializations" element={<SpecializationList />} />
           <Route path="appointment-types" element={<AppointmentTypeList />} />
-
-          {/* ==================== Operations ==================== */}
           <Route path="settings" element={<SettingsPage />} />
 
           {/* ==================== 404 FALLBACK ==================== */}

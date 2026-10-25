@@ -8,23 +8,51 @@ import { FiArrowLeft, FiPackage } from "react-icons/fi";
 import TextInput from "../../common/form/TextInput";
 import FormButton from "../../common/form/FormButton";
 import ToggleSwitch from "../../common/form/ToggleSwitch";
-import { SERVICE_CATEGORIES } from "./serviceData";
+import Loader from "../../common/Loader";
+import {
+  useService,
+  useServiceTest,
+  useCreateServiceTest,
+  useUpdateServiceTest,
+} from "../../queries/serviceManager";
 
 const ServiceItemForm = () => {
   const { id, itemId } = useParams();
   const navigate = useNavigate();
 
-  const service = SERVICE_CATEGORIES.find((s) => s.id === Number(id));
-  const existing =
-    itemId && service
-      ? service.items.find((i) => i.id === Number(itemId))
-      : null;
+  // API Hooks
+  const { data: service, isLoading: isServiceLoading } = useService(id);
+  const { data: existingTest, isLoading: isTestLoading } = useServiceTest(
+    id,
+    itemId,
+  );
+
+  const createMutation = useCreateServiceTest();
+  const updateMutation = useUpdateServiceTest();
+
+  // Loading state
+  if (isServiceLoading || (itemId && isTestLoading)) {
+    return <Loader text="Loading test details..." />;
+  }
+
+  if (!service) {
+    return (
+      <div className="rounded-card border border-ink-100 bg-surface p-16 text-center">
+        <h3 className="font-jakarta text-base font-semibold text-ink-900">
+          Service not found
+        </h3>
+        <p className="mt-1 text-sm text-ink-500">
+          The service you are trying to add tests to does not exist.
+        </p>
+      </div>
+    );
+  }
 
   const initialValues = {
-    name: existing?.name || "",
-    mrp: existing?.mrp || "",
-    discount_price: existing?.discount_price || "",
-    is_active: existing?.is_active ?? true,
+    name: existingTest?.name || "",
+    mrp: existingTest?.mrp || "",
+    discount_price: existingTest?.discount_price || "",
+    is_active: existingTest?.is_active ?? true,
   };
 
   const validationSchema = Yup.object({
@@ -58,23 +86,29 @@ const ServiceItemForm = () => {
   });
 
   const handleSubmit = (values, { setSubmitting }) => {
-    console.log("Saving test:", { serviceId: id, ...values });
-    setSubmitting(false);
-    navigate(`/service-manager/${id}`);
-  };
+    const payload = {
+      name: values.name,
+      mrp: Number(values.mrp),
+      discount_price: Number(values.discount_price),
+      is_active: values.is_active,
+    };
 
-  if (!service) {
-    return (
-      <div className="rounded-card border border-ink-100 bg-surface p-16 text-center">
-        <h3 className="font-jakarta text-base font-semibold text-ink-900">
-          Service not found
-        </h3>
-        <p className="mt-1 text-sm text-ink-500">
-          The service you are trying to add tests to does not exist.
-        </p>
-      </div>
-    );
-  }
+    const onSuccess = () => navigate(`/service-manager/${id}`);
+
+    if (itemId) {
+      // Update
+      updateMutation.mutate(
+        { serviceId: id, testId: itemId, payload },
+        { onSettled: () => setSubmitting(false), onSuccess },
+      );
+    } else {
+      // Create
+      createMutation.mutate(
+        { serviceId: id, payload },
+        { onSettled: () => setSubmitting(false), onSuccess },
+      );
+    }
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -88,7 +122,7 @@ const ServiceItemForm = () => {
         </button>
         <div>
           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-            {existing ? "Edit Test" : "Add Test"}
+            {itemId ? "Edit Test" : "Add Test"}
           </h1>
           <p className="mt-0.5 text-sm text-ink-500">
             {service.name} — Rate Card
@@ -118,7 +152,7 @@ const ServiceItemForm = () => {
                   <TextInput
                     label="Test Name"
                     name="name"
-                    placeholder="e.g. HbA1c Test"
+                    placeholder="Enter test name"
                     maxLength={150}
                     required
                   />
@@ -154,7 +188,9 @@ const ServiceItemForm = () => {
               </button>
               <FormButton
                 type="submit"
-                text={existing ? "Update Test" : "Add Test"}
+                text={itemId ? "Update Test" : "Add Test"}
+                isLoading={isSubmitting}
+                disabled={isSubmitting}
                 className="!w-auto !px-4"
               />
             </div>

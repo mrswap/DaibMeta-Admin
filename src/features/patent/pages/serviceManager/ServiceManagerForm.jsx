@@ -1,15 +1,22 @@
 // src/features/patent/pages/serviceManager/ServiceManagerForm.jsx
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiGrid, FiUpload, FiX } from "react-icons/fi";
 import TextInput from "../../common/form/TextInput";
 import TextareaField from "../../common/form/TextareaField";
+import SelectField from "../../common/form/SelectField";
 import FormButton from "../../common/form/FormButton";
 import ToggleSwitch from "../../common/form/ToggleSwitch";
-import { SERVICE_CATEGORIES } from "./serviceData";
+import Loader from "../../common/Loader";
+import {
+  useService,
+  useCreateService,
+  useUpdateService,
+  DISPLAY_MODES,
+} from "../../queries/serviceManager";
 
 const MAX_IMAGE_SIZE_MB = 2;
 
@@ -18,17 +25,27 @@ const ServiceManagerForm = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  const existing = id
-    ? SERVICE_CATEGORIES.find((s) => s.id === Number(id))
-    : null;
+  // API Hooks
+  const { data: existing, isLoading: isFetching } = useService(id);
+  const createMutation = useCreateService();
+  const updateMutation = useUpdateService();
 
-  const [imagePreview, setImagePreview] = useState(existing?.image || "");
+  const [imagePreview, setImagePreview] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [removeImage, setRemoveImage] = useState(false);
   const [imageError, setImageError] = useState("");
+
+  // Set preview if editing
+  useEffect(() => {
+    if (existing?.image) {
+      setImagePreview(existing.image);
+    }
+  }, [existing]);
 
   const initialValues = {
     name: existing?.name || "",
     description: existing?.description || "",
-    image: existing?.image || "",
+    display_mode: existing?.display_mode || "direct",
     is_active: existing?.is_active ?? true,
   };
 
@@ -37,9 +54,10 @@ const ServiceManagerForm = () => {
       .required("Service name is required")
       .max(150, "Maximum 150 characters allowed"),
     description: Yup.string().max(500, "Maximum 500 characters allowed"),
+    display_mode: Yup.mixed().required("Display mode is required"), // mixed isliye taaki object/string dono accept kare
   });
 
-  const handleImageChange = (e, setFieldValue) => {
+  const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -54,31 +72,66 @@ const ServiceManagerForm = () => {
     }
 
     setImageError("");
+    setImageFile(file);
+    setRemoveImage(false);
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
-      setFieldValue("image", reader.result);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleRemoveImage = (setFieldValue) => {
+  const handleRemoveImage = () => {
     setImagePreview("");
-    setFieldValue("image", "");
+    setImageFile(null);
+    setRemoveImage(true);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = (values, { setSubmitting }) => {
-    console.log("Saving service:", values);
-    setSubmitting(false);
-    navigate("/service-manager");
+    // FIX: Agar SelectField object bhej raha hai (jaise react-select), to uski value nikal lo
+    const finalDisplayMode =
+      typeof values.display_mode === "object" && values.display_mode !== null
+        ? values.display_mode.value
+        : values.display_mode;
+
+    const formData = new FormData();
+    formData.append("name", values.name);
+    formData.append("description", values.description || "");
+    formData.append("display_mode", finalDisplayMode); // Yahan string jayegi
+    formData.append("is_active", values.is_active ? "1" : "0");
+
+    if (imageFile) {
+      formData.append("image", imageFile);
+    }
+    if (removeImage) {
+      formData.append("remove_image", "1");
+    }
+
+    const onSuccess = () => navigate("/service-manager");
+
+    if (id) {
+      updateMutation.mutate(
+        { id, formData },
+        { onSettled: () => setSubmitting(false), onSuccess },
+      );
+    } else {
+      createMutation.mutate(formData, {
+        onSettled: () => setSubmitting(false),
+        onSuccess,
+      });
+    }
   };
+
+  if (id && isFetching) return <Loader text="Loading service details..." />;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       {/* Page Header */}
       <div className="flex items-center gap-4">
         <button
+          type="button"
           onClick={() => navigate("/service-manager")}
           className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 transition-colors hover:bg-ink-50 hover:text-ink-900"
         >
@@ -86,10 +139,10 @@ const ServiceManagerForm = () => {
         </button>
         <div>
           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-            {existing ? "Edit Service" : "Add Service"}
+            {id ? "Edit Service" : "Add Service"}
           </h1>
           <p className="mt-0.5 text-sm text-ink-500">
-            {existing
+            {id
               ? "Update the service details below"
               : "Fill in the details to create a new service"}
           </p>
@@ -103,7 +156,7 @@ const ServiceManagerForm = () => {
         enableReinitialize
         onSubmit={handleSubmit}
       >
-        {({ isSubmitting, setFieldValue }) => (
+        {({ isSubmitting }) => (
           <Form className="space-y-6">
             {/* Section: Service Details */}
             <div className="rounded-card border border-ink-100 bg-surface">
@@ -119,7 +172,7 @@ const ServiceManagerForm = () => {
                 <TextInput
                   label="Service Name"
                   name="name"
-                  placeholder="e.g. Blood & Pathology Tests"
+                  placeholder="Enter service name"
                   maxLength={150}
                   required
                 />
@@ -139,7 +192,7 @@ const ServiceManagerForm = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => handleRemoveImage(setFieldValue)}
+                        onClick={handleRemoveImage}
                         className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-sm transition-colors hover:bg-danger-600"
                         title="Remove image"
                       >
@@ -164,7 +217,7 @@ const ServiceManagerForm = () => {
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleImageChange(e, setFieldValue)}
+                    onChange={handleImageChange}
                     className="hidden"
                   />
 
@@ -177,9 +230,17 @@ const ServiceManagerForm = () => {
                 <TextareaField
                   label="Description"
                   name="description"
-                  placeholder="Short description about this service"
+                  placeholder="Enter description"
                   rows={3}
                   maxLength={500}
+                />
+
+                {/* Display Mode */}
+                <SelectField
+                  label="Where should this service appear?"
+                  name="display_mode"
+                  options={DISPLAY_MODES}
+                  required
                 />
 
                 {/* Status Toggle */}
@@ -202,7 +263,9 @@ const ServiceManagerForm = () => {
               </button>
               <FormButton
                 type="submit"
-                text={existing ? "Update Service" : "Create Service"}
+                text={id ? "Update Service" : "Create Service"}
+                isLoading={isSubmitting}
+                disabled={isSubmitting}
                 className="!w-auto !px-4"
               />
             </div>
