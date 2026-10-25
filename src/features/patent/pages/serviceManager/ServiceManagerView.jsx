@@ -1,6 +1,6 @@
 // src/features/patent/pages/serviceManager/ServiceManagerView.jsx
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   FiArrowLeft,
@@ -13,9 +13,15 @@ import {
   FiX,
   FiChevronDown,
 } from "react-icons/fi";
+import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import ToggleSwitch from "../../common/form/ToggleSwitch";
-import { SERVICE_CATEGORIES } from "./serviceData";
+import {
+  useService,
+  useServiceTests,
+  useToggleServiceTestStatus,
+  useDeleteServiceTest,
+} from "../../queries/serviceManager";
 
 // ==================== RANGE SLIDER COMPONENT ====================
 const RangeSlider = ({
@@ -47,19 +53,12 @@ const RangeSlider = ({
       </div>
 
       <div className="relative h-6">
-        {/* Track background */}
         <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-ink-100" />
-
-        {/* Active range */}
         <div
           className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-brand-500"
-          style={{
-            left: `${leftPct}%`,
-            right: `${100 - rightPct}%`,
-          }}
+          style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }}
         />
 
-        {/* Min slider */}
         <input
           type="range"
           min={min}
@@ -72,8 +71,6 @@ const RangeSlider = ({
           }}
           className="range-thumb pointer-events-none absolute inset-0 h-6 w-full cursor-pointer appearance-none bg-transparent"
         />
-
-        {/* Max slider */}
         <input
           type="range"
           min={min}
@@ -96,160 +93,71 @@ const ServiceManagerView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const serviceId = Number(id);
-  const [services, setServices] = useState(SERVICE_CATEGORIES);
-  const [deleteItemId, setDeleteItemId] = useState(null);
-  const [loadingItemId, setLoadingItemId] = useState(null);
-
-  // ==================== FILTER STATE ====================
+  // Filters State
   const [search, setSearch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [mrpRange, setMrpRange] = useState({ min: "", max: "" });
+  const [discountRange, setDiscountRange] = useState({ min: "", max: "" });
+  const [deleteItemId, setDeleteItemId] = useState(null);
 
-  const service = services.find((s) => s.id === serviceId);
-  const rawItems = service?.items || [];
+  // API: Service Details
+  const { data: service, isLoading: isServiceLoading } = useService(id);
 
-  // ==================== COMPUTE MRP / DISCOUNT RANGES ====================
-  const { mrpBounds, discountBounds } = useMemo(() => {
-    if (rawItems.length === 0) {
-      return {
-        mrpBounds: { min: 0, max: 1000 },
-        discountBounds: { min: 0, max: 1000 },
-      };
-    }
-
-    const mrps = rawItems.map((i) => Number(i.mrp) || 0);
-    const discounts = rawItems.map((i) => Number(i.discount_price) || 0);
-
-    return {
-      mrpBounds: {
-        min: Math.floor(Math.min(...mrps) / 10) * 10,
-        max: Math.ceil(Math.max(...mrps) / 10) * 10,
-      },
-      discountBounds: {
-        min: Math.floor(Math.min(...discounts) / 10) * 10,
-        max: Math.ceil(Math.max(...discounts) / 10) * 10,
-      },
-    };
-  }, [rawItems]);
-
-  const [mrpRange, setMrpRange] = useState({
-    min: null,
-    max: null,
-  });
-  const [discountRange, setDiscountRange] = useState({
-    min: null,
-    max: null,
-  });
-
-  // Effective bounds (null = full range)
-  const effectiveMrpMin = mrpRange.min ?? mrpBounds.min;
-  const effectiveMrpMax = mrpRange.max ?? mrpBounds.max;
-  const effectiveDiscountMin = discountRange.min ?? discountBounds.min;
-  const effectiveDiscountMax = discountRange.max ?? discountBounds.max;
-
-  // ==================== FILTER + SORT LOGIC ====================
-  const items = useMemo(() => {
-    let list = [...rawItems];
-
-    // Search by name
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((i) => i.name.toLowerCase().includes(q));
-    }
-
-    // MRP range
-    list = list.filter((i) => {
-      const m = Number(i.mrp) || 0;
-      return m >= effectiveMrpMin && m <= effectiveMrpMax;
-    });
-
-    // Discount price range
-    list = list.filter((i) => {
-      const d = Number(i.discount_price) || 0;
-      return d >= effectiveDiscountMin && d <= effectiveDiscountMax;
-    });
-
-    return list;
-  }, [
-    rawItems,
+  // API: Tests (with dynamic filters)
+  const { data: testsData, isLoading: isTestsLoading } = useServiceTests(id, {
     search,
-    effectiveMrpMin,
-    effectiveMrpMax,
-    effectiveDiscountMin,
-    effectiveDiscountMax,
-  ]);
+    mrp_min: mrpRange.min || undefined,
+    mrp_max: mrpRange.max || undefined,
+    discount_min: discountRange.min || undefined,
+    discount_max: discountRange.max || undefined,
+  });
 
-  const hasActiveFilters =
-    search ||
-    mrpRange.min !== null ||
-    mrpRange.max !== null ||
-    discountRange.min !== null ||
-    discountRange.max !== null;
+  const toggleMutation = useToggleServiceTestStatus();
+  const deleteMutation = useDeleteServiceTest();
 
-  const activeFilterCount =
-    (search ? 1 : 0) +
-    (mrpRange.min !== null ? 1 : 0) +
-    (mrpRange.max !== null ? 1 : 0) +
-    (discountRange.min !== null ? 1 : 0) +
-    (discountRange.max !== null ? 1 : 0);
+  const tests = testsData?.list || [];
+  const range = testsData?.range;
+
+  // Auto-set slider values if null (initial load)
+  useEffect(() => {
+    if (range && mrpRange.min === "" && mrpRange.max === "") {
+      setMrpRange({ min: Number(range.min_mrp), max: Number(range.max_mrp) });
+      setDiscountRange({
+        min: Number(range.min_discount_price),
+        max: Number(range.max_discount_price),
+      });
+    }
+  }, [range, mrpRange.min, mrpRange.max]);
+
+  const handleToggle = (testId, currentStatus) => {
+    toggleMutation.mutate({ serviceId: id, testId, is_active: !currentStatus });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteItemId) {
+      deleteMutation.mutate(
+        { serviceId: id, testId: deleteItemId },
+        { onSettled: () => setDeleteItemId(null) },
+      );
+    }
+  };
 
   const clearFilters = () => {
     setSearch("");
-    setMrpRange({ min: null, max: null });
-    setDiscountRange({ min: null, max: null });
-  };
-
-  // ==================== HANDLERS ====================
-  const handleToggleItem = (itemId) => {
-    setLoadingItemId(itemId);
-    setTimeout(() => {
-      setServices((prev) =>
-        prev.map((s) =>
-          s.id === serviceId
-            ? {
-                ...s,
-                items: s.items.map((i) =>
-                  i.id === itemId ? { ...i, is_active: !i.is_active } : i,
-                ),
-              }
-            : s,
-        ),
-      );
-      setLoadingItemId(null);
-    }, 300);
-  };
-
-  const handleConfirmDeleteItem = () => {
-    if (deleteItemId && service) {
-      setServices((prev) =>
-        prev.map((s) =>
-          s.id === serviceId
-            ? { ...s, items: s.items.filter((i) => i.id !== deleteItemId) }
-            : s,
-        ),
-      );
-      setDeleteItemId(null);
+    if (range) {
+      setMrpRange({ min: Number(range.min_mrp), max: Number(range.max_mrp) });
+      setDiscountRange({
+        min: Number(range.min_discount_price),
+        max: Number(range.max_discount_price),
+      });
     }
   };
 
-  if (!service) {
+  if (isServiceLoading) return <Loader text="Loading service..." />;
+  if (!service)
     return (
-      <div className="rounded-card border border-ink-100 bg-surface p-16 text-center">
-        <h3 className="font-jakarta text-base font-semibold text-ink-900">
-          Service not found
-        </h3>
-        <p className="mt-1 text-sm text-ink-500">
-          The service you are looking for does not exist.
-        </p>
-        <button
-          onClick={() => navigate("/service-manager")}
-          className="mt-4 cursor-pointer text-sm font-medium text-brand-700 hover:text-brand-800"
-        >
-          Back to Services
-        </button>
-      </div>
+      <div className="p-16 text-center text-ink-500">Service not found</div>
     );
-  }
 
   return (
     <div className="space-y-6">
@@ -266,7 +174,9 @@ const ServiceManagerView = () => {
             <h1 className="font-jakarta text-2xl font-bold text-ink-900">
               {service.name}
             </h1>
-            <p className="mt-0.5 text-sm text-ink-500">{service.description}</p>
+            <p className="mt-0.5 text-sm text-ink-500">
+              {service.description || "No description"}
+            </p>
           </div>
         </div>
         <button
@@ -298,12 +208,25 @@ const ServiceManagerView = () => {
             <h2 className="font-jakarta text-lg font-semibold text-ink-900">
               {service.name}
             </h2>
-            <p className="mt-1 text-sm text-ink-600">
-              {service.description || "No description"}
-            </p>
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-700">
-                {rawItems.length} {rawItems.length === 1 ? "Test" : "Tests"}
+                {service.tests_count} Tests
+              </span>
+              {service.starting_price && (
+                <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
+                  Starting from ₹{service.starting_price}
+                </span>
+              )}
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ring-1 ${
+                  service.display_mode === "direct"
+                    ? "bg-accent-50 text-accent-700 ring-accent-200"
+                    : "bg-warn-50 text-warn-800 ring-warn-200"
+                }`}
+              >
+                {service.display_mode === "direct"
+                  ? "Direct Listing"
+                  : "Package Only"}
               </span>
             </div>
           </div>
@@ -320,14 +243,10 @@ const ServiceManagerView = () => {
               Rate Card
             </h2>
           </div>
-          <span className="rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-600">
-            {items.length} {items.length === 1 ? "Test" : "Tests"}
-          </span>
         </div>
 
         {/* Filter Bar */}
         <div className="space-y-3 border-b border-ink-100 bg-ink-50/30 px-5 py-4">
-          {/* Search + Filter toggle */}
           <div className="flex items-center gap-2">
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-form-border bg-surface px-3">
               <FiSearch className="h-4 w-4 shrink-0 text-ink-400" />
@@ -335,82 +254,59 @@ const ServiceManagerView = () => {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                maxLength={150}
-                placeholder="Search tests by name..."
+                placeholder="Search tests..."
                 className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-form-placeholder"
               />
             </div>
-
             <button
               onClick={() => setFiltersOpen((v) => !v)}
               className={`inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm font-medium transition ${
-                filtersOpen || hasActiveFilters
+                filtersOpen
                   ? "border-brand-300 bg-brand-50 text-brand-700"
                   : "border-ink-200 bg-surface text-ink-700 hover:bg-ink-50"
               }`}
             >
               <FiChevronDown
-                className={`h-4 w-4 transition-transform ${
-                  filtersOpen ? "rotate-180" : ""
-                }`}
+                className={`h-4 w-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
               />
-              <span className="hidden sm:inline">Filters</span>
-              {activeFilterCount > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-brand-600 px-1.5 text-[10px] font-bold text-white">
-                  {activeFilterCount}
-                </span>
-              )}
+              Filters
             </button>
           </div>
 
-          {/* Filter panel */}
-          {filtersOpen && (
+          {filtersOpen && range && (
             <div className="space-y-5 rounded-lg border border-ink-100 bg-surface p-5">
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {/* MRP Range Slider */}
                 <RangeSlider
                   label="MRP Range"
-                  min={mrpBounds.min}
-                  max={mrpBounds.max}
+                  min={Number(range.min_mrp)}
+                  max={Number(range.max_mrp)}
                   valueMin={mrpRange.min}
                   valueMax={mrpRange.max}
-                  onChangeMin={(v) =>
-                    setMrpRange((prev) => ({ ...prev, min: v }))
-                  }
-                  onChangeMax={(v) =>
-                    setMrpRange((prev) => ({ ...prev, max: v }))
-                  }
-                  step={10}
+                  onChangeMin={(v) => setMrpRange((p) => ({ ...p, min: v }))}
+                  onChangeMax={(v) => setMrpRange((p) => ({ ...p, max: v }))}
                 />
-
-                {/* Discount Range Slider */}
                 <RangeSlider
                   label="Discount Price Range"
-                  min={discountBounds.min}
-                  max={discountBounds.max}
+                  min={Number(range.min_discount_price)}
+                  max={Number(range.max_discount_price)}
                   valueMin={discountRange.min}
                   valueMax={discountRange.max}
                   onChangeMin={(v) =>
-                    setDiscountRange((prev) => ({ ...prev, min: v }))
+                    setDiscountRange((p) => ({ ...p, min: v }))
                   }
                   onChangeMax={(v) =>
-                    setDiscountRange((prev) => ({ ...prev, max: v }))
+                    setDiscountRange((p) => ({ ...p, max: v }))
                   }
-                  step={10}
                 />
               </div>
-
-              {hasActiveFilters && (
-                <div className="flex justify-end border-t border-ink-100 pt-3">
-                  <button
-                    onClick={clearFilters}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-ink-200 bg-surface px-3 py-1.5 text-xs font-medium text-ink-600 hover:bg-ink-100"
-                  >
-                    <FiX className="h-3 w-3" />
-                    Clear Filters
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-end border-t border-ink-100 pt-3">
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-600 hover:text-ink-900"
+                >
+                  <FiX className="h-3 w-3" /> Clear Filters
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -435,36 +331,34 @@ const ServiceManagerView = () => {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 ? (
+              {isTestsLoading ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-5 py-10 text-center text-ink-500"
+                  >
+                    Loading tests...
+                  </td>
+                </tr>
+              ) : tests.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-5 py-16 text-center">
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ink-50">
                       <FiPackage className="h-6 w-6 text-ink-400" />
                     </div>
                     <h3 className="mt-4 font-jakarta text-base font-semibold text-ink-900">
-                      {hasActiveFilters ? "No matching tests" : "No tests yet"}
+                      No tests found
                     </h3>
                     <p className="mt-1 text-sm text-ink-500">
-                      {hasActiveFilters
-                        ? "Try adjusting your filters or clear them."
-                        : "Add your first test to this rate card."}
+                      Add your first test to this rate card.
                     </p>
-                    {hasActiveFilters && (
-                      <button
-                        onClick={clearFilters}
-                        className="mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50"
-                      >
-                        <FiX className="h-3 w-3" />
-                        Clear Filters
-                      </button>
-                    )}
                   </td>
                 </tr>
               ) : (
-                items.map((item) => (
+                tests.map((item) => (
                   <tr
                     key={item.id}
-                    className="border-b border-table-row-border transition-colors last:border-b-0 hover:bg-table-row-hover-bg"
+                    className="border-b border-table-row-border hover:bg-table-row-hover-bg"
                   >
                     <td className="px-5 py-3.5 font-medium text-ink-900">
                       {item.name}
@@ -484,8 +378,11 @@ const ServiceManagerView = () => {
                         isFormik={false}
                         variant="pill"
                         value={item.is_active}
-                        onChange={() => handleToggleItem(item.id)}
-                        loading={loadingItemId === item.id}
+                        onChange={() => handleToggle(item.id, item.is_active)}
+                        loading={
+                          toggleMutation.isPending &&
+                          toggleMutation.variables?.testId === item.id
+                        }
                       />
                     </td>
                     <td className="px-5 py-3.5">
@@ -496,15 +393,13 @@ const ServiceManagerView = () => {
                               `/service-manager/${id}/items/${item.id}/edit`,
                             )
                           }
-                          className="cursor-pointer rounded-lg p-2 text-ink-500 transition-colors hover:bg-ink-50 hover:text-brand-600"
-                          title="Edit test"
+                          className="cursor-pointer rounded-lg p-2 text-ink-500 hover:bg-ink-50 hover:text-brand-600"
                         >
                           <FiEdit2 className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setDeleteItemId(item.id)}
-                          className="cursor-pointer rounded-lg p-2 text-ink-500 transition-colors hover:bg-danger-50 hover:text-danger-600"
-                          title="Delete test"
+                          className="cursor-pointer rounded-lg p-2 text-ink-500 hover:bg-danger-50 hover:text-danger-600"
                         >
                           <FiTrash2 className="h-4 w-4" />
                         </button>
@@ -525,9 +420,9 @@ const ServiceManagerView = () => {
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
-        onConfirm={handleConfirmDeleteItem}
+        onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteItemId(null)}
-        loading={false}
+        loading={deleteMutation.isPending}
       />
     </div>
   );

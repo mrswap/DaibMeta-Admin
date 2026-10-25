@@ -1,6 +1,6 @@
 // src/features/patent/pages/healthTips/HealthTipsList.jsx
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiPlus,
@@ -11,43 +11,42 @@ import {
   FiBookOpen,
   FiEye,
 } from "react-icons/fi";
+import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import ToggleSwitch from "../../common/form/ToggleSwitch";
-import { HEALTH_TIPS } from "./healthTipsData";
+import {
+  useHealthTips,
+  useDeleteHealthTip,
+  useToggleHealthTipStatus,
+} from "../../queries/healthTips";
 
 const HealthTipsList = () => {
   const navigate = useNavigate();
-  const [tips, setTips] = useState(HEALTH_TIPS);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState(null);
-  const [loadingId, setLoadingId] = useState(null);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return tips;
-    const q = search.toLowerCase();
-    return tips.filter(
-      (t) =>
-        t.heading.toLowerCase().includes(q) ||
-        (t.tag || "").toLowerCase().includes(q),
-    );
-  }, [tips, search]);
+  // API Calls
+  const { data, isLoading } = useHealthTips({ page, search });
+  const deleteMutation = useDeleteHealthTip();
+  const toggleMutation = useToggleHealthTipStatus();
 
-  const handleToggle = (id) => {
-    setLoadingId(id);
-    setTimeout(() => {
-      setTips((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, is_active: !t.is_active } : t)),
-      );
-      setLoadingId(null);
-    }, 300);
+  const tips = data?.list || [];
+  const meta = data?.meta || {};
+
+  const handleToggle = (id, currentStatus) => {
+    toggleMutation.mutate({ id, is_active: !currentStatus });
   };
 
   const handleConfirmDelete = () => {
     if (deleteId) {
-      setTips((prev) => prev.filter((t) => t.id !== deleteId));
-      setDeleteId(null);
+      deleteMutation.mutate(deleteId, {
+        onSettled: () => setDeleteId(null),
+      });
     }
   };
+
+  if (isLoading) return <Loader text="Loading health tips..." />;
 
   return (
     <div className="space-y-6">
@@ -77,7 +76,10 @@ const HealthTipsList = () => {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1); // Reset page on search
+            }}
             maxLength={150}
             placeholder="Search..."
             className="w-full rounded-lg border border-form-border bg-form-bg py-2.5 pl-10 pr-3 text-sm text-form-text placeholder:text-form-placeholder focus:border-form-border-focus focus:outline-none focus:ring-2 focus:ring-form-ring/20"
@@ -86,7 +88,7 @@ const HealthTipsList = () => {
       </div>
 
       {/* Tips Grid */}
-      {filtered.length === 0 ? (
+      {tips.length === 0 ? (
         <div className="rounded-card border border-ink-100 bg-surface p-16 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ink-50">
             <FiBookOpen className="h-6 w-6 text-ink-400" />
@@ -102,7 +104,7 @@ const HealthTipsList = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((tip) => (
+          {tips.map((tip) => (
             <div
               key={tip.id}
               className="group flex flex-col overflow-hidden rounded-card border border-ink-100 bg-surface transition-all hover:border-brand-200 hover:shadow-sm"
@@ -125,8 +127,11 @@ const HealthTipsList = () => {
                     isFormik={false}
                     variant="pill"
                     value={tip.is_active}
-                    onChange={() => handleToggle(tip.id)}
-                    loading={loadingId === tip.id}
+                    onChange={() => handleToggle(tip.id, tip.is_active)}
+                    loading={
+                      toggleMutation.isPending &&
+                      toggleMutation.variables?.id === tip.id
+                    }
                   />
                 </div>
               </div>
@@ -141,8 +146,9 @@ const HealthTipsList = () => {
                 <h3 className="font-jakarta text-base font-semibold text-ink-900">
                   {tip.heading}
                 </h3>
+                {/* HTML tags hata ke preview dikhane ke liye */}
                 <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-ink-500">
-                  {tip.content}
+                  {tip.content?.replace(/<[^>]*>?/gm, "")}
                 </p>
               </div>
 
@@ -177,6 +183,29 @@ const HealthTipsList = () => {
         </div>
       )}
 
+      {/* Pagination (Simple) */}
+      {meta.last_page > 1 && (
+        <div className="flex justify-center gap-2 mt-6">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="px-4 py-2 border border-ink-200 rounded-lg text-sm disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="px-4 py-2 text-sm text-ink-600">
+            Page {meta.current_page} of {meta.last_page}
+          </span>
+          <button
+            disabled={page === meta.last_page}
+            onClick={() => setPage((p) => p + 1)}
+            className="px-4 py-2 border border-ink-200 rounded-lg text-sm disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
+
       <ConfirmModal
         open={!!deleteId}
         title="Delete Health Tip"
@@ -186,7 +215,7 @@ const HealthTipsList = () => {
         variant="danger"
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteId(null)}
-        loading={false}
+        loading={deleteMutation.isPending}
       />
     </div>
   );

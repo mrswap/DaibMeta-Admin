@@ -3,22 +3,26 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiEdit2, FiTrash2, FiImage } from "react-icons/fi";
+import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
-import { HEALTH_TIPS } from "./healthTipsData";
+import { useHealthTip, useDeleteHealthTip } from "../../queries/healthTips";
 
 const HealthTipsView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [tips, setTips] = useState(HEALTH_TIPS);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const tip = tips.find((t) => t.id === Number(id));
+  // API Hooks
+  const { data: tip, isLoading } = useHealthTip(id);
+  const deleteMutation = useDeleteHealthTip();
 
   const handleConfirmDelete = () => {
-    setTips((prev) => prev.filter((t) => t.id !== Number(id)));
-    setDeleteOpen(false);
-    navigate("/health-tips");
+    deleteMutation.mutate(id, {
+      onSuccess: () => navigate("/health-tips"),
+    });
   };
+
+  if (isLoading) return <Loader text="Loading tip details..." />;
 
   if (!tip) {
     return (
@@ -135,7 +139,7 @@ const HealthTipsView = () => {
         variant="danger"
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteOpen(false)}
-        loading={false}
+        loading={deleteMutation.isPending}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 // src/features/patent/pages/healthTips/HealthTipsForm.jsx
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
@@ -9,10 +9,15 @@ import TextInput from "../../common/form/TextInput";
 import FormikEditorField from "../../common/form/FormikEditorField";
 import FormButton from "../../common/form/FormButton";
 import ToggleSwitch from "../../common/form/ToggleSwitch";
-import { HEALTH_TIPS } from "./healthTipsData";
+import Loader from "../../common/Loader";
+import {
+  useHealthTip,
+  useCreateHealthTip,
+  useUpdateHealthTip,
+} from "../../queries/healthTips";
 
 const MAX_IMAGE_SIZE_MB = 2;
-const MAX_CONTENT_LENGTH = 5000;
+const MAX_CONTENT_LENGTH = 50000; // Backend doc ke hisaab se 50,000 chars
 
 const stripHtml = (html) =>
   (html || "")
@@ -25,16 +30,27 @@ const HealthTipsForm = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  const existing = id ? HEALTH_TIPS.find((t) => t.id === Number(id)) : null;
+  // API Hooks
+  const { data: existing, isLoading: isFetching } = useHealthTip(id);
+  const createMutation = useCreateHealthTip();
+  const updateMutation = useUpdateHealthTip();
 
-  const [imagePreview, setImagePreview] = useState(existing?.image || "");
+  const [imagePreview, setImagePreview] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [removeImage, setRemoveImage] = useState(false);
   const [imageError, setImageError] = useState("");
+
+  // Jab API se data aaye, to preview set karo
+  useEffect(() => {
+    if (existing?.image) {
+      setImagePreview(existing.image);
+    }
+  }, [existing]);
 
   const initialValues = {
     heading: existing?.heading || "",
     tag: existing?.tag || "",
     content: existing?.content || "",
-    image: existing?.image || "",
     is_active: existing?.is_active ?? true,
   };
 
@@ -43,7 +59,7 @@ const HealthTipsForm = () => {
       .required("Heading is required")
       .max(150, "Maximum 150 characters allowed"),
     tag: Yup.string()
-      .required("Highlight tag is required")
+      .required("Tag is required")
       .max(50, "Maximum 50 characters allowed"),
     content: Yup.string()
       .required("Content is required")
@@ -57,7 +73,7 @@ const HealthTipsForm = () => {
       }),
   });
 
-  const handleImageChange = (e, setFieldValue) => {
+  const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -72,25 +88,53 @@ const HealthTipsForm = () => {
     }
 
     setImageError("");
+    setImageFile(file);
+    setRemoveImage(false);
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
-      setFieldValue("image", reader.result);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleRemoveImage = (setFieldValue) => {
+  const handleRemoveImage = () => {
     setImagePreview("");
-    setFieldValue("image", "");
+    setImageFile(null);
+    setRemoveImage(true);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = (values, { setSubmitting }) => {
-    console.log("Saving health tip:", values);
-    setSubmitting(false);
-    navigate("/health-tips");
+    const formData = new FormData();
+    formData.append("heading", values.heading);
+    formData.append("tag", values.tag);
+    formData.append("content", values.content);
+    formData.append("is_active", values.is_active ? "1" : "0");
+
+    if (imageFile) {
+      formData.append("image", imageFile);
+    }
+    if (removeImage) {
+      formData.append("remove_image", "1");
+    }
+
+    const onSuccess = () => navigate("/health-tips");
+
+    if (id) {
+      updateMutation.mutate(
+        { id, formData },
+        { onSettled: () => setSubmitting(false), onSuccess },
+      );
+    } else {
+      createMutation.mutate(formData, {
+        onSettled: () => setSubmitting(false),
+        onSuccess,
+      });
+    }
   };
+
+  if (id && isFetching) return <Loader text="Loading tip details..." />;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -104,10 +148,10 @@ const HealthTipsForm = () => {
         </button>
         <div>
           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-            {existing ? "Edit Health Tip" : "Add Health Tip"}
+            {id ? "Edit Health Tip" : "Add Health Tip"}
           </h1>
           <p className="mt-0.5 text-sm text-ink-500">
-            {existing
+            {id
               ? "Update the health tip details below"
               : "Fill in the details to create a new health tip"}
           </p>
@@ -121,7 +165,7 @@ const HealthTipsForm = () => {
         enableReinitialize
         onSubmit={handleSubmit}
       >
-        {({ isSubmitting, setFieldValue }) => (
+        {({ isSubmitting }) => (
           <Form className="space-y-6">
             {/* Section: Tip Details */}
             <div className="rounded-card border border-ink-100 bg-surface">
@@ -166,7 +210,7 @@ const HealthTipsForm = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => handleRemoveImage(setFieldValue)}
+                        onClick={handleRemoveImage}
                         className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-sm transition-colors hover:bg-danger-600"
                         title="Remove image"
                       >
@@ -191,7 +235,7 @@ const HealthTipsForm = () => {
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleImageChange(e, setFieldValue)}
+                    onChange={handleImageChange}
                     className="hidden"
                   />
 
@@ -228,7 +272,9 @@ const HealthTipsForm = () => {
               </button>
               <FormButton
                 type="submit"
-                text={existing ? "Update Tip" : "Create Tip"}
+                text={id ? "Update Tip" : "Create Tip"}
+                isLoading={isSubmitting}
+                disabled={isSubmitting}
                 className="!w-auto !px-4"
               />
             </div>

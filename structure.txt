@@ -1,0 +1,49 @@
+E:\NetswapTechnology\DMT\dmt-web
+├── DMT-HANDOFF.md
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── public
+|  ├── favicon.svg
+|  └── icons.svg
+├── README.md
+├── src
+|  ├── app
+|  ├── App.css
+|  ├── App.jsx
+|  ├── assets
+|  |  ├── daibmetalogo-fevi.jpeg
+|  |  ├── daibmetalogo.jpeg
+|  |  ├── hero.png
+|  |  ├── react.svg
+|  |  ├── utils
+|  |  └── vite.svg
+|  ├── features
+|  |  ├── --
+|  |  └── patent
+|  |     ├── common
+|  |     ├── components
+|  |     ├── layout
+|  |     ├── pages
+|  |     ├── queries
+|  |     └── routes
+|  ├── hooks
+|  ├── index.css
+|  ├── lib
+|  |  ├── axios.js
+|  |  └── queryClient.js
+|  ├── main.jsx
+|  ├── redux
+|  ├── services
+|  ├── stores
+|  |  ├── authStore.js
+|  |  └── uiStore.js
+|  ├── THEME-GUIDE.md
+|  └── ThemePreview.jsx
+├── vercel.json
+└── vite.config.js
+
+directory: 855 file: 6097
+
+ignored: directory (143)
