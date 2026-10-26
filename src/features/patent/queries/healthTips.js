@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../lib/axios";
 import { useToast } from "../common/toast/ToastContext";
 
-// ==================== QUERY KEYS ====================
 export const healthTipKeys = {
     all: ["health-tips"],
     lists: () => [...healthTipKeys.all, "list"],
@@ -13,7 +12,6 @@ export const healthTipKeys = {
     detail: (id) => [...healthTipKeys.details(), id],
 };
 
-// ==================== HELPERS ====================
 const getErrorMessage = (err, fallback = "Something went wrong") => {
     const data = err.response?.data;
     if (data?.errors) {
@@ -23,7 +21,6 @@ const getErrorMessage = (err, fallback = "Something went wrong") => {
     return data?.message || fallback;
 };
 
-// ==================== LIST ====================
 export const useHealthTips = (params = {}) => {
     return useQuery({
         queryKey: healthTipKeys.list(params),
@@ -40,7 +37,6 @@ export const useHealthTips = (params = {}) => {
     });
 };
 
-// ==================== SINGLE ====================
 export const useHealthTip = (id) => {
     return useQuery({
         queryKey: healthTipKeys.detail(id),
@@ -49,16 +45,15 @@ export const useHealthTip = (id) => {
     });
 };
 
-// ==================== CREATE ====================
 export const useCreateHealthTip = () => {
     const qc = useQueryClient();
     const toast = useToast();
     return useMutation({
         mutationFn: (formData) =>
             api.post("/admin/health-tips", formData).then((r) => r.data),
-        onSuccess: () => {
+        onSuccess: (res) => {
             qc.invalidateQueries({ queryKey: healthTipKeys.all });
-            toast.success("Health tip created successfully");
+            toast.success(res?.message || "Health tip created successfully");
         },
         onError: (err) => {
             toast.error(getErrorMessage(err, "Failed to create health tip"));
@@ -66,18 +61,17 @@ export const useCreateHealthTip = () => {
     });
 };
 
-// ==================== UPDATE ====================
 export const useUpdateHealthTip = () => {
     const qc = useQueryClient();
     const toast = useToast();
     return useMutation({
         mutationFn: ({ id, formData }) =>
-            // Laravel multipart method spoofing (RULE #28)
+            // FIX: URL me _method=PUT add kiya
             api.post(`/admin/health-tips/${id}?_method=PUT`, formData).then((r) => r.data),
-        onSuccess: (_, variables) => {
+        onSuccess: (res, variables) => {
             qc.invalidateQueries({ queryKey: healthTipKeys.all });
             qc.invalidateQueries({ queryKey: healthTipKeys.detail(variables.id) });
-            toast.success("Health tip updated successfully");
+            toast.success(res?.message || "Health tip updated successfully");
         },
         onError: (err) => {
             toast.error(getErrorMessage(err, "Failed to update health tip"));
@@ -85,16 +79,15 @@ export const useUpdateHealthTip = () => {
     });
 };
 
-// ==================== TOGGLE STATUS ====================
 export const useToggleHealthTipStatus = () => {
     const qc = useQueryClient();
     const toast = useToast();
     return useMutation({
         mutationFn: ({ id, is_active }) =>
             api.post(`/admin/health-tips/${id}/toggle-status`, { is_active }).then((r) => r.data),
-        onSuccess: () => {
+        onSuccess: (res) => {
             qc.invalidateQueries({ queryKey: healthTipKeys.all });
-            toast.success("Status updated successfully");
+            toast.success(res?.message || "Status updated successfully");
         },
         onError: (err) => {
             toast.error(getErrorMessage(err, "Failed to update status"));
@@ -102,16 +95,15 @@ export const useToggleHealthTipStatus = () => {
     });
 };
 
-// ==================== DELETE ====================
 export const useDeleteHealthTip = () => {
     const qc = useQueryClient();
     const toast = useToast();
     return useMutation({
         mutationFn: (id) =>
             api.delete(`/admin/health-tips/${id}`).then((r) => r.data),
-        onSuccess: () => {
+        onSuccess: (res) => {
             qc.invalidateQueries({ queryKey: healthTipKeys.all });
-            toast.success("Health tip deleted successfully");
+            toast.success(res?.message || "Health tip deleted successfully");
         },
         onError: (err) => {
             toast.error(getErrorMessage(err, "Failed to delete health tip"));

@@ -36,10 +36,13 @@ import VisitDetail from "../pages/visits/VisitDetail";
 import BookingCalendar from "../pages/bookingCalendar/BookingCalendar";
 import ExceptionManagementList from "../pages/exceptionManagement/ExceptionManagementList";
 
+// Service Manager Imports
 import ServiceManagerList from "../pages/serviceManager/ServiceManagerList";
 import ServiceManagerView from "../pages/serviceManager/ServiceManagerView";
 import ServiceManagerForm from "../pages/serviceManager/ServiceManagerForm";
 import ServiceItemForm from "../pages/serviceManager/ServiceItemForm";
+import ServiceLeadList from "../pages/serviceManager/leads/ServiceLeadList";
+import ServiceLeadDetails from "../pages/serviceManager/leads/ServiceLeadDetails";
 
 import HealthTipsList from "../pages/healthTips/HealthTipsList";
 import HealthTipsView from "../pages/healthTips/HealthTipsView";
@@ -55,17 +58,14 @@ import BmiUI from "../pages/cms/Bmi/BmiUI";
 import DiabetesUI from "../pages/cms/Diabetes/DiabetesUI";
 import SugarUI from "../pages/cms/Sugar/SugarUI";
 
-// Disease Imports
 import DiseaseUI from "../pages/cms/Disease/DiseaseUI";
 import DiseaseList from "../pages/cms/Disease/DiseaseList";
 import DiseaseForm from "../pages/cms/Disease/DiseaseForm";
 
-// Symptoms Imports
 import SymptomsUI from "../pages/cms/Symptoms/SymptomsUI";
 import SymptomsList from "../pages/cms/Symptoms/SymptomsList";
 import SymptomsForm from "../pages/cms/Symptoms/SymptomsForm";
 
-// Period Imports
 import PeriodUI from "../pages/cms/Period/PeriodUI";
 import PeriodHealthGuide from "../pages/cms/Period/PeriodHealthGuide";
 import PeriodForm from "../pages/cms/Period/PeriodForm";
@@ -74,6 +74,9 @@ import ReminderUI from "../pages/cms/Reminder/ReminderUI";
 import ScanFoodUI from "../pages/cms/ScanFood/ScanFoodUI";
 import CaloriesUI from "../pages/cms/Calories/CaloriesUI";
 import RecordsUI from "../pages/cms/Records/RecordsUI";
+
+import BannerList from "../pages/cms/banners/BannerList";
+import BannerForm from "../pages/cms/banners/BannerForm";
 
 import NotFound from "../pages/NotFound";
 import ComingSoon from "../pages/ComingSoon";
@@ -139,6 +142,11 @@ const AdminRoutes = () => {
           {/* ==================== Service Manager & Packages ==================== */}
           <Route path="service-manager" element={<ServiceManagerList />} />
           <Route path="service-manager/new" element={<ServiceManagerForm />} />
+          <Route path="service-manager/leads" element={<ServiceLeadList />} />
+          <Route
+            path="service-manager/leads/:id"
+            element={<ServiceLeadDetails />}
+          />
           <Route path="service-manager/:id" element={<ServiceManagerView />} />
           <Route
             path="service-manager/:id/edit"
@@ -167,22 +175,23 @@ const AdminRoutes = () => {
           <Route path="health-tips/:id/edit" element={<HealthTipsForm />} />
 
           {/* ==================== CMS (Patient App) ==================== */}
+          <Route path="cms/banners" element={<BannerList />} />
+          <Route path="cms/banners/new" element={<BannerForm />} />
+          <Route path="cms/banners/:id/edit" element={<BannerForm />} />
+
           <Route path="cms/book-appointment" element={<BookAppointmentUI />} />
           <Route path="cms/bmi" element={<BmiUI />} />
           <Route path="cms/diabetes" element={<DiabetesUI />} />
           <Route path="cms/sugar" element={<SugarUI />} />
 
-          {/* Disease Routes */}
           <Route path="cms/disease" element={<DiseaseUI />} />
           <Route path="cms/disease/list" element={<DiseaseList />} />
           <Route path="cms/disease/:id" element={<DiseaseForm />} />
 
-          {/* Symptoms Routes */}
           <Route path="cms/symptoms" element={<SymptomsUI />} />
           <Route path="cms/symptoms/list" element={<SymptomsList />} />
           <Route path="cms/symptoms/:id" element={<SymptomsForm />} />
 
-          {/* Period Tracker Routes */}
           <Route path="cms/period" element={<PeriodUI />} />
           <Route
             path="cms/period/health-guide"
