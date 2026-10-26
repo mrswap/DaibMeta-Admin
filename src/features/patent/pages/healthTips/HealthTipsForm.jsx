@@ -1,5 +1,3 @@
-// src/features/patent/pages/healthTips/HealthTipsForm.jsx
-
 import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -7,7 +5,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiGrid, FiUpload, FiX } from "react-icons/fi";
 import TextInput from "../../common/form/TextInput";
 import FormikEditorField from "../../common/form/FormikEditorField";
-import FormButton from "../../common/form/FormButton";
 import ToggleSwitch from "../../common/form/ToggleSwitch";
 import Loader from "../../common/Loader";
 import {
@@ -17,7 +14,7 @@ import {
 } from "../../queries/healthTips";
 
 const MAX_IMAGE_SIZE_MB = 2;
-const MAX_CONTENT_LENGTH = 50000; // Backend doc ke hisaab se 50,000 chars
+const MAX_CONTENT_LENGTH = 50000;
 
 const stripHtml = (html) =>
   (html || "")
@@ -30,7 +27,6 @@ const HealthTipsForm = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  // API Hooks
   const { data: existing, isLoading: isFetching } = useHealthTip(id);
   const createMutation = useCreateHealthTip();
   const updateMutation = useUpdateHealthTip();
@@ -40,11 +36,8 @@ const HealthTipsForm = () => {
   const [removeImage, setRemoveImage] = useState(false);
   const [imageError, setImageError] = useState("");
 
-  // Jab API se data aaye, to preview set karo
   useEffect(() => {
-    if (existing?.image) {
-      setImagePreview(existing.image);
-    }
+    if (existing?.image) setImagePreview(existing.image);
   }, [existing]);
 
   const initialValues = {
@@ -55,12 +48,8 @@ const HealthTipsForm = () => {
   };
 
   const validationSchema = Yup.object({
-    heading: Yup.string()
-      .required("Heading is required")
-      .max(150, "Maximum 150 characters allowed"),
-    tag: Yup.string()
-      .required("Tag is required")
-      .max(50, "Maximum 50 characters allowed"),
+    heading: Yup.string().required("Heading is required").max(150),
+    tag: Yup.string().required("Tag is required").max(50),
     content: Yup.string()
       .required("Content is required")
       .test(
@@ -68,33 +57,28 @@ const HealthTipsForm = () => {
         `Maximum ${MAX_CONTENT_LENGTH} characters allowed`,
         (val) => stripHtml(val).length <= MAX_CONTENT_LENGTH,
       )
-      .test("content-not-empty", "Content is required", (val) => {
-        return stripHtml(val).length > 0;
-      }),
+      .test(
+        "content-not-empty",
+        "Content is required",
+        (val) => stripHtml(val).length > 0,
+      ),
   });
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setImageError("Please select a valid image file");
+    if (
+      !file.type.startsWith("image/") ||
+      file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024
+    ) {
+      setImageError(`Invalid file or size exceeds ${MAX_IMAGE_SIZE_MB}MB`);
       return;
     }
-
-    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-      setImageError(`Image must be under ${MAX_IMAGE_SIZE_MB}MB`);
-      return;
-    }
-
     setImageError("");
     setImageFile(file);
     setRemoveImage(false);
-
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-    };
+    reader.onloadend = () => setImagePreview(reader.result);
     reader.readAsDataURL(file);
   };
 
@@ -112,12 +96,8 @@ const HealthTipsForm = () => {
     formData.append("content", values.content);
     formData.append("is_active", values.is_active ? "1" : "0");
 
-    if (imageFile) {
-      formData.append("image", imageFile);
-    }
-    if (removeImage) {
-      formData.append("remove_image", "1");
-    }
+    if (imageFile) formData.append("image", imageFile);
+    if (removeImage) formData.append("remove_image", "1");
 
     const onSuccess = () => navigate("/health-tips");
 
@@ -137,12 +117,12 @@ const HealthTipsForm = () => {
   if (id && isFetching) return <Loader text="Loading tip details..." />;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      {/* Page Header */}
+    // FIX: mx-auto max-w-4xl hataya
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate("/health-tips")}
-          className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 transition-colors hover:bg-ink-50 hover:text-ink-900"
+          className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 hover:bg-ink-50"
         >
           <FiArrowLeft className="h-5 w-5" />
         </button>
@@ -150,11 +130,6 @@ const HealthTipsForm = () => {
           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
             {id ? "Edit Health Tip" : "Add Health Tip"}
           </h1>
-          <p className="mt-0.5 text-sm text-ink-500">
-            {id
-              ? "Update the health tip details below"
-              : "Fill in the details to create a new health tip"}
-          </p>
         </div>
       </div>
 
@@ -167,7 +142,6 @@ const HealthTipsForm = () => {
       >
         {({ isSubmitting }) => (
           <Form className="space-y-6">
-            {/* Section: Tip Details */}
             <div className="rounded-card border border-ink-100 bg-surface">
               <div className="flex items-center gap-2 border-b border-ink-100 px-5 py-4">
                 <FiGrid className="h-5 w-5 text-brand-600" />
@@ -177,7 +151,6 @@ const HealthTipsForm = () => {
               </div>
 
               <div className="space-y-5 p-5">
-                {/* Heading */}
                 <TextInput
                   label="Heading"
                   name="heading"
@@ -185,8 +158,6 @@ const HealthTipsForm = () => {
                   maxLength={150}
                   required
                 />
-
-                {/* Highlight Tag */}
                 <TextInput
                   label="Highlight Tag"
                   name="tag"
@@ -195,12 +166,10 @@ const HealthTipsForm = () => {
                   required
                 />
 
-                {/* Image Upload */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-form-label">
                     Image
                   </label>
-
                   {imagePreview ? (
                     <div className="relative inline-block">
                       <img
@@ -211,8 +180,7 @@ const HealthTipsForm = () => {
                       <button
                         type="button"
                         onClick={handleRemoveImage}
-                        className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-sm transition-colors hover:bg-danger-600"
-                        title="Remove image"
+                        className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-sm hover:bg-danger-600"
                       >
                         <FiX className="h-3.5 w-3.5" />
                       </button>
@@ -221,16 +189,12 @@ const HealthTipsForm = () => {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex h-40 w-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/40 text-ink-500 transition-colors hover:border-brand-300 hover:bg-brand-50/30 hover:text-brand-700"
+                      className="flex h-40 w-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/40 text-ink-500 hover:border-brand-300 hover:bg-brand-50/30 hover:text-brand-700"
                     >
                       <FiUpload className="h-6 w-6" />
                       <span className="text-xs font-medium">Upload Image</span>
-                      <span className="text-[10px] text-ink-400">
-                        Max {MAX_IMAGE_SIZE_MB}MB
-                      </span>
                     </button>
                   )}
-
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -238,13 +202,11 @@ const HealthTipsForm = () => {
                     onChange={handleImageChange}
                     className="hidden"
                   />
-
                   {imageError && (
                     <p className="mt-2 text-xs text-form-error">{imageError}</p>
                   )}
                 </div>
 
-                {/* Content */}
                 <FormikEditorField
                   name="content"
                   label="Content"
@@ -252,7 +214,6 @@ const HealthTipsForm = () => {
                   required
                 />
 
-                {/* Status Toggle */}
                 <ToggleSwitch
                   name="is_active"
                   label="Active Status"
@@ -261,22 +222,30 @@ const HealthTipsForm = () => {
               </div>
             </div>
 
-            {/* Footer Actions */}
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => navigate("/health-tips")}
-                className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-50"
+                className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 hover:bg-ink-50"
               >
                 Cancel
               </button>
-              <FormButton
+              <button
                 type="submit"
-                text={id ? "Update Tip" : "Create Tip"}
-                isLoading={isSubmitting}
-                disabled={isSubmitting}
-                className="!w-auto !px-4"
-              />
+                disabled={
+                  isSubmitting ||
+                  createMutation.isPending ||
+                  updateMutation.isPending
+                }
+                className="flex items-center justify-center gap-2 bg-btn-primary-bg hover:bg-btn-primary-bg-hover text-btn-primary-text px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {(isSubmitting ||
+                  createMutation.isPending ||
+                  updateMutation.isPending) && (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                )}
+                {id ? "Update Tip" : "Create Tip"}
+              </button>
             </div>
           </Form>
         )}

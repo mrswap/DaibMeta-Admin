@@ -1,5 +1,3 @@
-// src/features/patent/pages/healthTips/HealthTipsView.jsx
-
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiEdit2, FiTrash2, FiImage } from "react-icons/fi";
@@ -12,14 +10,11 @@ const HealthTipsView = () => {
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // API Hooks
   const { data: tip, isLoading } = useHealthTip(id);
   const deleteMutation = useDeleteHealthTip();
 
   const handleConfirmDelete = () => {
-    deleteMutation.mutate(id, {
-      onSuccess: () => navigate("/health-tips"),
-    });
+    deleteMutation.mutate(id, { onSuccess: () => navigate("/health-tips") });
   };
 
   if (isLoading) return <Loader text="Loading tip details..." />;
@@ -30,9 +25,6 @@ const HealthTipsView = () => {
         <h3 className="font-jakarta text-base font-semibold text-ink-900">
           Health tip not found
         </h3>
-        <p className="mt-1 text-sm text-ink-500">
-          The tip you are looking for does not exist.
-        </p>
         <button
           onClick={() => navigate("/health-tips")}
           className="mt-4 cursor-pointer text-sm font-medium text-brand-700 hover:text-brand-800"
@@ -44,13 +36,13 @@ const HealthTipsView = () => {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      {/* Page Header */}
+    // FIX: mx-auto max-w-3xl hataya
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/health-tips")}
-            className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 transition-colors hover:bg-ink-50 hover:text-ink-900"
+            className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 hover:bg-ink-50"
           >
             <FiArrowLeft className="h-5 w-5" />
           </button>
@@ -64,24 +56,20 @@ const HealthTipsView = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate(`/health-tips/${id}/edit`)}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-50"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 hover:bg-ink-50"
           >
-            <FiEdit2 className="h-4 w-4" />
-            Edit
+            <FiEdit2 className="h-4 w-4" /> Edit
           </button>
           <button
             onClick={() => setDeleteOpen(true)}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-danger-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-danger-600"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-danger-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-danger-600"
           >
-            <FiTrash2 className="h-4 w-4" />
-            Delete
+            <FiTrash2 className="h-4 w-4" /> Delete
           </button>
         </div>
       </div>
 
-      {/* Card */}
       <div className="overflow-hidden rounded-card border border-ink-100 bg-surface">
-        {/* Image */}
         <div className="h-64 w-full overflow-hidden bg-ink-50">
           {tip.image ? (
             <img
@@ -96,7 +84,6 @@ const HealthTipsView = () => {
           )}
         </div>
 
-        {/* Content */}
         <div className="space-y-4 p-6">
           <div className="flex flex-wrap items-center gap-2">
             {tip.tag && (

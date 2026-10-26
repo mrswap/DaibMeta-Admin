@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../lib/axios";
 import { useToast } from "../common/toast/ToastContext";
 
-// ==================== QUERY KEYS ====================
 export const packageKeys = {
     all: ["health-packages"],
     lists: () => [...packageKeys.all, "list"],
@@ -13,7 +12,6 @@ export const packageKeys = {
     detail: (id) => [...packageKeys.details(), id],
 };
 
-// ==================== HELPERS ====================
 const getErrorMessage = (err, fallback = "Something went wrong") => {
     const data = err.response?.data;
     if (data?.errors) {
@@ -22,8 +20,6 @@ const getErrorMessage = (err, fallback = "Something went wrong") => {
     }
     return data?.message || fallback;
 };
-
-// ==================== PACKAGES ====================
 
 export const useHealthPackages = (params = {}) => {
     return useQuery({
@@ -55,9 +51,9 @@ export const useCreateHealthPackage = () => {
     return useMutation({
         mutationFn: (formData) =>
             api.post("/admin/health-service-packages", formData).then((r) => r.data),
-        onSuccess: () => {
+        onSuccess: (res) => {
             qc.invalidateQueries({ queryKey: packageKeys.all });
-            toast.success("Package created successfully");
+            toast.success(res?.message || "Package created successfully");
         },
         onError: (err) => {
             toast.error(getErrorMessage(err, "Failed to create package"));
@@ -70,12 +66,12 @@ export const useUpdateHealthPackage = () => {
     const toast = useToast();
     return useMutation({
         mutationFn: ({ id, formData }) =>
-            // Laravel multipart method spoofing
-            api.post(`/admin/health-service-packages/${id}?_method=PUT`, formData).then((r) => r.data),
-        onSuccess: (_, variables) => {
+            // Laravel method spoofing for multipart/form-data
+            api.post(`/admin/health-service-packages/${id}`, formData).then((r) => r.data),
+        onSuccess: (res, variables) => {
             qc.invalidateQueries({ queryKey: packageKeys.all });
             qc.invalidateQueries({ queryKey: packageKeys.detail(variables.id) });
-            toast.success("Package updated successfully");
+            toast.success(res?.message || "Package updated successfully");
         },
         onError: (err) => {
             toast.error(getErrorMessage(err, "Failed to update package"));
@@ -89,9 +85,9 @@ export const useToggleHealthPackageStatus = () => {
     return useMutation({
         mutationFn: ({ id, is_active }) =>
             api.post(`/admin/health-service-packages/${id}/toggle-status`, { is_active }).then((r) => r.data),
-        onSuccess: () => {
+        onSuccess: (res) => {
             qc.invalidateQueries({ queryKey: packageKeys.all });
-            toast.success("Status updated successfully");
+            toast.success(res?.message || "Status updated successfully");
         },
         onError: (err) => {
             toast.error(getErrorMessage(err, "Failed to update status"));
@@ -105,9 +101,9 @@ export const useDeleteHealthPackage = () => {
     return useMutation({
         mutationFn: (id) =>
             api.delete(`/admin/health-service-packages/${id}`).then((r) => r.data),
-        onSuccess: () => {
+        onSuccess: (res) => {
             qc.invalidateQueries({ queryKey: packageKeys.all });
-            toast.success("Package deleted successfully");
+            toast.success(res?.message || "Package deleted successfully");
         },
         onError: (err) => {
             toast.error(getErrorMessage(err, "Failed to delete package"));
@@ -115,14 +111,12 @@ export const useDeleteHealthPackage = () => {
     });
 };
 
-// ==================== AVAILABLE SERVICES (For Checkboxes) ====================
-
+// Services fetch for assigning to package
 export const useAllServicesForPackage = () => {
     return useQuery({
         queryKey: ["services", "for-package"],
         queryFn: () =>
             api.get("/admin/services", { params: { per_page: 100 } }).then((r) => {
-                // Backend response can be nested
                 const body = r.data;
                 const list = Array.isArray(body.data) ? body.data : body.data?.data || [];
                 return list;

@@ -1,16 +1,19 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiUpload, FiX, FiArrowLeft } from "react-icons/fi";
 import TextInput from "../../../common/form/TextInput";
 import FormikEditorField from "../../../common/form/FormikEditorField";
-import FormButton from "../../../common/form/FormButton";
 import ToggleSwitch from "../../../common/form/ToggleSwitch";
-import { SYMPTOMS_LIST } from "./symptomsData";
+import Loader from "../../../common/Loader";
+import {
+  useKnowYourHealthSingle,
+  useCreateKnowYourHealth,
+  useUpdateKnowYourHealth,
+} from "../../../queries/knowYourHealth";
 
 const MAX_IMAGE_SIZE_MB = 2;
-
 const stripHtml = (html) => (html || "").replace(/<[^>]*>/g, "").trim();
 
 const SymptomsForm = () => {
@@ -18,31 +21,42 @@ const SymptomsForm = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
+  // FIX: Route me 'new' aayega add ke liye
   const isEdit = !!id && id !== "new";
+
+  const { data: existing, isLoading } = useKnowYourHealthSingle(
+    "symptom",
+    isEdit ? id : null,
+  );
+  const createMutation = useCreateKnowYourHealth();
+  const updateMutation = useUpdateKnowYourHealth();
+
   const [imagePreview, setImagePreview] = useState("");
+  const [imageFile, setImageFile] = useState(null);
   const [imageError, setImageError] = useState("");
 
-  const existingSymptom = isEdit
-    ? SYMPTOMS_LIST.find((s) => s.id === Number(id))
-    : null;
+  useEffect(() => {
+    if (existing?.image_url) setImagePreview(existing.image_url);
+  }, [existing]);
 
   const initialValues = {
-    heading: existingSymptom?.name || "",
-    image: "",
-    description: existingSymptom?.description || "",
-    is_active: existingSymptom?.status ?? true,
+    heading: existing?.name || "",
+    description: existing?.content || "",
+    is_active: existing?.is_active ?? true,
   };
 
   const validationSchema = Yup.object({
     heading: Yup.string().required("Symptom Name is required").max(150),
     description: Yup.string()
       .required("Description is required")
-      .test("desc-length", "Maximum 5000 characters allowed", (val) => {
-        return stripHtml(val).length <= 5000;
-      }),
+      .test(
+        "not-empty",
+        "Content cannot be empty",
+        (val) => stripHtml(val).length > 0,
+      ),
   });
 
-  const handleImageChange = (e, setFieldValue) => {
+  const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (
@@ -53,34 +67,49 @@ const SymptomsForm = () => {
       return;
     }
     setImageError("");
+    setImageFile(file);
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-      setFieldValue("image", reader.result);
-    };
+    reader.onloadend = () => setImagePreview(reader.result);
     reader.readAsDataURL(file);
   };
 
   const handleSubmit = (values, { setSubmitting }) => {
-    console.log(isEdit ? "Updated:" : "Added:", values);
-    setSubmitting(false);
-    navigate("/cms/symptoms/list");
+    const formData = new FormData();
+    if (isEdit) formData.append("_method", "PUT"); // Laravel fix
+    formData.append("name", values.heading);
+    formData.append("content", values.description);
+    formData.append("is_active", values.is_active ? "1" : "0");
+    if (imageFile) formData.append("image", imageFile);
+
+    const onSuccess = () => navigate("/cms/symptoms/list");
+
+    if (isEdit) {
+      updateMutation.mutate(
+        { category: "symptom", id, formData },
+        { onSettled: () => setSubmitting(false), onSuccess },
+      );
+    } else {
+      createMutation.mutate(
+        { category: "symptom", formData },
+        { onSettled: () => setSubmitting(false), onSuccess },
+      );
+    }
   };
+
+  if (isEdit && isLoading) return <Loader text="Loading..." />;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate("/cms/symptoms/list")}
-          className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 hover:bg-ink-50 transition-colors"
+          className="cursor-pointer rounded-lg border p-2 hover:bg-ink-50"
         >
           <FiArrowLeft className="h-5 w-5" />
         </button>
-        <div>
-          <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-            {isEdit ? "Edit Symptom" : "Add New Symptom"}
-          </h1>
-        </div>
+        <h1 className="font-jakarta text-2xl font-bold">
+          {isEdit ? "Edit Symptom" : "Add New Symptom"}
+        </h1>
       </div>
 
       <Formik
@@ -89,10 +118,9 @@ const SymptomsForm = () => {
         enableReinitialize
         onSubmit={handleSubmit}
       >
-        {({ isSubmitting, setFieldValue }) => (
+        {({ isSubmitting }) => (
           <Form className="space-y-6">
             <div className="rounded-card border border-ink-100 bg-surface p-5 space-y-5">
-              {/* 1. Name */}
               <TextInput
                 label="Symptom Name"
                 name="heading"
@@ -100,23 +128,21 @@ const SymptomsForm = () => {
                 maxLength={150}
                 required
               />
-
-              {/* 2. Image */}
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-form-label">
+                <label className="mb-1.5 block text-sm font-medium">
                   Symptom Image (Optional)
                 </label>
                 {imagePreview ? (
                   <div className="relative inline-block">
                     <img
                       src={imagePreview}
-                      className="h-32 w-32 rounded-xl object-cover border border-ink-200"
+                      className="h-32 w-32 rounded-xl object-cover border"
                     />
                     <button
                       type="button"
                       onClick={() => {
                         setImagePreview("");
-                        setFieldValue("image", "");
+                        setImageFile(null);
                       }}
                       className="absolute -right-2 -top-2 rounded-full bg-danger-500 p-1.5 text-white"
                     >
@@ -127,28 +153,26 @@ const SymptomsForm = () => {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex h-32 w-32 flex-col items-center justify-center border-2 border-dashed rounded-xl bg-ink-50/40 text-ink-500 hover:border-brand-300 hover:text-brand-700"
+                    className="flex h-32 w-32 flex-col items-center justify-center border-2 border-dashed rounded-xl bg-ink-50/40 text-ink-500"
                   >
                     <FiUpload className="h-6 w-6 mb-1" />
-                    <span className="text-xs font-medium">Upload Image</span>
+                    <span className="text-xs">Upload Image</span>
                   </button>
                 )}
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleImageChange(e, setFieldValue)}
+                  onChange={handleImageChange}
                   className="hidden"
                 />
                 {imageError && (
                   <p className="text-danger-500 text-xs mt-1">{imageError}</p>
                 )}
               </div>
-
-              {/* 3. Description */}
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-form-label">
-                  Description <span className="text-form-required">*</span>
+                <label className="mb-1.5 block text-sm font-medium">
+                  Description <span className="text-danger-500">*</span>
                 </label>
                 <FormikEditorField
                   name="description"
@@ -156,31 +180,36 @@ const SymptomsForm = () => {
                   required
                 />
               </div>
-
-              {/* 4. Status */}
-              <div className="pt-2">
-                <ToggleSwitch
-                  name="is_active"
-                  label="Active Status"
-                  description="Inactive symptoms will be hidden inside the app"
-                />
-              </div>
+              <ToggleSwitch
+                name="is_active"
+                label="Active Status"
+                description="Inactive symptoms will be hidden inside the app"
+              />
             </div>
-
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => navigate("/cms/symptoms/list")}
-                className="border border-ink-200 px-4 py-2.5 rounded-lg text-sm bg-surface text-ink-700 hover:bg-ink-50"
+                className="border px-4 py-2.5 rounded-lg text-sm bg-surface"
               >
                 Cancel
               </button>
-              <FormButton
+              <button
                 type="submit"
-                text={isEdit ? "Update Symptom" : "Save Symptom"}
-                isLoading={isSubmitting}
-                className="!w-auto !px-4"
-              />
+                disabled={
+                  isSubmitting ||
+                  createMutation.isPending ||
+                  updateMutation.isPending
+                }
+                className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                {(isSubmitting ||
+                  createMutation.isPending ||
+                  updateMutation.isPending) && (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                )}
+                {isEdit ? "Update Symptom" : "Save Symptom"}
+              </button>
             </div>
           </Form>
         )}

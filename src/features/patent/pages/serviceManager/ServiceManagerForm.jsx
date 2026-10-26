@@ -1,5 +1,3 @@
-// src/features/patent/pages/serviceManager/ServiceManagerForm.jsx
-
 import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -8,7 +6,6 @@ import { FiArrowLeft, FiGrid, FiUpload, FiX } from "react-icons/fi";
 import TextInput from "../../common/form/TextInput";
 import TextareaField from "../../common/form/TextareaField";
 import SelectField from "../../common/form/SelectField";
-import FormButton from "../../common/form/FormButton";
 import ToggleSwitch from "../../common/form/ToggleSwitch";
 import Loader from "../../common/Loader";
 import {
@@ -25,7 +22,6 @@ const ServiceManagerForm = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  // API Hooks
   const { data: existing, isLoading: isFetching } = useService(id);
   const createMutation = useCreateService();
   const updateMutation = useUpdateService();
@@ -35,7 +31,6 @@ const ServiceManagerForm = () => {
   const [removeImage, setRemoveImage] = useState(false);
   const [imageError, setImageError] = useState("");
 
-  // Set preview if editing
   useEffect(() => {
     if (existing?.image) {
       setImagePreview(existing.image);
@@ -45,40 +40,33 @@ const ServiceManagerForm = () => {
   const initialValues = {
     name: existing?.name || "",
     description: existing?.description || "",
+    success_message: existing?.success_message || "",
     display_mode: existing?.display_mode || "direct",
     is_active: existing?.is_active ?? true,
   };
 
   const validationSchema = Yup.object({
-    name: Yup.string()
-      .required("Service name is required")
-      .max(150, "Maximum 150 characters allowed"),
-    description: Yup.string().max(500, "Maximum 500 characters allowed"),
-    display_mode: Yup.mixed().required("Display mode is required"), // mixed isliye taaki object/string dono accept kare
+    name: Yup.string().required("Service name is required").max(150),
+    description: Yup.string().max(500),
+    success_message: Yup.string().max(250),
+    display_mode: Yup.mixed().required("Display mode is required"),
   });
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setImageError("Please select a valid image file");
+    if (
+      !file.type.startsWith("image/") ||
+      file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024
+    ) {
+      setImageError(`Invalid file or size exceeds ${MAX_IMAGE_SIZE_MB}MB`);
       return;
     }
-
-    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-      setImageError(`Image must be under ${MAX_IMAGE_SIZE_MB}MB`);
-      return;
-    }
-
     setImageError("");
     setImageFile(file);
     setRemoveImage(false);
-
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-    };
+    reader.onloadend = () => setImagePreview(reader.result);
     reader.readAsDataURL(file);
   };
 
@@ -90,7 +78,6 @@ const ServiceManagerForm = () => {
   };
 
   const handleSubmit = (values, { setSubmitting }) => {
-    // FIX: Agar SelectField object bhej raha hai (jaise react-select), to uski value nikal lo
     const finalDisplayMode =
       typeof values.display_mode === "object" && values.display_mode !== null
         ? values.display_mode.value
@@ -99,15 +86,12 @@ const ServiceManagerForm = () => {
     const formData = new FormData();
     formData.append("name", values.name);
     formData.append("description", values.description || "");
-    formData.append("display_mode", finalDisplayMode); // Yahan string jayegi
+    formData.append("success_message", values.success_message || "");
+    formData.append("display_mode", finalDisplayMode);
     formData.append("is_active", values.is_active ? "1" : "0");
 
-    if (imageFile) {
-      formData.append("image", imageFile);
-    }
-    if (removeImage) {
-      formData.append("remove_image", "1");
-    }
+    if (imageFile) formData.append("image", imageFile);
+    if (removeImage) formData.append("remove_image", "1");
 
     const onSuccess = () => navigate("/service-manager");
 
@@ -127,8 +111,7 @@ const ServiceManagerForm = () => {
   if (id && isFetching) return <Loader text="Loading service details..." />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      {/* Page Header */}
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -141,11 +124,6 @@ const ServiceManagerForm = () => {
           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
             {id ? "Edit Service" : "Add Service"}
           </h1>
-          <p className="mt-0.5 text-sm text-ink-500">
-            {id
-              ? "Update the service details below"
-              : "Fill in the details to create a new service"}
-          </p>
         </div>
       </div>
 
@@ -156,9 +134,8 @@ const ServiceManagerForm = () => {
         enableReinitialize
         onSubmit={handleSubmit}
       >
-        {({ isSubmitting }) => (
+        {({ isSubmitting, setFieldValue }) => (
           <Form className="space-y-6">
-            {/* Section: Service Details */}
             <div className="rounded-card border border-ink-100 bg-surface">
               <div className="flex items-center gap-2 border-b border-ink-100 px-5 py-4">
                 <FiGrid className="h-5 w-5 text-brand-600" />
@@ -168,7 +145,6 @@ const ServiceManagerForm = () => {
               </div>
 
               <div className="space-y-5 p-5">
-                {/* Name */}
                 <TextInput
                   label="Service Name"
                   name="name"
@@ -177,12 +153,10 @@ const ServiceManagerForm = () => {
                   required
                 />
 
-                {/* Image Upload */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-form-label">
                     Service Image
                   </label>
-
                   {imagePreview ? (
                     <div className="relative inline-block">
                       <img
@@ -194,7 +168,6 @@ const ServiceManagerForm = () => {
                         type="button"
                         onClick={handleRemoveImage}
                         className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-sm transition-colors hover:bg-danger-600"
-                        title="Remove image"
                       >
                         <FiX className="h-3.5 w-3.5" />
                       </button>
@@ -207,12 +180,8 @@ const ServiceManagerForm = () => {
                     >
                       <FiUpload className="h-6 w-6" />
                       <span className="text-xs font-medium">Upload Image</span>
-                      <span className="text-[10px] text-ink-400">
-                        Max {MAX_IMAGE_SIZE_MB}MB
-                      </span>
                     </button>
                   )}
-
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -220,13 +189,11 @@ const ServiceManagerForm = () => {
                     onChange={handleImageChange}
                     className="hidden"
                   />
-
                   {imageError && (
                     <p className="mt-2 text-xs text-form-error">{imageError}</p>
                   )}
                 </div>
 
-                {/* Description */}
                 <TextareaField
                   label="Description"
                   name="description"
@@ -234,16 +201,26 @@ const ServiceManagerForm = () => {
                   rows={3}
                   maxLength={500}
                 />
+                <TextareaField
+                  label="Booking Success Message"
+                  name="success_message"
+                  placeholder="Message shown on app after booking"
+                  rows={2}
+                  maxLength={250}
+                />
 
-                {/* Display Mode */}
                 <SelectField
                   label="Where should this service appear?"
                   name="display_mode"
                   options={DISPLAY_MODES}
+                  value={
+                    DISPLAY_MODES.find(
+                      (opt) => opt.value === initialValues.display_mode,
+                    ) || DISPLAY_MODES[0]
+                  }
                   required
                 />
 
-                {/* Status Toggle */}
                 <ToggleSwitch
                   name="is_active"
                   label="Active Status"
@@ -252,7 +229,6 @@ const ServiceManagerForm = () => {
               </div>
             </div>
 
-            {/* Footer Actions */}
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
@@ -261,13 +237,22 @@ const ServiceManagerForm = () => {
               >
                 Cancel
               </button>
-              <FormButton
+              <button
                 type="submit"
-                text={id ? "Update Service" : "Create Service"}
-                isLoading={isSubmitting}
-                disabled={isSubmitting}
-                className="!w-auto !px-4"
-              />
+                disabled={
+                  isSubmitting ||
+                  createMutation.isPending ||
+                  updateMutation.isPending
+                }
+                className="flex items-center justify-center gap-2 bg-btn-primary-bg hover:bg-btn-primary-bg-hover text-btn-primary-text px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {(isSubmitting ||
+                  createMutation.isPending ||
+                  updateMutation.isPending) && (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                )}
+                {id ? "Update Service" : "Create Service"}
+              </button>
             </div>
           </Form>
         )}
