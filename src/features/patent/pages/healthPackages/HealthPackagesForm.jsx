@@ -205,13 +205,17 @@ const HealthPackagesForm = () => {
                   <label className="mb-1.5 block text-sm font-medium text-form-label">
                     Package Image
                   </label>
+
+                  {/* FIX: Image Rule apply kiya (object-contain with bg) */}
                   {imagePreview ? (
                     <div className="relative inline-block">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="h-40 w-full max-w-xs rounded-xl border border-ink-200 object-cover"
-                      />
+                      <div className="flex h-40 w-full max-w-xs items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50 p-2">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={handleRemoveImage}

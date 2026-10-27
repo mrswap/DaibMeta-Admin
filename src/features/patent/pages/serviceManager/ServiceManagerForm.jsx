@@ -134,7 +134,7 @@ const ServiceManagerForm = () => {
         enableReinitialize
         onSubmit={handleSubmit}
       >
-        {({ isSubmitting, setFieldValue }) => (
+        {({ isSubmitting }) => (
           <Form className="space-y-6">
             <div className="rounded-card border border-ink-100 bg-surface">
               <div className="flex items-center gap-2 border-b border-ink-100 px-5 py-4">
@@ -157,13 +157,17 @@ const ServiceManagerForm = () => {
                   <label className="mb-1.5 block text-sm font-medium text-form-label">
                     Service Image
                   </label>
+
+                  {/* FIX: image container me flex, justify-center aur bg-ink-50 lagaya */}
                   {imagePreview ? (
                     <div className="relative inline-block">
-                      <img
-                        src={imagePreview}
-                        alt="Service preview"
-                        className="h-40 w-40 rounded-xl border border-ink-200 object-cover"
-                      />
+                      <div className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50">
+                        <img
+                          src={imagePreview}
+                          alt="Service preview"
+                          className="h-full w-full object-contain p-2"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={handleRemoveImage}

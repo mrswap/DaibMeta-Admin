@@ -15,10 +15,14 @@ import {
 const BannerList = () => {
   const navigate = useNavigate();
   const [deleteId, setDeleteId] = useState(null);
+  const [page, setPage] = useState(1);
 
-  const { data: banners = [], isLoading } = useBanners();
+  const { data, isLoading } = useBanners({ page });
   const deleteMutation = useDeleteBanner();
   const toggleMutation = useToggleBannerStatus();
+
+  const banners = data?.list || [];
+  const meta = data?.meta || {};
 
   const handleDelete = () => {
     if (deleteId) {
@@ -50,13 +54,13 @@ const BannerList = () => {
             key={banner.id}
             className="group flex flex-col overflow-hidden rounded-card border border-ink-100 bg-surface hover:shadow-sm"
           >
-            <div className="relative h-40 w-full bg-ink-50 flex items-center justify-center">
-              {banner.value ? (
+            {/* Image - RULE LOCKED: object-contain */}
+            <div className="relative h-40 w-full overflow-hidden bg-ink-50 flex items-center justify-center">
+              {banner.image_url ? (
                 <img
-                  src={banner.value}
-                  alt={banner.key}
-                  className="h-full w-full object-cover"
-                  onError={(e) => (e.target.style.display = "none")} // Agar image path galat ho to hide ho jaye
+                  src={banner.image_url}
+                  alt={banner.title}
+                  className="h-full w-full object-contain p-2"
                 />
               ) : (
                 <FiImage className="h-10 w-10 text-ink-300" />
@@ -65,7 +69,7 @@ const BannerList = () => {
                 <ToggleSwitch
                   isFormik={false}
                   variant="pill"
-                  value={banner.status === true || banner.status === 1}
+                  value={banner.status}
                   onChange={() => toggleMutation.mutate(banner.id)}
                   loading={
                     toggleMutation.isPending &&
@@ -74,14 +78,16 @@ const BannerList = () => {
                 />
               </div>
             </div>
+
             <div className="flex-1 p-5">
-              <span className="mb-1 inline-block rounded bg-ink-100 px-2 py-0.5 text-[10px] font-bold uppercase text-ink-600">
-                {banner.key}
-              </span>
-              <p className="mt-1 text-xs text-ink-500 truncate">
-                {banner.value}
+              <h3 className="font-jakarta text-base font-semibold text-ink-900 line-clamp-1">
+                {banner.title}
+              </h3>
+              <p className="mt-1 text-xs text-ink-500">
+                Sort Order: {banner.sort_order}
               </p>
             </div>
+
             <div className="flex items-center justify-end border-t border-ink-100 bg-ink-50/40 px-5 py-3 gap-1">
               <button
                 onClick={() => navigate(`/cms/banners/${banner.id}/edit`)}
@@ -99,6 +105,28 @@ const BannerList = () => {
           </div>
         ))}
       </div>
+
+      {meta.last_page > 1 && (
+        <div className="flex justify-center gap-2 mt-6">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="px-4 py-2 border border-ink-200 rounded-lg text-sm disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="px-4 py-2 text-sm text-ink-600">
+            Page {meta.current_page} of {meta.last_page}
+          </span>
+          <button
+            disabled={page === meta.last_page}
+            onClick={() => setPage((p) => p + 1)}
+            className="px-4 py-2 border border-ink-200 rounded-lg text-sm disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       <ConfirmModal
         open={!!deleteId}

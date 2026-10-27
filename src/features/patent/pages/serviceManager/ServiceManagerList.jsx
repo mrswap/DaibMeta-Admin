@@ -141,18 +141,16 @@ const ServiceManagerList = () => {
               key={service.id}
               className="group flex flex-col overflow-hidden rounded-card border border-ink-100 bg-surface transition-all hover:border-brand-200 hover:shadow-sm"
             >
-              {/* Image */}
-              <div className="relative h-40 w-full overflow-hidden bg-ink-50">
+              {/* Image - FIX: object-contain and bg-ink-50/30 */}
+              <div className="relative h-40 w-full overflow-hidden bg-ink-50/30 flex items-center justify-center">
                 {service.image ? (
                   <img
                     src={service.image}
                     alt={service.name}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain p-2"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <FiImage className="h-10 w-10 text-ink-300" />
-                  </div>
+                  <FiImage className="h-10 w-10 text-ink-300" />
                 )}
                 <div className="absolute right-3 top-3">
                   <ToggleSwitch

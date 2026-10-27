@@ -54,7 +54,8 @@ const HealthPackagesView = () => {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    // FIX: mx-auto max-w-4xl hata diya (full width)
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
@@ -94,17 +95,16 @@ const HealthPackagesView = () => {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_1.5fr]">
         {/* Left: Image */}
         <div className="overflow-hidden rounded-card border border-ink-100 bg-surface">
-          <div className="aspect-square w-full bg-ink-50">
+          {/* FIX: Image rule apply kiya (object-contain with bg) */}
+          <div className="aspect-square w-full bg-ink-50 flex items-center justify-center p-4">
             {pkg.image ? (
               <img
                 src={pkg.image}
                 alt={pkg.name}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center">
-                <FiImage className="h-12 w-12 text-ink-300" />
-              </div>
+              <FiImage className="h-12 w-12 text-ink-300" />
             )}
           </div>
         </div>

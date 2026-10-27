@@ -191,19 +191,19 @@ const ServiceManagerView = () => {
       {/* Service Info Card */}
       <div className="overflow-hidden rounded-card border border-ink-100 bg-surface">
         <div className="flex flex-col gap-5 p-5 sm:flex-row">
-          <div className="h-32 w-32 shrink-0 overflow-hidden rounded-xl border border-ink-100 bg-ink-50">
+          {/* FIX: object-cover se object-contain kiya aur background lagaya */}
+          <div className="h-32 w-32 shrink-0 overflow-hidden rounded-xl border border-ink-100 bg-ink-50 flex items-center justify-center">
             {service.image ? (
               <img
                 src={service.image}
                 alt={service.name}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain p-2"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center">
-                <FiImage className="h-8 w-8 text-ink-300" />
-              </div>
+              <FiImage className="h-8 w-8 text-ink-300" />
             )}
           </div>
+
           <div className="flex-1">
             <h2 className="font-jakarta text-lg font-semibold text-ink-900">
               {service.name}
