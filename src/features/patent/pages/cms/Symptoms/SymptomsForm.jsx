@@ -1,3 +1,5 @@
+// src/features/patent/pages/cms/Symptoms/SymptomsForm.jsx
+
 import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -21,7 +23,6 @@ const SymptomsForm = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  // FIX: Route me 'new' aayega add ke liye
   const isEdit = !!id && id !== "new";
 
   const { data: existing, isLoading } = useKnowYourHealthSingle(
@@ -75,7 +76,7 @@ const SymptomsForm = () => {
 
   const handleSubmit = (values, { setSubmitting }) => {
     const formData = new FormData();
-    if (isEdit) formData.append("_method", "PUT"); // Laravel fix
+    if (isEdit) formData.append("_method", "PUT");
     formData.append("name", values.heading);
     formData.append("content", values.description);
     formData.append("is_active", values.is_active ? "1" : "0");
@@ -132,12 +133,17 @@ const SymptomsForm = () => {
                 <label className="mb-1.5 block text-sm font-medium">
                   Symptom Image (Optional)
                 </label>
+
+                {/* FIX: Image Rule apply kiya (object-contain + bg) */}
                 {imagePreview ? (
                   <div className="relative inline-block">
-                    <img
-                      src={imagePreview}
-                      className="h-32 w-32 rounded-xl object-cover border"
-                    />
+                    <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50 p-2">
+                      <img
+                        src={imagePreview}
+                        className="h-full w-full object-contain"
+                        alt="Preview"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -153,7 +159,7 @@ const SymptomsForm = () => {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex h-32 w-32 flex-col items-center justify-center border-2 border-dashed rounded-xl bg-ink-50/40 text-ink-500"
+                    className="flex h-32 w-32 flex-col items-center justify-center border-2 border-dashed rounded-xl bg-ink-50/40 text-ink-500 hover:border-brand-300 hover:text-brand-700"
                   >
                     <FiUpload className="h-6 w-6 mb-1" />
                     <span className="text-xs">Upload Image</span>

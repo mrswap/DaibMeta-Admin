@@ -1,3 +1,5 @@
+// src/features/patent/pages/healthTips/HealthTipsForm.jsx
+
 import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
@@ -117,7 +119,6 @@ const HealthTipsForm = () => {
   if (id && isFetching) return <Loader text="Loading tip details..." />;
 
   return (
-    // FIX: mx-auto max-w-4xl hataya
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <button
@@ -170,13 +171,17 @@ const HealthTipsForm = () => {
                   <label className="mb-1.5 block text-sm font-medium text-form-label">
                     Image
                   </label>
+
+                  {/* FIX: Image Rule (object-contain + bg) */}
                   {imagePreview ? (
                     <div className="relative inline-block">
-                      <img
-                        src={imagePreview}
-                        alt="Tip preview"
-                        className="h-40 w-40 rounded-xl border border-ink-200 object-cover"
-                      />
+                      <div className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50 p-2">
+                        <img
+                          src={imagePreview}
+                          alt="Tip preview"
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={handleRemoveImage}

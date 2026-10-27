@@ -1,3 +1,5 @@
+// src/features/patent/pages/healthPackages/HealthPackagesList.jsx
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -107,18 +109,16 @@ const HealthPackagesList = () => {
               key={pkg.id}
               className="group flex flex-col overflow-hidden rounded-card border border-ink-100 bg-surface transition-all hover:border-brand-200 hover:shadow-sm"
             >
-              {/* Image */}
-              <div className="relative h-40 w-full overflow-hidden bg-ink-50">
+              {/* Image - RULE LOCKED: object-contain with padding */}
+              <div className="relative h-40 w-full overflow-hidden bg-ink-50/30 flex items-center justify-center">
                 {pkg.image ? (
                   <img
                     src={pkg.image}
                     alt={pkg.name}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain p-2"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <FiImage className="h-10 w-10 text-ink-300" />
-                  </div>
+                  <FiImage className="h-10 w-10 text-ink-300" />
                 )}
                 <div className="absolute right-3 top-3">
                   <ToggleSwitch

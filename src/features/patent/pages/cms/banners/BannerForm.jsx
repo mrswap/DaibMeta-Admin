@@ -1,8 +1,10 @@
-import React, { useRef, useState } from "react";
+// src/features/patent/pages/cms/banners/BannerForm.jsx
+
+import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiArrowLeft, FiLink, FiUpload, FiX } from "react-icons/fi";
+import { FiArrowLeft, FiUpload, FiX } from "react-icons/fi";
 import TextInput from "../../../common/form/TextInput";
 import ToggleSwitch from "../../../common/form/ToggleSwitch";
 import Loader from "../../../common/Loader";
@@ -17,34 +19,39 @@ const MAX_IMAGE_SIZE_MB = 2;
 const BannerForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isEdit = !!id;
   const fileInputRef = useRef(null);
+  const isEdit = !!id && id !== "new";
 
-  const { data: banners = [], isLoading } = useBanners();
-  const existing = isEdit ? banners.find((b) => b.id === Number(id)) : null;
+  const { data: bannersData, isLoading } = useBanners({ per_page: 100 });
+  const existing = isEdit
+    ? bannersData?.list.find((b) => b.id === Number(id))
+    : null;
 
   const createMutation = useCreateBanner();
   const updateMutation = useUpdateBanner();
 
   const [imagePreview, setImagePreview] = useState("");
+  const [imageFile, setImageFile] = useState(null);
   const [imageError, setImageError] = useState("");
 
+  useEffect(() => {
+    if (existing?.image_url) setImagePreview(existing.image_url);
+  }, [existing]);
+
   const initialValues = {
-    key: existing?.key || `banner_${banners.length + 1}`,
-    // Note: Backend currently only supports 'value' (Image Path).
-    // 'target_url' humne UI me add kiya hai, backend me add karwana padega.
-    value: existing?.value || "",
-    target_url: existing?.target_url || "",
-    status: existing?.status === true || existing?.status === 1 || false,
+    title: existing?.title || "",
+    navigation_path: existing?.target_url || "",
+    sort_order: existing?.sort_order || 1,
+    status: existing?.status ?? true,
   };
 
   const validationSchema = Yup.object({
-    key: Yup.string().required("Key is required (e.g. banner_1)"),
-    value: Yup.string().required("Image is required"), // Path ya URL
-    target_url: Yup.string().url("Invalid URL format").nullable(),
+    title: Yup.string().required("Title is required").max(150),
+    navigation_path: Yup.string().max(250),
+    sort_order: Yup.number().required("Sort order is required").min(0),
   });
 
-  const handleImageChange = (e, setFieldValue) => {
+  const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (
@@ -55,43 +62,44 @@ const BannerForm = () => {
       return;
     }
     setImageError("");
-
-    // Backend ko bhejne ke liye fake path generate kar rahe hain
-    const fakePath = `homepage/banners/${Date.now()}-${file.name}`;
-    setFieldValue("value", fakePath);
-
+    setImageFile(file);
     const reader = new FileReader();
     reader.onloadend = () => setImagePreview(reader.result);
     reader.readAsDataURL(file);
   };
 
-  const handleRemoveImage = (setFieldValue) => {
+  const handleRemoveImage = () => {
     setImagePreview("");
-    setFieldValue("value", "");
+    setImageFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = (values, { setSubmitting }) => {
-    const payload = {
-      group: "homepage",
-      key: values.key,
-      value: values.value,
-      type: "file",
-      is_public: true,
-      status: values.status,
-      // Backend dev ko bolna padega is field ko accept karne ke liye:
-      target_url: values.target_url,
-    };
+    if (!isEdit && !imageFile) {
+      setImageError("Image is required");
+      setSubmitting(false);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("title", values.title);
+    formData.append("sort_order", values.sort_order);
+    formData.append("status", values.status ? "1" : "0");
+    formData.append("target_url", values.navigation_path);
+
+    if (imageFile) {
+      formData.append("image", imageFile);
+    }
 
     const onSuccess = () => navigate("/cms/banners");
 
     if (isEdit) {
       updateMutation.mutate(
-        { id, payload },
+        { id, formData },
         { onSettled: () => setSubmitting(false), onSuccess },
       );
     } else {
-      createMutation.mutate(payload, {
+      createMutation.mutate(formData, {
         onSettled: () => setSubmitting(false),
         onSuccess,
       });
@@ -101,19 +109,17 @@ const BannerForm = () => {
   if (isEdit && isLoading) return <Loader text="Loading..." />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate("/cms/banners")}
-          className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 hover:bg-ink-50"
+          className="cursor-pointer rounded-lg border p-2 hover:bg-ink-50"
         >
           <FiArrowLeft className="h-5 w-5" />
         </button>
-        <div>
-          <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-            {isEdit ? "Edit Banner" : "Add Banner"}
-          </h1>
-        </div>
+        <h1 className="font-jakarta text-2xl font-bold">
+          {isEdit ? "Edit Banner" : "Add Banner"}
+        </h1>
       </div>
 
       <Formik
@@ -122,32 +128,49 @@ const BannerForm = () => {
         enableReinitialize
         onSubmit={handleSubmit}
       >
-        {({ isSubmitting, setFieldValue, values }) => (
+        {({ isSubmitting }) => (
           <Form className="space-y-6">
             <div className="rounded-card border border-ink-100 bg-surface p-5 space-y-5">
               <TextInput
-                label="Banner Key"
-                name="key"
-                placeholder="e.g. banner_1"
+                label="Title"
+                name="title"
+                placeholder="Enter banner title"
+                maxLength={150}
                 required
               />
 
-              {/* 1. IMAGE UPLOAD */}
+              <TextInput
+                label="Navigation Link / Path"
+                name="navigation_path"
+                placeholder="e.g. /appointment"
+              />
+
+              <TextInput
+                label="Sort Order"
+                name="sort_order"
+                type="number"
+                placeholder="e.g. 1"
+                required
+              />
+
               <div>
                 <label className="mb-1.5 block text-sm font-medium">
-                  Banner Image
+                  Banner Image{" "}
+                  {!isEdit && <span className="text-danger-500">*</span>}
                 </label>
                 {imagePreview ? (
-                  <div className="relative inline-block w-full max-w-sm">
-                    <img
-                      src={imagePreview}
-                      alt="Banner preview"
-                      className="h-40 w-full rounded-xl object-cover border border-ink-200 bg-ink-50"
-                    />
+                  <div className="relative inline-block">
+                    <div className="flex h-40 w-full max-w-md items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50 p-2">
+                      <img
+                        src={imagePreview}
+                        className="h-full w-full object-contain"
+                        alt="Preview"
+                      />
+                    </div>
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(setFieldValue)}
-                      className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-sm hover:bg-danger-600"
+                      onClick={handleRemoveImage}
+                      className="absolute -right-2 -top-2 rounded-full bg-danger-500 p-1.5 text-white"
                     >
                       <FiX size={14} />
                     </button>
@@ -156,22 +179,17 @@ const BannerForm = () => {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex h-40 w-full max-w-sm flex-col items-center justify-center border-2 border-dashed rounded-xl bg-ink-50/40 text-ink-500 hover:border-brand-300 hover:text-brand-700 transition-colors"
+                    className="flex h-40 w-full max-w-md flex-col items-center justify-center border-2 border-dashed rounded-xl bg-ink-50/40 text-ink-500 hover:border-brand-300"
                   >
-                    <FiUpload className="h-8 w-8 mb-2" />
-                    <span className="text-sm font-medium">
-                      Click to Upload Image
-                    </span>
-                    <span className="text-xs text-ink-400 mt-1">
-                      Max 2MB (JPG, PNG)
-                    </span>
+                    <FiUpload className="h-6 w-6 mb-1" />
+                    <span className="text-xs">Upload Image File</span>
                   </button>
                 )}
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleImageChange(e, setFieldValue)}
+                  onChange={handleImageChange}
                   className="hidden"
                 />
                 {imageError && (
@@ -179,23 +197,10 @@ const BannerForm = () => {
                 )}
               </div>
 
-              {/* 2. HYPERLINK / TARGET URL */}
-              <div>
-                <TextInput
-                  label="Hyperlink / Target URL"
-                  name="target_url"
-                  placeholder="e.g. /appointment or https://example.com"
-                />
-                <p className="text-xs text-ink-500 mt-1 flex items-center gap-1">
-                  <FiLink className="h-3 w-3" />
-                  App me banner pe click karne se user is link par jayega.
-                </p>
-              </div>
-
               <ToggleSwitch
                 name="status"
                 label="Active Status"
-                description="Inactive banners will not be shown on the app"
+                description="Inactive banners will be hidden on the app"
               />
             </div>
 
@@ -203,7 +208,7 @@ const BannerForm = () => {
               <button
                 type="button"
                 onClick={() => navigate("/cms/banners")}
-                className="border border-ink-200 px-4 py-2.5 rounded-lg text-sm bg-surface hover:bg-ink-50 transition-colors"
+                className="border px-4 py-2.5 rounded-lg text-sm bg-surface"
               >
                 Cancel
               </button>
@@ -214,7 +219,7 @@ const BannerForm = () => {
                   createMutation.isPending ||
                   updateMutation.isPending
                 }
-                className="flex items-center gap-2 bg-btn-primary-bg hover:bg-btn-primary-bg-hover px-4 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
               >
                 {(isSubmitting ||
                   createMutation.isPending ||

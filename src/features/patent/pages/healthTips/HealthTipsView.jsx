@@ -1,3 +1,5 @@
+// src/features/patent/pages/healthTips/HealthTipsView.jsx
+
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiEdit2, FiTrash2, FiImage } from "react-icons/fi";
@@ -36,7 +38,6 @@ const HealthTipsView = () => {
   }
 
   return (
-    // FIX: mx-auto max-w-3xl hataya
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
@@ -70,17 +71,16 @@ const HealthTipsView = () => {
       </div>
 
       <div className="overflow-hidden rounded-card border border-ink-100 bg-surface">
-        <div className="h-64 w-full overflow-hidden bg-ink-50">
+        {/* FIX: Image Rule apply kiya (object-contain + bg) */}
+        <div className="h-64 w-full overflow-hidden bg-ink-50/30 flex items-center justify-center p-4">
           {tip.image ? (
             <img
               src={tip.image}
               alt={tip.heading}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <FiImage className="h-12 w-12 text-ink-300" />
-            </div>
+            <FiImage className="h-12 w-12 text-ink-300" />
           )}
         </div>
 

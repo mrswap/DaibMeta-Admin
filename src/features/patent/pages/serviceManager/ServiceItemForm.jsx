@@ -6,7 +6,6 @@ import * as Yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiPackage } from "react-icons/fi";
 import TextInput from "../../common/form/TextInput";
-import FormButton from "../../common/form/FormButton";
 import ToggleSwitch from "../../common/form/ToggleSwitch";
 import Loader from "../../common/Loader";
 import {
@@ -96,13 +95,11 @@ const ServiceItemForm = () => {
     const onSuccess = () => navigate(`/service-manager/${id}`);
 
     if (itemId) {
-      // Update
       updateMutation.mutate(
         { serviceId: id, testId: itemId, payload },
         { onSettled: () => setSubmitting(false), onSuccess },
       );
     } else {
-      // Create
       createMutation.mutate(
         { serviceId: id, payload },
         { onSettled: () => setSubmitting(false), onSuccess },
@@ -111,7 +108,8 @@ const ServiceItemForm = () => {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    // FIX: mx-auto max-w-3xl hata diya (full width)
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center gap-4">
         <button
@@ -171,8 +169,14 @@ const ServiceItemForm = () => {
                   placeholder="Enter final price"
                   required
                 />
-                <div className="md:col-span-2 flex items-center pt-2">
-                  <ToggleSwitch label="Active Status" name="is_active" />
+
+                {/* FIX: Status Toggle clean look */}
+                <div className="md:col-span-2 mt-2">
+                  <ToggleSwitch
+                    label="Active Status"
+                    name="is_active"
+                    description="Inactive tests will not be shown on the app"
+                  />
                 </div>
               </div>
             </div>
@@ -186,13 +190,24 @@ const ServiceItemForm = () => {
               >
                 Cancel
               </button>
-              <FormButton
+
+              {/* FIX: Custom Button with Loading */}
+              <button
                 type="submit"
-                text={itemId ? "Update Test" : "Add Test"}
-                isLoading={isSubmitting}
-                disabled={isSubmitting}
-                className="!w-auto !px-4"
-              />
+                disabled={
+                  isSubmitting ||
+                  createMutation.isPending ||
+                  updateMutation.isPending
+                }
+                className="flex items-center justify-center gap-2 bg-btn-primary-bg hover:bg-btn-primary-bg-hover text-btn-primary-text px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {(isSubmitting ||
+                  createMutation.isPending ||
+                  updateMutation.isPending) && (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                )}
+                {itemId ? "Update Test" : "Add Test"}
+              </button>
             </div>
           </Form>
         )}
