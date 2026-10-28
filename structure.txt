@@ -16,6 +16,17 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |  ├── daibmetalogo-fevi.jpeg
 |  |  ├── daibmetalogo.jpeg
 |  |  ├── hero.png
+|  |  ├── periodtracker
+|  |  |  ├── bg-woman.png
+|  |  |  ├── doctor.png
+|  |  |  ├── food.png
+|  |  |  ├── hygiene.png
+|  |  |  ├── know-period.png
+|  |  |  ├── myths.png
+|  |  |  ├── pain-relief.png
+|  |  |  ├── period-illustration.png
+|  |  |  ├── period-setup-bg.png
+|  |  |  └── warning.png
 |  |  ├── react.svg
 |  |  ├── utils
 |  |  └── vite.svg
@@ -34,16 +45,16 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |  ├── axios.js
 |  |  └── queryClient.js
 |  ├── main.jsx
-|  ├── redux
 |  ├── services
 |  ├── stores
 |  |  ├── authStore.js
 |  |  └── uiStore.js
 |  ├── THEME-GUIDE.md
 |  └── ThemePreview.jsx
+├── structure.txt
 ├── vercel.json
 └── vite.config.js
 
-directory: 855 file: 6097
+directory: 855 file: 6108
 
 ignored: directory (143)

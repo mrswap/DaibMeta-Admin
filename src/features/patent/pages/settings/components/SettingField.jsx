@@ -1,5 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+// src/features/patent/pages/settings/components/SettingField.jsx
+
+import { useState, useEffect, useRef, useMemo } from "react";
 import { FiEye, FiEyeOff, FiLock, FiUpload, FiX } from "react-icons/fi";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 import {
   useUpdateSetting,
   useUploadFileSetting,
@@ -27,6 +31,18 @@ const isPhoneKey = (key) => {
   return /phone|mobile|whatsapp|contact_number|contact_no/i.test(key);
 };
 
+// Detect if a setting key should use the rich text editor
+const EDITOR_KEYS = [
+  "terms_and_conditions",
+  "about_diabmeta_clinic",
+  "about_diabmeta_platform",
+];
+
+const isEditorKey = (key) => {
+  if (!key) return false;
+  return EDITOR_KEYS.includes(key);
+};
+
 const SettingField = ({ setting, value, onChange }) => {
   if (setting.is_sensitive || setting.type === "password") {
     return (
@@ -40,6 +56,11 @@ const SettingField = ({ setting, value, onChange }) => {
         <BooleanField setting={setting} value={value} onChange={onChange} />
       );
     case "text":
+      if (isEditorKey(setting.key)) {
+        return (
+          <EditorField setting={setting} value={value} onChange={onChange} />
+        );
+      }
       return (
         <TextareaField setting={setting} value={value} onChange={onChange} />
       );
@@ -55,10 +76,14 @@ const SettingField = ({ setting, value, onChange }) => {
       return <FileField setting={setting} value={value} />;
     case "string":
     default:
-      // Phone-like keys get the PhoneInputField treatment
       if (isPhoneKey(setting.key)) {
         return (
           <PhoneField setting={setting} value={value} onChange={onChange} />
+        );
+      }
+      if (isEditorKey(setting.key)) {
+        return (
+          <EditorField setting={setting} value={value} onChange={onChange} />
         );
       }
       return (
@@ -88,6 +113,111 @@ const inputCls =
 
 const textareaCls =
   "w-full resize-y rounded-lg border border-ink-200 bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15";
+
+// ==================== EDITOR ====================
+const MAX_EDITOR_IMAGE_SIZE_MB = 2;
+
+const EditorField = ({ setting, value, onChange }) => {
+  const quillRef = useRef(null);
+
+  const imageHandler = () => {
+    const input = document.createElement("input");
+    input.setAttribute("type", "file");
+    input.setAttribute("accept", "image/*");
+    input.click();
+
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith("image/")) {
+        alert("Please select a valid image file");
+        return;
+      }
+
+      if (file.size > MAX_EDITOR_IMAGE_SIZE_MB * 1024 * 1024) {
+        alert(`Image must be under ${MAX_EDITOR_IMAGE_SIZE_MB}MB`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const quill = quillRef.current?.getEditor();
+        if (!quill) return;
+
+        const range = quill.getSelection(true);
+        quill.insertEmbed(range.index, "image", reader.result);
+        quill.setSelection(range.index + 1);
+      };
+      reader.readAsDataURL(file);
+    };
+  };
+
+  const modules = useMemo(
+    () => ({
+      toolbar: {
+        container: [
+          [{ header: [1, 2, 3, 4, false] }],
+          [{ font: [] }],
+          [{ size: ["small", false, "large", "huge"] }],
+          ["bold", "italic", "underline", "strike"],
+          [{ color: [] }, { background: [] }],
+          [{ script: "sub" }, { script: "super" }],
+          [{ list: "ordered" }, { list: "bullet" }],
+          [{ indent: "-1" }, { indent: "+1" }],
+          [{ align: [] }],
+          ["blockquote", "code-block"],
+          ["link", "image"],
+          ["clean"],
+        ],
+        handlers: {
+          image: imageHandler,
+        },
+      },
+    }),
+    [],
+  );
+
+  const formats = [
+    "header",
+    "font",
+    "size",
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "color",
+    "background",
+    "script",
+    "list",
+    "indent",
+    "align",
+    "blockquote",
+    "code-block",
+    "link",
+    "image",
+  ];
+
+  return (
+    // HELP PROP REMOVED HERE
+    <FieldWrapper label={formatLabel(setting.key)} status={setting.status}>
+      <div
+        className="quill-wrapper overflow-hidden rounded-lg border border-form-border bg-form-bg"
+        style={{ "--quill-min-height": "220px" }}
+      >
+        <ReactQuill
+          ref={quillRef}
+          theme="snow"
+          value={value || ""}
+          onChange={(html) => onChange(html)}
+          modules={modules}
+          formats={formats}
+          placeholder={`Enter ${formatLabel(setting.key).toLowerCase()}`}
+        />
+      </div>
+    </FieldWrapper>
+  );
+};
 
 // ==================== STRING ====================
 const StringField = ({ setting, value, onChange }) => (
