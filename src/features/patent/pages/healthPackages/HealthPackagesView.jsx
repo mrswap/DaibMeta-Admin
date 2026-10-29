@@ -7,8 +7,9 @@ import {
   FiEdit2,
   FiTrash2,
   FiImage,
-  FiCheck,
   FiActivity,
+  FiChevronDown,
+  FiChevronUp,
 } from "react-icons/fi";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
@@ -21,8 +22,8 @@ const HealthPackagesView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [expandedService, setExpandedService] = useState(null);
 
-  // API Calls
   const { data: pkg, isLoading } = useHealthPackage(id);
   const deleteMutation = useDeleteHealthPackage();
 
@@ -30,6 +31,10 @@ const HealthPackagesView = () => {
     deleteMutation.mutate(id, {
       onSuccess: () => navigate("/health-packages"),
     });
+  };
+
+  const toggleExpand = (serviceId) => {
+    setExpandedService((prev) => (prev === serviceId ? null : serviceId));
   };
 
   if (isLoading) return <Loader text="Loading package details..." />;
@@ -53,10 +58,12 @@ const HealthPackagesView = () => {
     );
   }
 
+  // Calculate package total offer price
+  const totalOfferPrice =
+    pkg.services?.reduce((acc, s) => acc + Number(s.offer_price || 0), 0) || 0;
+
   return (
-    // FIX: mx-auto max-w-4xl hata diya (full width)
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <button
@@ -93,27 +100,30 @@ const HealthPackagesView = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_1.5fr]">
-        {/* Left: Image */}
-        <div className="overflow-hidden rounded-card border border-ink-100 bg-surface">
-          {/* FIX: Image rule apply kiya (object-contain with bg) */}
-          <div className="aspect-square w-full bg-ink-50 flex items-center justify-center p-4">
-            {pkg.image ? (
-              <img
-                src={pkg.image}
-                alt={pkg.name}
-                className="h-full w-full object-contain"
-              />
-            ) : (
-              <FiImage className="h-12 w-12 text-ink-300" />
-            )}
-          </div>
-        </div>
-
-        {/* Right: Details */}
+        {/* Left: Image & Basic Info */}
         <div className="space-y-6">
-          {/* Info Card */}
+          <div className="overflow-hidden rounded-card border border-ink-100 bg-surface">
+            <div className="aspect-square w-full bg-ink-50 flex items-center justify-center p-4">
+              {pkg.image ? (
+                <img
+                  src={pkg.image}
+                  alt={pkg.name}
+                  className="h-full w-full object-contain"
+                />
+              ) : (
+                <FiImage className="h-12 w-12 text-ink-300" />
+              )}
+            </div>
+          </div>
+
           <div className="rounded-card border border-ink-100 bg-surface p-5">
-            <div className="flex items-center gap-2 mb-4">
+            <h2 className="font-jakarta text-lg font-semibold text-ink-900 mb-2">
+              About this package
+            </h2>
+            <p className="text-sm leading-relaxed text-ink-600 mb-4">
+              {pkg.description || "No description provided."}
+            </p>
+            <div className="flex flex-wrap gap-2">
               {pkg.is_active ? (
                 <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
                   Active
@@ -127,20 +137,36 @@ const HealthPackagesView = () => {
                 Package #{pkg.id}
               </span>
             </div>
+          </div>
+        </div>
 
-            <h2 className="font-jakarta text-lg font-semibold text-ink-900 mb-2">
-              About this package
-            </h2>
-            <p className="text-sm leading-relaxed text-ink-600">
-              {pkg.description || "No description provided."}
-            </p>
+        {/* Right: Pricing & Services */}
+        <div className="space-y-6">
+          {/* Summary Card */}
+          <div className="rounded-card border border-ink-100 bg-surface p-5 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-ink-500">
+                Total Package Offer Price
+              </p>
+              <p className="font-jakarta text-2xl font-bold text-brand-700 mt-1">
+                ₹{totalOfferPrice.toFixed(2)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium text-ink-500">
+                Services Included
+              </p>
+              <p className="font-jakarta text-2xl font-bold text-ink-900 mt-1">
+                {pkg.services?.length || 0}
+              </p>
+            </div>
           </div>
 
-          {/* Services Card */}
+          {/* Services List */}
           <div className="rounded-card border border-ink-100 bg-surface p-5">
             <h2 className="font-jakarta text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
               <FiActivity className="h-5 w-5 text-brand-600" />
-              Services Included ({pkg.services?.length || 0})
+              Services & Pricing
             </h2>
 
             {!pkg.services || pkg.services.length === 0 ? (
@@ -150,25 +176,68 @@ const HealthPackagesView = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {pkg.services.map((service) => (
                   <div
                     key={service.id}
-                    className="flex items-start gap-3 rounded-lg border border-ink-100 bg-ink-50/40 px-4 py-3"
+                    className="rounded-lg border border-ink-200 bg-surface overflow-hidden"
                   >
-                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600">
-                      <FiCheck className="h-3 w-3" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-ink-800">
-                        {service.name}
-                      </span>
-                      {service.is_active === false && (
-                        <span className="text-[10px] font-semibold text-danger-600 uppercase mt-0.5">
-                          Currently Inactive
+                    <div className="flex items-center justify-between p-4 bg-ink-50/30">
+                      <div>
+                        <span className="text-sm font-semibold text-ink-900">
+                          {service.name}
                         </span>
-                      )}
+                        {service.is_active === false && (
+                          <span className="ml-2 text-[10px] font-semibold text-danger-600 uppercase">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-ink-400 line-through">
+                          MRP: ₹{service.actual_mrp}
+                        </p>
+                        <p className="text-sm font-bold text-brand-700">
+                          Offer: ₹{service.offer_price}
+                        </p>
+                      </div>
                     </div>
+
+                    {/* Expand Tests */}
+                    <button
+                      onClick={() => toggleExpand(service.id)}
+                      className="w-full flex items-center justify-between px-4 py-2 text-xs font-medium text-ink-600 bg-surface hover:bg-ink-50 border-t border-ink-100 transition-colors cursor-pointer"
+                    >
+                      <span>
+                        {service.active_tests_count || 0} Active Tests
+                      </span>
+                      {expandedService === service.id ? (
+                        <FiChevronUp />
+                      ) : (
+                        <FiChevronDown />
+                      )}
+                    </button>
+
+                    {expandedService === service.id && (
+                      <div className="px-4 py-3 bg-ink-50/50 border-t border-ink-100 space-y-2">
+                        {service.tests?.map((test) => (
+                          <div
+                            key={test.id}
+                            className="flex justify-between text-xs text-ink-600"
+                          >
+                            <span>{test.name}</span>
+                            <span>
+                              MRP: ₹{test.mrp} | Disc: ₹{test.discount_price}
+                            </span>
+                          </div>
+                        ))}
+                        {(!service.tests || service.tests.length === 0) && (
+                          <p className="text-xs text-ink-500 italic">
+                            No test details available.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

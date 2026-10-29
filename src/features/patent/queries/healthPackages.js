@@ -66,7 +66,6 @@ export const useUpdateHealthPackage = () => {
     const toast = useToast();
     return useMutation({
         mutationFn: ({ id, formData }) =>
-            // Laravel method spoofing for multipart/form-data
             api.post(`/admin/health-service-packages/${id}`, formData).then((r) => r.data),
         onSuccess: (res, variables) => {
             qc.invalidateQueries({ queryKey: packageKeys.all });
