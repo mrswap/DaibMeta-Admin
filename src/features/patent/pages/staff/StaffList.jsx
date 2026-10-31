@@ -1,4 +1,7 @@
+// src/features/patent/pages/staff/StaffList.jsx
+
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FiPlus,
   FiSearch,
@@ -13,8 +16,6 @@ import {
   useDeleteStaff,
 } from "../../queries/staff";
 import { useRoles } from "../../queries/roles";
-import StaffForm from "./components/StaffForm";
-import StaffView from "./components/StaffView";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
@@ -26,15 +27,13 @@ const STATUS_OPTIONS = [
 ];
 
 const StaffList = () => {
+  const navigate = useNavigate();
+
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState(null);
   const [statusFilter, setStatusFilter] = useState(null);
   const [page, setPage] = useState(1);
   const [perPage] = useState(10);
-
-  const [formOpen, setFormOpen] = useState(false);
-  const [editData, setEditData] = useState(null);
-  const [viewId, setViewId] = useState(null);
 
   const [confirm, setConfirm] = useState({
     open: false,
@@ -66,16 +65,16 @@ const StaffList = () => {
   const meta = data?.meta || {};
 
   const handleAdd = () => {
-    setEditData(null);
-    setFormOpen(true);
+    navigate("/staff/new");
   };
 
   const handleEdit = (item) => {
-    setEditData(item);
-    setFormOpen(true);
+    navigate(`/staff/${item.id}/edit`);
   };
 
-  const handleView = (id) => setViewId(id);
+  const handleView = (id) => {
+    navigate(`/staff/${id}`);
+  };
 
   const handleToggleClick = (item) => {
     if (item.is_super_admin) return;
@@ -157,6 +156,18 @@ const StaffList = () => {
           </span>
         ) : (
           <span className="text-ink-400">—</span>
+        ),
+    },
+    {
+      header: "Provider",
+      render: (_, row) =>
+        row.role?.is_provider ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            Yes
+          </span>
+        ) : (
+          <span className="text-xs text-ink-400">No</span>
         ),
     },
     {
@@ -304,16 +315,6 @@ const StaffList = () => {
           }
         />
       )}
-
-      <StaffForm
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditData(null);
-        }}
-        initialData={editData}
-      />
-      <StaffView open={!!viewId} onClose={() => setViewId(null)} id={viewId} />
 
       <ConfirmModal
         open={confirm.open}

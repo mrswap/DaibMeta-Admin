@@ -1,3 +1,5 @@
+// src/features/patent/pages/roles/RoleList.jsx
+
 import { useState } from "react";
 import {
   FiPlus,
@@ -24,15 +26,23 @@ const STATUS_OPTIONS = [
   { value: "0", label: "Inactive" },
 ];
 
+// FIX: Text chhota kiya taaki UI na bigde
 const TYPE_OPTIONS = [
-  { value: "1", label: "System Roles" },
-  { value: "0", label: "Custom Roles" },
+  { value: "1", label: "System" },
+  { value: "0", label: "Custom" },
+];
+
+// FIX: Text chhota kiya
+const PROVIDER_OPTIONS = [
+  { value: "1", label: "Providers" },
+  { value: "0", label: "Non-Providers" },
 ];
 
 const RoleList = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
   const [systemFilter, setSystemFilter] = useState(null);
+  const [providerFilter, setProviderFilter] = useState(null);
   const [page, setPage] = useState(1);
   const [perPage] = useState(10);
 
@@ -52,6 +62,7 @@ const RoleList = () => {
     ...(search && { search }),
     ...(statusFilter?.value && { status: statusFilter.value }),
     ...(systemFilter?.value && { is_system: systemFilter.value }),
+    ...(providerFilter?.value && { is_provider: providerFilter.value }),
   };
 
   const { data, isLoading, isFetching, refetch } = useRoles(params);
@@ -137,14 +148,22 @@ const RoleList = () => {
         ),
     },
     {
+      header: "Provider",
+      accessor: "is_provider",
+      render: (value) =>
+        value ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            Yes
+          </span>
+        ) : (
+          <span className="text-xs text-ink-400">No</span>
+        ),
+    },
+    {
       header: "Status",
       accessor: "status",
       render: (value) => <StatusBadge active={value} />,
-    },
-    {
-      header: "Sort",
-      accessor: "sort_order",
-      render: (value) => <span className="text-ink-600">{value ?? "—"}</span>,
     },
     {
       header: "Actions",
@@ -215,7 +234,8 @@ const RoleList = () => {
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-surface p-4 lg:flex-row lg:items-center">
-        <div className="flex flex-1 items-center gap-2 rounded-lg border border-form-border bg-form-bg px-3">
+        {/* Search Bar - FIX: Width adjust ki */}
+        <div className="flex w-full lg:w-auto lg:flex-1 items-center gap-2 rounded-lg border border-form-border bg-form-bg px-3">
           <FiSearch className="h-4 w-4 text-ink-400" />
           <input
             type="text"
@@ -230,6 +250,7 @@ const RoleList = () => {
           />
         </div>
 
+        {/* Status Select */}
         <FilterSelect
           value={statusFilter}
           onChange={(v) => {
@@ -239,9 +260,10 @@ const RoleList = () => {
           options={STATUS_OPTIONS}
           placeholder="All Status"
           isClearable
-          width="w-40"
+          width="w-36"
         />
 
+        {/* Type Select - FIX: Width badhai (w-40) taaki cross icon ke baad fit ho */}
         <FilterSelect
           value={systemFilter}
           onChange={(v) => {
@@ -251,12 +273,25 @@ const RoleList = () => {
           options={TYPE_OPTIONS}
           placeholder="All Types"
           isClearable
-          width="w-44"
+          width="w-40"
+        />
+
+        {/* Provider Select - FIX: Width badhai (w-48) */}
+        <FilterSelect
+          value={providerFilter}
+          onChange={(v) => {
+            setProviderFilter(v);
+            setPage(1);
+          }}
+          options={PROVIDER_OPTIONS}
+          placeholder="All Providers"
+          isClearable
+          width="w-48"
         />
 
         <button
           onClick={() => refetch()}
-          className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-ink-200 px-3 text-sm font-medium text-ink-700 hover:bg-ink-50"
+          className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-ink-200 px-3 text-sm font-medium text-ink-700 hover:bg-ink-50"
         >
           <FiRefreshCw
             className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}

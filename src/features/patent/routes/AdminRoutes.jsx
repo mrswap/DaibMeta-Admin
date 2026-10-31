@@ -4,7 +4,6 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import AdminLayout from "../layout/AdminLayout";
-import Dashboard from "../pages/dashboad/Dashboard";
 import ThemePreview from "../../../ThemePreview";
 
 import Login from "../pages/auth/Login";
@@ -14,6 +13,8 @@ import VerifyEmail from "../pages/auth/VerifyEmail";
 import SpecializationList from "../pages/specializations/SpecializationList";
 import RoleList from "../pages/roles/RoleList";
 import StaffList from "../pages/staff/StaffList";
+import StaffFormPage from "../pages/staff/components/StaffFormPage";
+import StaffProfileView from "../pages/staff/components/StaffProfileView";
 import AppointmentTypeList from "../pages/appointmentTypes/AppointmentTypeList";
 import SettingsPage from "../pages/settings/SettingsPage";
 import PatientList from "../pages/patients/PatientList";
@@ -52,7 +53,7 @@ import HealthPackagesList from "../pages/healthPackages/HealthPackagesList";
 import HealthPackagesView from "../pages/healthPackages/HealthPackagesView";
 import HealthPackagesForm from "../pages/healthPackages/HealthPackagesForm";
 
-// ==================== CMS IMPORTS ====================
+// CMS IMPORTS
 import BookAppointmentUI from "../pages/cms/BookAppointment/BookAppointmentUI";
 import BmiUI from "../pages/cms/Bmi/BmiUI";
 import DiabetesUI from "../pages/cms/Diabetes/DiabetesUI";
@@ -78,6 +79,25 @@ import RecordsUI from "../pages/cms/Records/RecordsUI";
 import BannerList from "../pages/cms/banners/BannerList";
 import BannerForm from "../pages/cms/banners/BannerForm";
 
+import ClinicPrivilegesList from "../pages/cms/ClinicPrivileges/ClinicPrivilegesList";
+import ProviderView from "../pages/cms/ClinicPrivileges/ProviderView";
+
+// STORE IMPORTS
+import CategoryList from "../pages/store/category/CategoryList";
+import CategoryForm from "../pages/store/category/CategoryForm";
+import SubcategoryList from "../pages/store/subcategory/SubcategoryList";
+import SubcategoryForm from "../pages/store/subcategory/SubcategoryForm";
+import ProductList from "../pages/store/product/ProductList";
+import ProductForm from "../pages/store/product/ProductForm";
+import ChargesForm from "../pages/store/charges/ChargesForm";
+import StoreLeadList from "../pages/store/leads/StoreLeadList";
+import StoreLeadView from "../pages/store/leads/StoreLeadView";
+import SellerInfoForm from "../pages/store/seller/SellerInfoForm";
+
+// STORE FLASH CARD IMPORTS (NAYA)
+import StoreFlashCardList from "../pages/store/flashCards/StoreFlashCardList";
+import StoreFlashCardForm from "../pages/store/flashCards/StoreFlashCardForm";
+
 import NotFound from "../pages/NotFound";
 import ComingSoon from "../pages/ComingSoon";
 import ProtectedRoute from "./ProtectedRoute";
@@ -86,24 +106,18 @@ import PublicRoute from "./PublicRoute";
 const AdminRoutes = () => {
   return (
     <Routes>
-      {/* ==================== PUBLIC ROUTES ==================== */}
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
       </Route>
 
-      {/* ==================== PROTECTED ROUTES ==================== */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<AdminLayout />}>
-          {/* Default redirect */}
           <Route index element={<Navigate to="/dashboard" replace />} />
-
-          {/* ==================== Dashboard ==================== */}
           <Route path="dashboard" element={<ComingSoon />} />
           <Route path="theme-preview" element={<ThemePreview />} />
-
-          {/* ==================== Clinical ==================== */}
+          {/* Clinical */}
           <Route path="patients" element={<PatientList />} />
           <Route path="appointments" element={<AppointmentList />} />
           <Route path="appointments/book" element={<AppointmentBooking />} />
@@ -138,8 +152,7 @@ const AdminRoutes = () => {
             path="provider-availabilities/:id/exceptions"
             element={<AvailabilityExceptions />}
           />
-
-          {/* ==================== Service Manager & Packages ==================== */}
+          {/* Service Manager & Packages */}
           <Route path="service-manager" element={<ServiceManagerList />} />
           <Route path="service-manager/new" element={<ServiceManagerForm />} />
           <Route path="service-manager/leads" element={<ServiceLeadList />} />
@@ -160,7 +173,6 @@ const AdminRoutes = () => {
             path="service-manager/:id/items/:itemId/edit"
             element={<ServiceItemForm />}
           />
-
           <Route path="health-packages" element={<HealthPackagesList />} />
           <Route path="health-packages/new" element={<HealthPackagesForm />} />
           <Route path="health-packages/:id" element={<HealthPackagesView />} />
@@ -168,55 +180,81 @@ const AdminRoutes = () => {
             path="health-packages/:id/edit"
             element={<HealthPackagesForm />}
           />
-
           <Route path="health-tips" element={<HealthTipsList />} />
           <Route path="health-tips/new" element={<HealthTipsForm />} />
           <Route path="health-tips/:id" element={<HealthTipsView />} />
           <Route path="health-tips/:id/edit" element={<HealthTipsForm />} />
-
-          {/* ==================== CMS (Patient App) ==================== */}
+          {/* CMS */}
           <Route path="cms/banners" element={<BannerList />} />
           <Route path="cms/banners/new" element={<BannerForm />} />
           <Route path="cms/banners/:id/edit" element={<BannerForm />} />
-
+          <Route
+            path="cms/clinical-privileges"
+            element={<ClinicPrivilegesList />}
+          />
+          <Route
+            path="cms/clinical-privileges/:id"
+            element={<ProviderView />}
+          />
           <Route path="cms/book-appointment" element={<BookAppointmentUI />} />
           <Route path="cms/bmi" element={<BmiUI />} />
           <Route path="cms/diabetes" element={<DiabetesUI />} />
           <Route path="cms/sugar" element={<SugarUI />} />
-
           <Route path="cms/disease" element={<DiseaseUI />} />
           <Route path="cms/disease/list" element={<DiseaseList />} />
           <Route path="cms/disease/:id" element={<DiseaseForm />} />
-
           <Route path="cms/symptoms" element={<SymptomsUI />} />
           <Route path="cms/symptoms/list" element={<SymptomsList />} />
           <Route path="cms/symptoms/:id" element={<SymptomsForm />} />
-
           <Route path="cms/period" element={<PeriodUI />} />
           <Route
             path="cms/period/health-guide"
             element={<PeriodHealthGuide />}
           />
           <Route path="cms/period/:id" element={<PeriodForm />} />
-
           <Route path="cms/reminder" element={<ReminderUI />} />
           <Route path="cms/scan-food" element={<ScanFoodUI />} />
           <Route path="cms/calories" element={<CaloriesUI />} />
           <Route path="cms/records" element={<RecordsUI />} />
-
-          {/* ==================== Team & Masters ==================== */}
+          {/* STORE */}
+          <Route path="store/flash-cards" element={<StoreFlashCardList />} />
+          <Route
+            path="store/flash-cards/new"
+            element={<StoreFlashCardForm />}
+          />
+          <Route
+            path="store/flash-cards/:id/edit"
+            element={<StoreFlashCardForm />}
+          />
+          <Route path="store/categories" element={<CategoryList />} />
+          <Route path="store/categories/new" element={<CategoryForm />} />
+          <Route path="store/categories/:id/edit" element={<CategoryForm />} />
+          <Route path="store/subcategories" element={<SubcategoryList />} />
+          <Route path="store/subcategories/new" element={<SubcategoryForm />} />
+          <Route
+            path="store/subcategories/:id/edit"
+            element={<SubcategoryForm />}
+          />
+          <Route path="store/products" element={<ProductList />} />
+          <Route path="store/products/new" element={<ProductForm />} />
+          <Route path="store/products/:id/edit" element={<ProductForm />} />
+          <Route path="store/charges" element={<ChargesForm />} />
+          <Route path="store/leads" element={<StoreLeadList />} />
+          <Route path="store/leads/:id" element={<StoreLeadView />} />
+          <Route path="store/seller" element={<SellerInfoForm />} />
+          {/* Team & Masters */}
           <Route path="staff" element={<StaffList />} />
+          <Route path="staff/new" element={<StaffFormPage />} />
+          <Route path="staff/:id" element={<StaffProfileView />} />
+          <Route path="staff/:id/edit" element={<StaffFormPage />} />
           <Route path="roles" element={<RoleList />} />
           <Route path="specializations" element={<SpecializationList />} />
           <Route path="appointment-types" element={<AppointmentTypeList />} />
           <Route path="settings" element={<SettingsPage />} />
-
-          {/* ==================== 404 FALLBACK ==================== */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
 
-      {/* ==================== GLOBAL 404 ==================== */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -1,22 +1,23 @@
-import { useState, useEffect, useRef } from "react";
+// src/features/patent/pages/providerAvailability/components/Step1Provider.jsx
+
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiArrowRight, FiAlertCircle, FiPlus } from "react-icons/fi";
-import { useRoles } from "../../../queries/roles";
 import { useStaff } from "../../../queries/staff";
 import { FilterSelect } from "../../../common/form";
 
-const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
+const Step1Provider = ({
+  onNext,
+  formData,
+  setFormData,
+  isEdit = false,
+  providerRoles: rawProviderRoles = [],
+}) => {
   const navigate = useNavigate();
   const [selectedRoleId, setSelectedRoleId] = useState(
     formData.role_id || null,
   );
   const isInitialMount = useRef(true);
-
-  // Load roles
-  const { data: rolesData, isLoading: loadingRoles } = useRoles({
-    per_page: 100,
-  });
-  const roles = rolesData?.list || [];
 
   // Load providers filtered by role
   const { data: staffData, isFetching: loadingStaff } = useStaff(
@@ -26,7 +27,12 @@ const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
   );
   const providers = staffData?.list || [];
 
-  const roleOptions = roles.map((r) => ({
+  // FIX: Double filter to ensure only is_provider === true roles are shown
+  const providerRoles = useMemo(() => {
+    return rawProviderRoles.filter((r) => r.is_provider === true);
+  }, [rawProviderRoles]);
+
+  const roleOptions = providerRoles.map((r) => ({
     value: r.id,
     label: r.label,
   }));
@@ -36,8 +42,8 @@ const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
     label: `${p.name} — ${p.email || ""}`,
   }));
 
-  // No roles available at all
-  const hasNoRoles = !loadingRoles && roles.length === 0;
+  // No roles available
+  const hasNoRoles = providerRoles.length === 0;
 
   // Role selected but no providers for that role
   const hasNoProviders =
@@ -95,8 +101,8 @@ const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
             value={selectedRoleId}
             onChange={handleRoleChange}
             options={roleOptions}
-            placeholder={loadingRoles ? "Loading roles..." : "Select role..."}
-            isDisabled={loadingRoles}
+            placeholder="Select role..."
+            isDisabled={providerRoles.length === 0}
             isClearable
           />
         </div>
@@ -128,7 +134,7 @@ const Step1Provider = ({ onNext, formData, setFormData, isEdit = false }) => {
       {hasNoRoles && (
         <EmptyState
           title="No provider roles found"
-          message="There are no roles configured yet. Create a role first to assign providers."
+          message="There are no provider roles configured yet. Create a role and mark it as Provider."
           buttonLabel="Go to Roles"
           onAction={() => navigate("/roles")}
         />

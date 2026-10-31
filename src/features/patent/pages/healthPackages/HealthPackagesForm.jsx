@@ -52,12 +52,20 @@ const HealthPackagesForm = () => {
     }
   }, [existing]);
 
+  // Extract existing service IDs and offer prices
+  const existingServiceIds = existing?.services?.map((s) => s.id) || [];
+  const existingServicePrices = {};
+  existing?.services?.forEach((s) => {
+    existingServicePrices[s.id] = s.offer_price ? String(s.offer_price) : "";
+  });
+
   const initialValues = {
     name: existing?.name || "",
     description: existing?.description || "",
     success_message: existing?.success_message || "",
     is_active: existing?.is_active ?? true,
-    service_ids: existing?.services?.map((s) => s.id) || [],
+    service_ids: existingServiceIds,
+    service_prices: existingServicePrices,
   };
 
   const validationSchema = Yup.object({
@@ -91,21 +99,37 @@ const HealthPackagesForm = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleToggleService = (serviceId, currentServices, setFieldValue) => {
-    const isSelected = currentServices.includes(serviceId);
+  const handleToggleService = (serviceId, values, setFieldValue) => {
+    const isSelected = values.service_ids.includes(serviceId);
     let newServices;
+    let newPrices = { ...values.service_prices };
+
     if (isSelected) {
-      newServices = currentServices.filter((sid) => sid !== serviceId);
+      newServices = values.service_ids.filter((sid) => sid !== serviceId);
+      delete newPrices[serviceId];
     } else {
-      newServices = [...currentServices, serviceId];
+      newServices = [...values.service_ids, serviceId];
     }
+
     setFieldValue("service_ids", newServices);
+    setFieldValue("service_prices", newPrices);
+  };
+
+  const handlePriceChange = (
+    serviceId,
+    price,
+    setFieldValue,
+    currentPrices,
+  ) => {
+    setFieldValue("service_prices", {
+      ...currentPrices,
+      [serviceId]: price,
+    });
   };
 
   const handleSubmit = (values, { setSubmitting }) => {
     const formData = new FormData();
 
-    // FIX: Method spoofing for image update
     if (isEdit) formData.append("_method", "PUT");
 
     formData.append("name", values.name);
@@ -113,17 +137,20 @@ const HealthPackagesForm = () => {
     formData.append("success_message", values.success_message || "");
     formData.append("is_active", values.is_active ? "1" : "0");
 
-    // Append service IDs as array
-    values.service_ids.forEach((sid) => {
-      formData.append("service_ids[]", sid);
-    });
+    if (values.service_ids.length === 0) {
+      formData.append("service_ids", ""); // Clear all
+    } else {
+      values.service_ids.forEach((sid) => {
+        formData.append("service_ids[]", sid);
+        formData.append(
+          `service_prices[${sid}]`,
+          values.service_prices[sid] || "0",
+        );
+      });
+    }
 
-    if (imageFile) {
-      formData.append("image", imageFile);
-    }
-    if (removeImage) {
-      formData.append("remove_image", "1");
-    }
+    if (imageFile) formData.append("image", imageFile);
+    if (removeImage) formData.append("remove_image", "1");
 
     const onSuccess = () => navigate("/health-packages");
 
@@ -206,7 +233,6 @@ const HealthPackagesForm = () => {
                     Package Image
                   </label>
 
-                  {/* FIX: Image Rule apply kiya (object-contain with bg) */}
                   {imagePreview ? (
                     <div className="relative inline-block">
                       <div className="flex h-40 w-full max-w-xs items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50 p-2">
@@ -259,7 +285,7 @@ const HealthPackagesForm = () => {
                 <div className="flex items-center gap-2">
                   <FiPackage className="h-5 w-5 text-brand-600" />
                   <h2 className="font-jakarta text-base font-semibold text-ink-900">
-                    Select Services
+                    Select Services & Offer Prices
                   </h2>
                 </div>
                 <span className="text-xs font-medium text-ink-500">
@@ -277,46 +303,98 @@ const HealthPackagesForm = () => {
                     No services available.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
                     {availableServices.map((service) => {
                       const isSelected = values.service_ids.includes(
                         service.id,
                       );
+                      const isDirect = service.display_mode === "direct";
+
                       return (
                         <div
                           key={service.id}
-                          onClick={() =>
-                            handleToggleService(
-                              service.id,
-                              values.service_ids,
-                              setFieldValue,
-                            )
-                          }
-                          className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition-colors ${
+                          className={`flex flex-col gap-3 rounded-lg border p-4 transition-colors ${
                             isSelected
-                              ? "border-brand-500 bg-brand-50 text-brand-900"
-                              : "border-ink-200 bg-surface text-ink-700 hover:bg-ink-50"
+                              ? "border-brand-500 bg-brand-50/50"
+                              : "border-ink-200 bg-surface hover:bg-ink-50"
                           }`}
                         >
                           <div
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
-                              isSelected
-                                ? "border-brand-600 bg-brand-600 text-white"
-                                : "border-ink-300 bg-white"
-                            }`}
+                            className="flex items-start gap-3 cursor-pointer"
+                            onClick={() =>
+                              handleToggleService(
+                                service.id,
+                                values,
+                                setFieldValue,
+                              )
+                            }
                           >
-                            {isSelected && <FiCheck className="h-3.5 w-3.5" />}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium leading-tight">
-                              {service.name}
-                            </span>
-                            {service.is_active === false && (
-                              <span className="text-[10px] text-danger-600 font-semibold mt-0.5">
-                                (Inactive)
+                            <div
+                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
+                                isSelected
+                                  ? "border-brand-600 bg-brand-600 text-white"
+                                  : "border-ink-300 bg-white"
+                              }`}
+                            >
+                              {isSelected && (
+                                <FiCheck className="h-3.5 w-3.5" />
+                              )}
+                            </div>
+
+                            <div className="flex flex-col flex-1">
+                              <span
+                                className={`text-sm font-semibold leading-tight ${isSelected ? "text-brand-900" : "text-ink-900"}`}
+                              >
+                                {service.name}
                               </span>
-                            )}
+
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                {service.is_active === false && (
+                                  <span className="text-[10px] font-semibold text-danger-600">
+                                    Inactive
+                                  </span>
+                                )}
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${
+                                    isDirect
+                                      ? "bg-ink-100 text-ink-600"
+                                      : "bg-warn-100 text-warn-800"
+                                  }`}
+                                >
+                                  {isDirect ? "Direct" : "Package Only"}
+                                </span>
+                                {service.starting_price && (
+                                  <span className="text-[10px] font-medium text-ink-600">
+                                    Starting: ₹{service.starting_price}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Price Input for Selected Service */}
+                          {isSelected && (
+                            <div className="mt-2 pl-8">
+                              <label className="text-[11px] font-medium text-ink-600 block mb-1">
+                                Package Offer Price (₹)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={values.service_prices[service.id] || ""}
+                                onChange={(e) =>
+                                  handlePriceChange(
+                                    service.id,
+                                    e.target.value,
+                                    setFieldValue,
+                                    values.service_prices,
+                                  )
+                                }
+                                placeholder="Enter offer price"
+                                className="w-full rounded-lg border border-ink-200 bg-surface px-3 py-2 text-sm text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                              />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
