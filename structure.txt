@@ -34,11 +34,254 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |  ├── --
 |  |  └── patent
 |  |     ├── common
+|  |     |  ├── ConfirmModal.jsx
+|  |     |  ├── CustomEditor.jsx
+|  |     |  ├── data
+|  |     |  ├── Error.jsx
+|  |     |  ├── form
+|  |     |  |  ├── ActionToggle.jsx
+|  |     |  |  ├── Checkbox.jsx
+|  |     |  |  ├── DatePicker.jsx
+|  |     |  |  ├── FilterSelect.jsx
+|  |     |  |  ├── FormButton.jsx
+|  |     |  |  ├── FormikEditorField.jsx
+|  |     |  |  ├── index.js
+|  |     |  |  ├── MultiSelectField.jsx
+|  |     |  |  ├── PhoneInput.jsx
+|  |     |  |  ├── RadioGroup.jsx
+|  |     |  |  ├── SelectField.jsx
+|  |     |  |  ├── TextareaField.jsx
+|  |     |  |  ├── TextInput.jsx
+|  |     |  |  └── ToggleSwitch.jsx
+|  |     |  ├── GlobalConfirmModal.jsx
+|  |     |  ├── layout
+|  |     |  |  ├── Breadcrumb.jsx
+|  |     |  |  ├── index.js
+|  |     |  |  ├── PageBody.jsx
+|  |     |  |  ├── PageHeader.jsx
+|  |     |  |  ├── PageHeaderLeft.jsx
+|  |     |  |  ├── PageHeaderRight.jsx
+|  |     |  |  ├── PageLayout.jsx
+|  |     |  |  ├── PageSubTitle.jsx
+|  |     |  |  └── PageTitle.jsx
+|  |     |  ├── Loader.jsx
+|  |     |  ├── noitification
+|  |     |  |  ├── NotificatinDetails.jsx
+|  |     |  |  ├── Notification.jsx
+|  |     |  |  └── NotificationDropdown.jsx
+|  |     |  ├── table
+|  |     |  |  └── CustomeTable.jsx
+|  |     |  ├── toast
+|  |     |  |  ├── Toast.jsx
+|  |     |  |  └── ToastContext.jsx
+|  |     |  └── TruncateText.jsx
 |  |     ├── components
+|  |     |  ├── AdminNavbar.jsx
+|  |     |  └── AdminSidebar.jsx
 |  |     ├── layout
+|  |     |  └── AdminLayout.jsx
 |  |     ├── pages
+|  |     |  ├── appointments
+|  |     |  |  ├── AppointmentBooking.jsx
+|  |     |  |  ├── AppointmentEdit.jsx
+|  |     |  |  ├── AppointmentList.jsx
+|  |     |  |  ├── AppointmentView.jsx
+|  |     |  |  └── components
+|  |     |  |     ├── AppointmentStatusBadge.jsx
+|  |     |  |     ├── AppointmentStatusModal.jsx
+|  |     |  |     ├── AvailableDatesCalendar.jsx
+|  |     |  |     ├── SlotGrid.jsx
+|  |     |  |     ├── Step1Patient.jsx
+|  |     |  |     ├── Step2Provider.jsx
+|  |     |  |     ├── Step3DateSlots.jsx
+|  |     |  |     └── Step4Confirm.jsx
+|  |     |  ├── appointmentTypes
+|  |     |  |  ├── AppointmentTypeList.jsx
+|  |     |  |  └── components
+|  |     |  |     ├── AppointmentTypeForm.jsx
+|  |     |  |     └── AppointmentTypeView.jsx
+|  |     |  ├── auth
+|  |     |  |  ├── Login.jsx
+|  |     |  |  ├── queries.js
+|  |     |  |  ├── Register.jsx
+|  |     |  |  └── VerifyEmail.jsx
+|  |     |  ├── bookingCalendar
+|  |     |  |  ├── BookingCalendar.jsx
+|  |     |  |  └── components
+|  |     |  |     ├── BookedSlotDetailsModal.jsx
+|  |     |  |     ├── MonthCalendar.jsx
+|  |     |  |     ├── ProviderTabs.jsx
+|  |     |  |     ├── QuickBookingModal.jsx
+|  |     |  |     └── SlotList.jsx
+|  |     |  ├── cms
+|  |     |  |  ├── banners
+|  |     |  |  |  ├── BannerForm.jsx
+|  |     |  |  |  └── BannerList.jsx
+|  |     |  |  ├── Bmi
+|  |     |  |  |  └── BmiUI.jsx
+|  |     |  |  ├── BookAppointment
+|  |     |  |  |  └── BookAppointmentUI.jsx
+|  |     |  |  ├── Calories
+|  |     |  |  |  └── CaloriesUI.jsx
+|  |     |  |  ├── CmsAllCards.jsx
+|  |     |  |  ├── CmsCardForm.jsx
+|  |     |  |  ├── cmsData.js
+|  |     |  |  ├── Diabetes
+|  |     |  |  |  └── DiabetesUI.jsx
+|  |     |  |  ├── Disease
+|  |     |  |  |  ├── DiseaseForm.jsx
+|  |     |  |  |  ├── DiseaseList.jsx
+|  |     |  |  |  ├── diseasesData.js
+|  |     |  |  |  └── DiseaseUI.jsx
+|  |     |  |  ├── home
+|  |     |  |  |  ├── FeatureCardForm.jsx
+|  |     |  |  |  └── HomeCmsList.jsx
+|  |     |  |  ├── Period
+|  |     |  |  |  ├── periodData.js
+|  |     |  |  |  ├── PeriodForm.jsx
+|  |     |  |  |  ├── PeriodHealthGuide.jsx
+|  |     |  |  |  └── PeriodUI.jsx
+|  |     |  |  ├── Records
+|  |     |  |  |  └── RecordsUI.jsx
+|  |     |  |  ├── Reminder
+|  |     |  |  |  └── ReminderUI.jsx
+|  |     |  |  ├── ScanFood
+|  |     |  |  |  └── ScanFoodUI.jsx
+|  |     |  |  ├── Sugar
+|  |     |  |  |  └── SugarUI.jsx
+|  |     |  |  └── Symptoms
+|  |     |  |     ├── symptomsData.js
+|  |     |  |     ├── SymptomsForm.jsx
+|  |     |  |     ├── SymptomsList.jsx
+|  |     |  |     └── SymptomsUI.jsx
+|  |     |  ├── ComingSoon.jsx
+|  |     |  ├── dashboad
+|  |     |  |  ├── components
+|  |     |  |  |  └── DoctroSlots.jsx
+|  |     |  |  └── Dashboard.jsx
+|  |     |  ├── exceptionManagement
+|  |     |  |  ├── components
+|  |     |  |  |  ├── ExceptionDetailsModal.jsx
+|  |     |  |  |  ├── ExceptionList.jsx
+|  |     |  |  |  ├── ExceptionMonthCalendar.jsx
+|  |     |  |  |  ├── ExceptionProviderTabs.jsx
+|  |     |  |  |  └── ExceptionStatsBar.jsx
+|  |     |  |  └── ExceptionManagementList.jsx
+|  |     |  ├── healthPackages
+|  |     |  |  ├── HealthPackagesForm.jsx
+|  |     |  |  ├── HealthPackagesList.jsx
+|  |     |  |  └── HealthPackagesView.jsx
+|  |     |  ├── healthTips
+|  |     |  |  ├── HealthTipsForm.jsx
+|  |     |  |  ├── HealthTipsList.jsx
+|  |     |  |  └── HealthTipsView.jsx
+|  |     |  ├── NotFound.jsx
+|  |     |  ├── patients
+|  |     |  |  ├── components
+|  |     |  |  |  ├── FamilyMembersSection.jsx
+|  |     |  |  |  ├── PatientCard.jsx
+|  |     |  |  |  ├── PatientForm.jsx
+|  |     |  |  |  └── PatientView.jsx
+|  |     |  |  └── PatientList.jsx
+|  |     |  ├── providerAvailability
+|  |     |  |  ├── AvailabilityExceptions.jsx
+|  |     |  |  ├── AvailabilityList.jsx
+|  |     |  |  ├── AvailabilityView.jsx
+|  |     |  |  ├── AvailabilityWizard.jsx
+|  |     |  |  └── components
+|  |     |  |     ├── ExceptionForm.jsx
+|  |     |  |     ├── SlotCalendar.jsx
+|  |     |  |     ├── Step1Provider.jsx
+|  |     |  |     ├── Step2AppointmentType.jsx
+|  |     |  |     ├── Step3Schedule.jsx
+|  |     |  |     ├── Step4Preview.jsx
+|  |     |  |     └── WizardStepper.jsx
+|  |     |  ├── roles
+|  |     |  |  ├── components
+|  |     |  |  |  ├── RoleForm.jsx
+|  |     |  |  |  └── RoleView.jsx
+|  |     |  |  └── RoleList.jsx
+|  |     |  ├── serviceManager
+|  |     |  |  ├── leads
+|  |     |  |  |  ├── ServiceLeadDetails.jsx
+|  |     |  |  |  └── ServiceLeadList.jsx
+|  |     |  |  ├── ServiceItemForm.jsx
+|  |     |  |  ├── ServiceManagerForm.jsx
+|  |     |  |  ├── ServiceManagerList.jsx
+|  |     |  |  └── ServiceManagerView.jsx
+|  |     |  ├── settings
+|  |     |  |  ├── components
+|  |     |  |  |  ├── SettingField.jsx
+|  |     |  |  |  ├── SettingsGroupTab.jsx
+|  |     |  |  |  ├── SettingsSkeleton.jsx
+|  |     |  |  |  └── TermsSettingsTab.jsx
+|  |     |  |  └── SettingsPage.jsx
+|  |     |  ├── specializations
+|  |     |  |  ├── components
+|  |     |  |  |  ├── SpecializationForm.jsx
+|  |     |  |  |  └── SpecializationView.jsx
+|  |     |  |  └── SpecializationList.jsx
+|  |     |  ├── staff
+|  |     |  |  ├── components
+|  |     |  |  |  ├── StaffForm.jsx
+|  |     |  |  |  └── StaffView.jsx
+|  |     |  |  └── StaffList.jsx
+|  |     |  ├── store
+|  |     |  |  ├── category
+|  |     |  |  |  ├── CategoryForm.jsx
+|  |     |  |  |  └── CategoryList.jsx
+|  |     |  |  ├── charges
+|  |     |  |  |  └── ChargesForm.jsx
+|  |     |  |  ├── leads
+|  |     |  |  |  ├── StoreLeadList.jsx
+|  |     |  |  |  └── StoreLeadView.jsx
+|  |     |  |  ├── product
+|  |     |  |  |  ├── ProductForm.jsx
+|  |     |  |  |  └── ProductList.jsx
+|  |     |  |  ├── seller
+|  |     |  |  |  └── SellerInfoForm.jsx
+|  |     |  |  └── subcategory
+|  |     |  |     └── SubcategoryList.jsx
+|  |     |  └── visits
+|  |     |     ├── components
+|  |     |     |  ├── SlotSelector.jsx
+|  |     |     |  ├── tabs
+|  |     |     |  |  ├── ConsultationTab.jsx
+|  |     |     |  |  ├── DocumentsTab.jsx
+|  |     |     |  |  ├── FollowUpTab.jsx
+|  |     |     |  |  ├── HistoryTab.jsx
+|  |     |     |  |  ├── OverviewTab.jsx
+|  |     |     |  |  └── PaymentTab.jsx
+|  |     |     |  └── VisitLifecycleModal.jsx
+|  |     |     ├── VisitDetail.jsx
+|  |     |     ├── VisitEdit.jsx
+|  |     |     ├── VisitList.jsx
+|  |     |     └── VisitNew.jsx
 |  |     ├── queries
+|  |     |  ├── appointments.js
+|  |     |  ├── appointmentTypes.js
+|  |     |  ├── availabilityExceptions.js
+|  |     |  ├── banners.js
+|  |     |  ├── bookingCalendar.js
+|  |     |  ├── contentPages.js
+|  |     |  ├── exceptionManagement.js
+|  |     |  ├── healthPackages.js
+|  |     |  ├── healthTips.js
+|  |     |  ├── homeCms.js
+|  |     |  ├── knowYourHealth.js
+|  |     |  ├── patients.js
+|  |     |  ├── providerAvailabilities.js
+|  |     |  ├── relationTypes.js
+|  |     |  ├── roles.js
+|  |     |  ├── serviceManager.js
+|  |     |  ├── settings.js
+|  |     |  ├── specializations.js
+|  |     |  ├── staff.js
+|  |     |  └── visits.js
 |  |     └── routes
+|  |        ├── AdminRoutes.jsx
+|  |        ├── ProtectedRoute.jsx
+|  |        └── PublicRoute.jsx
 |  ├── hooks
 |  ├── index.css
 |  ├── lib
@@ -55,6 +298,6 @@ E:\NetswapTechnology\DMT\dmt-web
 ├── vercel.json
 └── vite.config.js
 
-directory: 855 file: 6108
+directory: 1967 file: 17370
 
-ignored: directory (143)
+ignored: directory (154)

@@ -21,7 +21,9 @@ import {
   FiDroplet,
   FiImage,
   FiMonitor,
-  FiUsers, // NAYA (Leads ke liye)
+  FiUsers,
+  FiShoppingBag,
+  FiShield,
 } from "react-icons/fi";
 import {
   MdOutlineDashboard,
@@ -31,6 +33,16 @@ import {
   MdOutlineEventNote,
 } from "react-icons/md";
 import { LuUserRound, LuGraduationCap } from "react-icons/lu";
+// Naye modern icons
+import {
+  TbCategory,
+  TbCategory2,
+  TbBox,
+  TbReceiptRupee, // Rupee Symbol
+  TbUserSquareRounded,
+  TbLayoutBoard,
+} from "react-icons/tb";
+
 import logo from "../../../assets/daibmetalogo.jpeg";
 
 const menuSections = [
@@ -75,7 +87,6 @@ const menuSections = [
   {
     title: "Operations",
     items: [
-      // CMS Dropdown
       {
         name: "CMS",
         collapsible: true,
@@ -105,9 +116,39 @@ const menuSections = [
           { name: "Records", path: "/cms/records", icon: FiFolder },
           { name: "Period Tracker", path: "/cms/period", icon: FiCalendar },
           { name: "Banners", path: "/cms/banners", icon: FiImage },
+          {
+            name: "Clinical Privileges",
+            path: "/cms/clinical-privileges",
+            icon: FiShield,
+          },
         ],
       },
-      // Service Manager Dropdown
+      {
+        name: "Store",
+        collapsible: true,
+        icon: FiShoppingBag,
+        items: [
+          {
+            name: "Flash Cards",
+            path: "/store/flash-cards",
+            icon: TbLayoutBoard,
+          },
+          { name: "Category", path: "/store/categories", icon: TbCategory },
+          {
+            name: "Subcategory",
+            path: "/store/subcategories",
+            icon: TbCategory2,
+          },
+          { name: "Product", path: "/store/products", icon: TbBox },
+          { name: "Charges", path: "/store/charges", icon: TbReceiptRupee }, // Rupee Icon
+          { name: "Leads", path: "/store/leads", icon: FiUsers },
+          {
+            name: "Seller Info",
+            path: "/store/seller",
+            icon: TbUserSquareRounded,
+          },
+        ],
+      },
       {
         name: "Service Manager",
         collapsible: true,
@@ -123,7 +164,7 @@ const menuSections = [
             name: "Service Leads",
             path: "/service-manager/leads",
             icon: FiUsers,
-          }, // NAYA ITEM
+          },
         ],
       },
       { name: "Health Tips", path: "/health-tips", icon: FiHeart },
@@ -136,12 +177,16 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
   const [openSections, setOpenSections] = useState({
     CMS: false,
+    Store: false,
     "Service Manager": false,
   });
 
   useEffect(() => {
     if (location.pathname.startsWith("/cms")) {
       setOpenSections((prev) => ({ ...prev, CMS: true }));
+    }
+    if (location.pathname.startsWith("/store")) {
+      setOpenSections((prev) => ({ ...prev, Store: true }));
     }
     if (
       location.pathname.startsWith("/health-packages") ||
@@ -241,9 +286,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
               </p>
               <div className="space-y-0.5">
                 {section.items.map((item) => {
-                  if (item.collapsible) {
-                    return renderCollapsible(item);
-                  }
+                  if (item.collapsible) return renderCollapsible(item);
                   return (
                     <NavLink
                       key={item.name}

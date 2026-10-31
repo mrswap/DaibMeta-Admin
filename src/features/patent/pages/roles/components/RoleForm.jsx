@@ -1,3 +1,5 @@
+// src/features/patent/pages/roles/components/RoleForm.jsx
+
 import { Formik, Form, useFormikContext } from "formik";
 import * as Yup from "yup";
 import { FiX } from "react-icons/fi";
@@ -49,18 +51,26 @@ const RoleFormInner = ({ onClose, isEdit, isSystem, isPending }) => {
         placeholder="0"
       />
 
-      <ToggleSwitch
-        name="status"
-        label="Status"
-        isDisabled={isSystem}
-        description={
-          isSystem
-            ? "System role — cannot be disabled"
-            : values.status
-              ? "Active"
-              : "Inactive"
-        }
-      />
+      <div className="mb-4 space-y-3">
+        <ToggleSwitch
+          name="status"
+          label="Status"
+          isDisabled={isSystem}
+          description={
+            isSystem
+              ? "System role — cannot be disabled"
+              : values.status
+                ? "Active"
+                : "Inactive"
+          }
+        />
+
+        <ToggleSwitch
+          name="is_provider"
+          label="Provider Role"
+          description="Enable if this role provides appointment/slot availability"
+        />
+      </div>
 
       <div className="mt-4 flex justify-end gap-3 border-t border-ink-100 pt-4">
         <button
@@ -107,6 +117,7 @@ const RoleForm = ({ open, onClose, initialData }) => {
     label: initialData?.label || "",
     description: initialData?.description || "",
     status: initialData?.status ?? true,
+    is_provider: initialData?.is_provider ?? false,
     sort_order: initialData?.sort_order ?? 0,
   };
 
@@ -125,6 +136,7 @@ const RoleForm = ({ open, onClose, initialData }) => {
       .max(150, "Max 150 characters"),
     description: Yup.string().nullable(),
     status: Yup.boolean(),
+    is_provider: Yup.boolean(),
     sort_order: Yup.number()
       .typeError("Must be a number")
       .integer("Must be an integer")
@@ -136,6 +148,7 @@ const RoleForm = ({ open, onClose, initialData }) => {
       label: values.label.trim(),
       description: values.description?.trim() || null,
       sort_order: Number(values.sort_order) || 0,
+      is_provider: values.is_provider,
     };
 
     if (!isSystem) {
@@ -154,8 +167,10 @@ const RoleForm = ({ open, onClose, initialData }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-ink-200 bg-surface shadow-xl">
-        <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
+      {/* FIX: Added max-h-[90vh] and overflow-y-auto for vertical scrolling */}
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl border border-ink-200 bg-surface shadow-xl">
+        {/* FIX: Sticky Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-ink-100 px-5 py-4">
           <div>
             <h2 className="font-jakarta text-lg font-bold text-ink-900">
               {isEdit ? "Edit Role" : "Add Role"}
@@ -175,20 +190,23 @@ const RoleForm = ({ open, onClose, initialData }) => {
           </button>
         </div>
 
-        <Formik
-          key={initialData?.id || "new"}
-          initialValues={initialValues}
-          validationSchema={validationSchema}
-          onSubmit={handleSubmit}
-          enableReinitialize
-        >
-          <RoleFormInner
-            onClose={onClose}
-            isEdit={isEdit}
-            isSystem={isSystem}
-            isPending={isPending}
-          />
-        </Formik>
+        {/* FIX: Scrollable content area */}
+        <div className="overflow-y-auto">
+          <Formik
+            key={initialData?.id || "new"}
+            initialValues={initialValues}
+            validationSchema={validationSchema}
+            onSubmit={handleSubmit}
+            enableReinitialize
+          >
+            <RoleFormInner
+              onClose={onClose}
+              isEdit={isEdit}
+              isSystem={isSystem}
+              isPending={isPending}
+            />
+          </Formik>
+        </div>
       </div>
     </div>
   );
