@@ -123,6 +123,15 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  |  |  └── BookAppointmentUI.jsx
 |  |     |  |  ├── Calories
 |  |     |  |  |  └── CaloriesUI.jsx
+|  |     |  |  ├── ClinicPrivileges
+|  |     |  |  |  ├── ClinicPrivilegesList.jsx
+|  |     |  |  |  ├── components
+|  |     |  |  |  |  └── ClinicPrivilegeSectionsPanel.jsx
+|  |     |  |  |  ├── freeServices
+|  |     |  |  |  |  ├── FreeServiceForm.jsx
+|  |     |  |  |  |  ├── FreeServicesList.jsx
+|  |     |  |  |  |  └── FreeServiceView.jsx
+|  |     |  |  |  └── ProviderView.jsx
 |  |     |  |  ├── CmsAllCards.jsx
 |  |     |  |  ├── CmsCardForm.jsx
 |  |     |  |  ├── cmsData.js
@@ -223,8 +232,9 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  |  └── SpecializationList.jsx
 |  |     |  ├── staff
 |  |     |  |  ├── components
-|  |     |  |  |  ├── StaffForm.jsx
-|  |     |  |  |  └── StaffView.jsx
+|  |     |  |  |  ├── ProfessionalProfileTab.jsx
+|  |     |  |  |  ├── StaffFormPage.jsx
+|  |     |  |  |  └── StaffProfileView.jsx
 |  |     |  |  └── StaffList.jsx
 |  |     |  ├── store
 |  |     |  |  ├── category
@@ -232,6 +242,9 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  |  |  └── CategoryList.jsx
 |  |     |  |  ├── charges
 |  |     |  |  |  └── ChargesForm.jsx
+|  |     |  |  ├── flashCards
+|  |     |  |  |  ├── StoreFlashCardForm.jsx
+|  |     |  |  |  └── StoreFlashCardList.jsx
 |  |     |  |  ├── leads
 |  |     |  |  |  ├── StoreLeadList.jsx
 |  |     |  |  |  └── StoreLeadView.jsx
@@ -241,6 +254,7 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  |  ├── seller
 |  |     |  |  |  └── SellerInfoForm.jsx
 |  |     |  |  └── subcategory
+|  |     |  |     ├── SubcategoryForm.jsx
 |  |     |  |     └── SubcategoryList.jsx
 |  |     |  └── visits
 |  |     |     ├── components
@@ -263,6 +277,7 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  ├── availabilityExceptions.js
 |  |     |  ├── banners.js
 |  |     |  ├── bookingCalendar.js
+|  |     |  ├── clinicPrivileges.js
 |  |     |  ├── contentPages.js
 |  |     |  ├── exceptionManagement.js
 |  |     |  ├── healthPackages.js
@@ -277,6 +292,7 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  ├── settings.js
 |  |     |  ├── specializations.js
 |  |     |  ├── staff.js
+|  |     |  ├── storeFlashCards.js
 |  |     |  └── visits.js
 |  |     └── routes
 |  |        ├── AdminRoutes.jsx
@@ -298,6 +314,6 @@ E:\NetswapTechnology\DMT\dmt-web
 ├── vercel.json
 └── vite.config.js
 
-directory: 1967 file: 17370
+directory: 1971 file: 17382
 
 ignored: directory (154)

@@ -1,43 +1,23 @@
+// src/features/patent/pages/store/flashCards/StoreFlashCardForm.jsx
+
 import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { FiArrowLeft, FiUpload, FiX, FiLink } from "react-icons/fi";
+import { api } from "../../../../../lib/axios";
+import {
+  useStoreFlashCard,
+  useCreateStoreFlashCard,
+  useUpdateStoreFlashCard,
+} from "../../../queries/storeFlashCards"; // queries patent ke andar hi hai, so 3 steps
+import { FilterSelect } from "../../../common/form";
 import TextInput from "../../../common/form/TextInput";
 import ToggleSwitch from "../../../common/form/ToggleSwitch";
-import { FilterSelect } from "../../../common/form"; // FilterSelect import kiya
+import Loader from "../../../common/Loader";
 
 const MAX_IMAGE_SIZE_MB = 2;
-
-// --- STATIC DATA ---
-const STATIC_CATEGORIES = [
-  { value: "1", label: "Medicines" },
-  { value: "2", label: "Supplements" },
-];
-
-const STATIC_SUBCATEGORIES = {
-  1: [
-    { value: "1", label: "Painkillers" },
-    { value: "2", label: "Antibiotics" },
-  ],
-  2: [
-    { value: "3", label: "Vitamins" },
-    { value: "4", label: "Proteins" },
-  ],
-};
-
-const STATIC_PRODUCTS = {
-  1: [
-    { value: "1", label: "Paracetamol 500mg" },
-    { value: "2", label: "Crocin Advance" },
-  ],
-  2: [{ value: "3", label: "Amoxicillin 250mg" }],
-  3: [
-    { value: "4", label: "Vitamin C 1000mg" },
-    { value: "5", label: "Multivitamin Daily" },
-  ],
-  4: [{ value: "6", label: "Whey Protein 1kg" }],
-};
 
 const StoreFlashCardForm = () => {
   const { id } = useParams();
@@ -45,25 +25,117 @@ const StoreFlashCardForm = () => {
   const fileInputRef = useRef(null);
   const isEdit = !!id && id !== "new";
 
+  const createMutation = useCreateStoreFlashCard();
+  const updateMutation = useUpdateStoreFlashCard();
+
   const [imagePreview, setImagePreview] = useState("");
   const [imageError, setImageError] = useState("");
+  const [imageFile, setImageFile] = useState(null);
 
-  // State for cascading dropdowns
-  const [subCategoryOptions, setSubCategoryOptions] = useState([]);
-  const [productOptions, setProductOptions] = useState([]);
+  // Fetch existing card if editing
+  const { data: flashCardData, isLoading: isCardLoading } = useStoreFlashCard(
+    isEdit ? id : null,
+  );
+
+  // Fetch Categories
+  const { data: categoriesData } = useQuery({
+    queryKey: ["categories-dropdown"],
+    queryFn: () =>
+      api
+        .get("/admin/store/categories", {
+          params: { per_page: 100, status: 1 },
+        })
+        .then((r) => {
+          const list = r.data.data?.data || r.data.data || [];
+          return Array.isArray(list) ? list : [];
+        }),
+  });
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState(null);
+
+  useEffect(() => {
+    if (flashCardData) {
+      setSelectedCategoryId(flashCardData.category_id);
+      setSelectedSubcategoryId(flashCardData.subcategory_id);
+      if (flashCardData.image) {
+        setImagePreview(flashCardData.image);
+      }
+    }
+  }, [flashCardData]);
+
+  // Fetch Subcategories
+  const { data: subcategoriesData } = useQuery({
+    queryKey: ["subcategories-dropdown", selectedCategoryId],
+    queryFn: () =>
+      api
+        .get("/admin/store/subcategories", {
+          params: { category_id: selectedCategoryId, per_page: 100, status: 1 },
+        })
+        .then((r) => {
+          const list = r.data.data?.data || r.data.data || [];
+          return Array.isArray(list) ? list : [];
+        }),
+    enabled: !!selectedCategoryId,
+  });
+
+  // Fetch Products
+  const { data: productsData } = useQuery({
+    queryKey: ["products-dropdown", selectedCategoryId, selectedSubcategoryId],
+    queryFn: () =>
+      api
+        .get("/admin/store/products", {
+          params: {
+            category_id: selectedCategoryId,
+            subcategory_id: selectedSubcategoryId,
+            per_page: 100,
+            status: 1,
+          },
+        })
+        .then((r) => {
+          const list = r.data.data?.data || r.data.data || [];
+          return Array.isArray(list) ? list : [];
+        }),
+    enabled: !!selectedCategoryId && !!selectedSubcategoryId,
+  });
+
+  const categoryOptions = (categoriesData || []).map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
+  const subcategoryOptions = (subcategoriesData || []).map((s) => ({
+    value: s.id,
+    label: s.name,
+  }));
+  const productOptions = (productsData || []).map((p) => ({
+    value: p.id,
+    label: p.name,
+  }));
 
   const initialValues = {
-    title: isEdit ? "Monsoon Sale" : "",
-    sort_order: isEdit ? 1 : 1,
-    status: true,
-    category_id: null,
-    subcategory_id: null,
-    product_id: null,
+    title: flashCardData?.title || "",
+    sort_order: flashCardData?.sort_order || 1,
+    status: flashCardData?.status ?? true,
+    category_id: flashCardData?.category_id
+      ? {
+          value: flashCardData.category_id,
+          label: flashCardData.category?.name,
+        }
+      : null,
+    subcategory_id: flashCardData?.subcategory_id
+      ? {
+          value: flashCardData.subcategory_id,
+          label: flashCardData.subcategory?.name,
+        }
+      : null,
+    product_id: flashCardData?.product_id
+      ? { value: flashCardData.product_id, label: flashCardData.product?.name }
+      : null,
   };
 
   const validationSchema = Yup.object({
     title: Yup.string().required("Title is required").max(150),
-    sort_order: Yup.number().required("Sort order is required").min(0),
+    sort_order: Yup.number().required("Sort order is required").min(1),
     category_id: Yup.object().nullable().required("Category is required"),
     subcategory_id: Yup.object().nullable().required("Subcategory is required"),
     product_id: Yup.object().nullable().required("Product is required"),
@@ -76,10 +148,11 @@ const StoreFlashCardForm = () => {
       !file.type.startsWith("image/") ||
       file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024
     ) {
-      setImageError("Invalid file or size exceeds 2MB");
+      setImageError(`Invalid file or size exceeds ${MAX_IMAGE_SIZE_MB}MB`);
       return;
     }
     setImageError("");
+    setImageFile(file);
     const reader = new FileReader();
     reader.onloadend = () => setImagePreview(reader.result);
     reader.readAsDataURL(file);
@@ -87,13 +160,49 @@ const StoreFlashCardForm = () => {
 
   const handleRemoveImage = () => {
     setImagePreview("");
+    setImageFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleSubmit = (values) => {
-    console.log("Saving Flash Card:", values);
-    navigate("/store/flash-cards");
+  const handleSubmit = (values, { setSubmitting }) => {
+    if (!isEdit && !imageFile) {
+      setImageError("Image is required for new flash card");
+      setSubmitting(false);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("title", values.title.trim());
+    formData.append("sort_order", String(values.sort_order));
+    formData.append("category_id", String(values.category_id.value));
+    formData.append("subcategory_id", String(values.subcategory_id.value));
+    formData.append("product_id", String(values.product_id.value));
+    formData.append("status", values.status ? "1" : "0");
+
+    if (imageFile) formData.append("image", imageFile);
+
+    if (isEdit) {
+      formData.append("_method", "PUT");
+      updateMutation.mutate(
+        { id, formData },
+        {
+          onSuccess: () => navigate("/store/flash-cards"),
+          onSettled: () => setSubmitting(false),
+        },
+      );
+    } else {
+      createMutation.mutate(formData, {
+        onSuccess: () => navigate("/store/flash-cards"),
+        onSettled: () => setSubmitting(false),
+      });
+    }
   };
+
+  if (isEdit && isCardLoading) {
+    return <Loader text="Loading flash card details..." />;
+  }
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -110,14 +219,15 @@ const StoreFlashCardForm = () => {
       </div>
 
       <Formik
+        key={id || "new"}
         initialValues={initialValues}
         validationSchema={validationSchema}
         onSubmit={handleSubmit}
+        enableReinitialize
       >
         {({ isSubmitting, setFieldValue, values }) => (
           <Form className="space-y-6">
             <div className="rounded-card border border-ink-100 bg-surface p-5 space-y-6">
-              {/* Basic Info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <TextInput
                   label="Title"
@@ -130,12 +240,11 @@ const StoreFlashCardForm = () => {
                   label="Sort Order"
                   name="sort_order"
                   type="number"
-                  placeholder="e.g. 1"
+                  placeholder="Enter sort order"
                   required
                 />
               </div>
 
-              {/* Linking Section (FilterSelects) */}
               <div className="rounded-lg border border-brand-100 bg-brand-50/30 p-4 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <FiLink className="text-brand-600 h-4 w-4" />
@@ -145,7 +254,6 @@ const StoreFlashCardForm = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {/* Category Select */}
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-form-label">
                       Category <span className="text-form-required">*</span>
@@ -156,18 +264,15 @@ const StoreFlashCardForm = () => {
                         setFieldValue("category_id", val);
                         setFieldValue("subcategory_id", null);
                         setFieldValue("product_id", null);
-                        setProductOptions([]);
-                        setSubCategoryOptions(
-                          val ? STATIC_SUBCATEGORIES[val.value] || [] : [],
-                        );
+                        setSelectedCategoryId(val?.value || null);
+                        setSelectedSubcategoryId(null);
                       }}
-                      options={STATIC_CATEGORIES}
+                      options={categoryOptions}
                       placeholder="Select Category"
                       isClearable
                     />
                   </div>
 
-                  {/* Subcategory Select */}
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-form-label">
                       Subcategory <span className="text-form-required">*</span>
@@ -177,11 +282,9 @@ const StoreFlashCardForm = () => {
                       onChange={(val) => {
                         setFieldValue("subcategory_id", val);
                         setFieldValue("product_id", null);
-                        setProductOptions(
-                          val ? STATIC_PRODUCTS[val.value] || [] : [],
-                        );
+                        setSelectedSubcategoryId(val?.value || null);
                       }}
-                      options={subCategoryOptions}
+                      options={subcategoryOptions}
                       placeholder={
                         values.category_id
                           ? "Select Subcategory"
@@ -192,7 +295,6 @@ const StoreFlashCardForm = () => {
                     />
                   </div>
 
-                  {/* Product Select */}
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-form-label">
                       Product <span className="text-form-required">*</span>
@@ -213,7 +315,6 @@ const StoreFlashCardForm = () => {
                 </div>
               </div>
 
-              {/* Image Upload */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-form-label">
                   Flash Card Image{" "}
@@ -249,7 +350,7 @@ const StoreFlashCardForm = () => {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageChange}
                   className="hidden"
                 />
@@ -258,7 +359,6 @@ const StoreFlashCardForm = () => {
                 )}
               </div>
 
-              {/* Status */}
               <ToggleSwitch
                 name="status"
                 label="Active Status"
@@ -270,17 +370,18 @@ const StoreFlashCardForm = () => {
               <button
                 type="button"
                 onClick={() => navigate("/store/flash-cards")}
-                className="border border-ink-200 px-4 py-2.5 rounded-lg text-sm bg-surface text-ink-700 hover:bg-ink-50 cursor-pointer transition-colors"
+                disabled={isPending || isSubmitting}
+                className="border border-ink-200 px-4 py-2.5 rounded-lg text-sm bg-surface text-ink-700 hover:bg-ink-50 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 cursor-pointer hover:bg-brand-700 transition-colors"
+                disabled={isPending || isSubmitting}
+                className="flex items-center gap-2 bg-btn-primary-bg hover:bg-btn-primary-bg-hover text-btn-primary-text px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
-                {isSubmitting && (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                {(isPending || isSubmitting) && (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                 )}
                 {isEdit ? "Update Flash Card" : "Create Flash Card"}
               </button>
