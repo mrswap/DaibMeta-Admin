@@ -79,10 +79,11 @@ import RecordsUI from "../pages/cms/Records/RecordsUI";
 import BannerList from "../pages/cms/banners/BannerList";
 import BannerForm from "../pages/cms/banners/BannerForm";
 
+// Clinic Privileges Imports (Free Services)
 import ClinicPrivilegesList from "../pages/cms/ClinicPrivileges/ClinicPrivilegesList";
-import ProviderView from "../pages/cms/ClinicPrivileges/ProviderView";
+import FreeServiceForm from "../pages/cms/ClinicPrivileges/freeServices/FreeServiceForm";
 
-// STORE IMPORTS
+// STORE IMPORTS (Fully Wired)
 import CategoryList from "../pages/store/category/CategoryList";
 import CategoryForm from "../pages/store/category/CategoryForm";
 import SubcategoryList from "../pages/store/subcategory/SubcategoryList";
@@ -90,11 +91,10 @@ import SubcategoryForm from "../pages/store/subcategory/SubcategoryForm";
 import ProductList from "../pages/store/product/ProductList";
 import ProductForm from "../pages/store/product/ProductForm";
 import ChargesForm from "../pages/store/charges/ChargesForm";
+import SellerInfoForm from "../pages/store/seller/SellerInfoForm";
 import StoreLeadList from "../pages/store/leads/StoreLeadList";
 import StoreLeadView from "../pages/store/leads/StoreLeadView";
-import SellerInfoForm from "../pages/store/seller/SellerInfoForm";
 
-// STORE FLASH CARD IMPORTS (NAYA)
 import StoreFlashCardList from "../pages/store/flashCards/StoreFlashCardList";
 import StoreFlashCardForm from "../pages/store/flashCards/StoreFlashCardForm";
 
@@ -117,6 +117,7 @@ const AdminRoutes = () => {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<ComingSoon />} />
           <Route path="theme-preview" element={<ThemePreview />} />
+
           {/* Clinical */}
           <Route path="patients" element={<PatientList />} />
           <Route path="appointments" element={<AppointmentList />} />
@@ -152,6 +153,7 @@ const AdminRoutes = () => {
             path="provider-availabilities/:id/exceptions"
             element={<AvailabilityExceptions />}
           />
+
           {/* Service Manager & Packages */}
           <Route path="service-manager" element={<ServiceManagerList />} />
           <Route path="service-manager/new" element={<ServiceManagerForm />} />
@@ -184,18 +186,26 @@ const AdminRoutes = () => {
           <Route path="health-tips/new" element={<HealthTipsForm />} />
           <Route path="health-tips/:id" element={<HealthTipsView />} />
           <Route path="health-tips/:id/edit" element={<HealthTipsForm />} />
+
           {/* CMS */}
           <Route path="cms/banners" element={<BannerList />} />
           <Route path="cms/banners/new" element={<BannerForm />} />
           <Route path="cms/banners/:id/edit" element={<BannerForm />} />
+
+          {/* Clinic Privileges (Free Services) */}
           <Route
             path="cms/clinical-privileges"
             element={<ClinicPrivilegesList />}
           />
           <Route
-            path="cms/clinical-privileges/:id"
-            element={<ProviderView />}
+            path="cms/clinical-privileges/new"
+            element={<FreeServiceForm />}
           />
+          <Route
+            path="cms/clinical-privileges/:id/edit"
+            element={<FreeServiceForm />}
+          />
+
           <Route path="cms/book-appointment" element={<BookAppointmentUI />} />
           <Route path="cms/bmi" element={<BmiUI />} />
           <Route path="cms/diabetes" element={<DiabetesUI />} />
@@ -216,6 +226,7 @@ const AdminRoutes = () => {
           <Route path="cms/scan-food" element={<ScanFoodUI />} />
           <Route path="cms/calories" element={<CaloriesUI />} />
           <Route path="cms/records" element={<RecordsUI />} />
+
           {/* STORE */}
           <Route path="store/flash-cards" element={<StoreFlashCardList />} />
           <Route
@@ -238,10 +249,13 @@ const AdminRoutes = () => {
           <Route path="store/products" element={<ProductList />} />
           <Route path="store/products/new" element={<ProductForm />} />
           <Route path="store/products/:id/edit" element={<ProductForm />} />
+
           <Route path="store/charges" element={<ChargesForm />} />
+          <Route path="store/seller" element={<SellerInfoForm />} />
+
           <Route path="store/leads" element={<StoreLeadList />} />
           <Route path="store/leads/:id" element={<StoreLeadView />} />
-          <Route path="store/seller" element={<SellerInfoForm />} />
+
           {/* Team & Masters */}
           <Route path="staff" element={<StaffList />} />
           <Route path="staff/new" element={<StaffFormPage />} />
