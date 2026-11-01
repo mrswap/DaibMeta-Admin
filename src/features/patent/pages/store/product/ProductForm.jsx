@@ -11,6 +11,10 @@ import {
   FiTrash2,
   FiList,
   FiX,
+  FiInfo,
+  FiImage,
+  FiTag,
+  FiDollarSign,
 } from "react-icons/fi";
 import { useQuery } from "@tanstack/react-query";
 
@@ -42,6 +46,8 @@ const ProductForm = () => {
   const [existingImages, setExistingImages] = useState([]);
   const [removedImageIds, setRemovedImageIds] = useState([]);
 
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+
   const createMutation = useCreateStoreProduct();
   const updateMutation = useUpdateStoreProduct();
 
@@ -62,8 +68,6 @@ const ProductForm = () => {
           return Array.isArray(list) ? list : [];
         }),
   });
-
-  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
 
   // Fetch Subcategories (dependent on Category)
   const { data: subcategoriesData } = useQuery({
@@ -247,16 +251,25 @@ const ProductForm = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate("/store/products")}
-          className="p-2 border rounded-lg bg-surface cursor-pointer"
+          className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 transition-colors hover:bg-ink-50"
+          title="Go back"
         >
-          <FiArrowLeft />
+          <FiArrowLeft className="h-5 w-5 text-ink-700" />
         </button>
-        <h1 className="text-2xl font-bold font-jakarta">
-          {isEdit ? "Edit Product" : "Add Product"}
-        </h1>
+        <div>
+          <h1 className="font-jakarta text-xl font-bold text-ink-900 sm:text-2xl">
+            {isEdit ? "Edit Product" : "Add Product"}
+          </h1>
+          <p className="mt-0.5 text-xs text-ink-500 sm:text-sm">
+            {isEdit
+              ? "Update product details and inventory"
+              : "Create a new product for your store"}
+          </p>
+        </div>
       </div>
 
       <Formik
@@ -266,257 +279,302 @@ const ProductForm = () => {
         onSubmit={handleSubmit}
         enableReinitialize
       >
-        {({ setFieldValue, values, isSubmitting }) => {
-          // Yahan hum Formik ki category_id value ko track kar rahe hain
-          // taaki API call trigger ho sake
+        {({ setFieldValue, values, isSubmitting, errors }) => {
+          // Bug Fix: Track category changes outside of render
           useEffect(() => {
-            if (values.category_id?.value !== selectedCategoryId) {
-              setSelectedCategoryId(values.category_id?.value || null);
-              // Reset subcategory on category change
+            const currentCatId = values.category_id?.value || null;
+            if (currentCatId !== selectedCategoryId) {
+              setSelectedCategoryId(currentCatId);
               setFieldValue("subcategory_id", null);
             }
           }, [values.category_id, selectedCategoryId, setFieldValue]);
 
           return (
-            <Form className="rounded-card border border-ink-100 bg-surface p-6 space-y-6">
-              {/* Basic Info */}
-              <TextInput
-                label="Product Name"
-                name="name"
-                required
-                placeholder="Enter product name"
-                maxLength={255}
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <SelectField
-                  label="Category"
-                  name="category_id"
-                  options={categoryOptions}
-                  placeholder="Select category"
-                  required
-                />
-                <SelectField
-                  label="Subcategory"
-                  name="subcategory_id"
-                  options={subcategoryOptions}
-                  placeholder={
-                    values.category_id
-                      ? "Select subcategory"
-                      : "Select category first"
-                  }
-                  disabled={!values.category_id}
-                  required
-                />
+            <Form className="space-y-6">
+              {/* SECTION 1: Basic Info */}
+              <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
+                <div className="bg-ink-50/50 px-5 py-3 border-b border-ink-100 flex items-center gap-2">
+                  <FiInfo className="text-brand-600 h-4 w-4" />
+                  <h2 className="text-sm font-semibold text-ink-900">
+                    Basic Information
+                  </h2>
+                </div>
+                <div className="p-5 space-y-5">
+                  <TextInput
+                    label="Product Name"
+                    name="name"
+                    required
+                    placeholder="Enter product name"
+                    maxLength={255}
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <SelectField
+                      label="Category"
+                      name="category_id"
+                      options={categoryOptions}
+                      placeholder="Select category"
+                      required
+                    />
+                    <SelectField
+                      label="Subcategory"
+                      name="subcategory_id"
+                      options={subcategoryOptions}
+                      placeholder={
+                        values.category_id
+                          ? "Select subcategory"
+                          : "Select category first"
+                      }
+                      disabled={!values.category_id}
+                      required
+                    />
+                  </div>
+                  <TextareaField
+                    label="Short Description"
+                    name="short_description"
+                    rows={2}
+                    placeholder="Brief description (for card view)"
+                  />
+                </div>
               </div>
 
-              <TextareaField
-                label="Short Description"
-                name="short_description"
-                rows={2}
-                placeholder="Brief description (for card view)"
-              />
+              {/* SECTION 2: Details */}
+              <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
+                <div className="bg-ink-50/50 px-5 py-3 border-b border-ink-100 flex items-center gap-2">
+                  <FiList className="text-brand-600 h-4 w-4" />
+                  <h2 className="text-sm font-semibold text-ink-900">
+                    Product Details
+                  </h2>
+                </div>
+                <div className="p-5">
+                  <FormikEditorField
+                    name="details"
+                    label="Detailed Description"
+                    placeholder="Write product details here..."
+                    minHeight={200}
+                  />
+                </div>
+              </div>
 
-              {/* Rich Text Editor */}
-              <FormikEditorField
-                name="details"
-                label="Details"
-                placeholder="Detailed product details..."
-                minHeight={250}
-              />
-
-              {/* Images Section */}
-              <div className="rounded-xl border border-ink-100 bg-ink-50/30 p-4">
-                <div className="flex items-center justify-between mb-3">
+              {/* SECTION 3: Images */}
+              <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
+                <div className="bg-ink-50/50 px-5 py-3 border-b border-ink-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <FiUpload className="text-brand-600" />
-                    <h3 className="text-sm font-semibold text-ink-900">
-                      Product Images (Max {MAX_IMAGES})
-                    </h3>
+                    <FiImage className="text-brand-600 h-4 w-4" />
+                    <h2 className="text-sm font-semibold text-ink-900">
+                      Product Images
+                    </h2>
                   </div>
-                  <span className="text-xs font-medium text-ink-500">
-                    {totalImages} / {MAX_IMAGES}
+                  <span className="text-xs font-medium bg-surface border border-ink-200 px-2 py-0.5 rounded-full text-ink-600">
+                    {totalImages} / {MAX_IMAGES} uploaded
                   </span>
                 </div>
+                <div className="p-5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {/* Existing Images */}
+                    {existingImages.map((img) => (
+                      <div
+                        key={img.id}
+                        className="relative aspect-square w-full rounded-xl border border-ink-200 bg-ink-50/30 overflow-hidden group"
+                      >
+                        <img
+                          src={img.image}
+                          alt="Existing"
+                          className="h-full w-full object-contain p-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExistingImage(img.id)}
+                          className="absolute top-2 right-2 rounded-full bg-danger-500/90 p-1.5 text-white opacity-0 shadow-sm backdrop-blur-sm transition-all hover:bg-danger-600 hover:scale-110 group-hover:opacity-100 cursor-pointer"
+                          title="Remove"
+                        >
+                          <FiX size={14} />
+                        </button>
+                      </div>
+                    ))}
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                  {/* Existing Images */}
-                  {existingImages.map((img) => (
-                    <div
-                      key={img.id}
-                      className="relative h-28 w-full rounded-lg border border-ink-200 bg-surface overflow-hidden group"
-                    >
-                      <img
-                        src={img.image}
-                        alt="Existing"
-                        className="h-full w-full object-contain p-1"
-                      />
+                    {/* New Images */}
+                    {newImages.map((img, index) => (
+                      <div
+                        key={index}
+                        className="relative aspect-square w-full rounded-xl border border-ink-200 bg-ink-50/30 overflow-hidden group"
+                      >
+                        <img
+                          src={img.preview}
+                          alt="New"
+                          className="h-full w-full object-contain p-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveNewImage(index)}
+                          className="absolute top-2 right-2 rounded-full bg-danger-500/90 p-1.5 text-white opacity-0 shadow-sm backdrop-blur-sm transition-all hover:bg-danger-600 hover:scale-110 group-hover:opacity-100 cursor-pointer"
+                          title="Remove"
+                        >
+                          <FiX size={14} />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add New Button */}
+                    {totalImages < MAX_IMAGES && (
                       <button
                         type="button"
-                        onClick={() => handleRemoveExistingImage(img.id)}
-                        className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-danger-500 cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex aspect-square w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/30 text-ink-500 transition-all hover:border-brand-400 hover:bg-brand-50/30 hover:text-brand-700 cursor-pointer"
                       >
-                        <FiX size={14} />
+                        <FiPlus size={24} className="mb-1" />
+                        <span className="text-[11px] font-medium">
+                          Add Image
+                        </span>
                       </button>
-                    </div>
-                  ))}
-
-                  {/* New Images (Previews) */}
-                  {newImages.map((img, index) => (
-                    <div
-                      key={index}
-                      className="relative h-28 w-full rounded-lg border border-ink-200 bg-surface overflow-hidden group"
-                    >
-                      <img
-                        src={img.preview}
-                        alt="New Preview"
-                        className="h-full w-full object-contain p-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveNewImage(index)}
-                        className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-danger-500 cursor-pointer"
-                      >
-                        <FiX size={14} />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Add Button */}
-                  {totalImages < MAX_IMAGES && (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="relative flex h-28 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-ink-200 bg-surface text-ink-400 hover:border-brand-400 hover:bg-brand-50/30 transition-colors cursor-pointer"
-                    >
-                      <FiPlus size={24} className="mb-1" />
-                      <span className="text-[10px] font-medium">Add Image</span>
-                    </button>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={handleImageSelect}
+                  />
+                  {imageError && (
+                    <p className="mt-3 text-xs text-danger-600 bg-danger-50 p-2 rounded border border-danger-100">
+                      {imageError}
+                    </p>
                   )}
+                  <p className="mt-2 text-xs text-form-help">
+                    Supported: JPG, PNG, WEBP. Max size: {MAX_IMAGE_SIZE_MB}MB
+                    per image.
+                  </p>
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="hidden"
-                  onChange={handleImageSelect}
-                />
-                {imageError && (
-                  <p className="mt-2 text-xs text-danger-600">{imageError}</p>
-                )}
               </div>
 
-              {/* Specifications */}
-              <div className="rounded-xl border border-ink-100 bg-ink-50/30 p-4">
-                <div className="flex items-center justify-between mb-3">
+              {/* SECTION 4: Specifications */}
+              <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
+                <div className="bg-ink-50/50 px-5 py-3 border-b border-ink-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <FiList className="text-brand-600" />
-                    <h3 className="text-sm font-semibold text-ink-900">
+                    <FiTag className="text-brand-600 h-4 w-4" />
+                    <h2 className="text-sm font-semibold text-ink-900">
                       Specifications
-                    </h3>
+                    </h2>
                   </div>
-                  <span className="text-xs font-medium text-ink-500">
-                    {values.specifications.length} / {MAX_SPECS}
+                  <span className="text-xs font-medium bg-surface border border-ink-200 px-2 py-0.5 rounded-full text-ink-600">
+                    {values.specifications.length} / {MAX_SPECS} items
                   </span>
                 </div>
+                <div className="p-5">
+                  <FieldArray name="specifications">
+                    {({ push, remove }) => (
+                      <div className="space-y-3">
+                        {values.specifications.map((spec, index) => (
+                          <div
+                            key={index}
+                            className="flex flex-col sm:flex-row items-start gap-3"
+                          >
+                            <div className="w-full sm:w-1/3">
+                              <input
+                                name={`specifications.${index}.key`}
+                                value={spec.key}
+                                onChange={(e) =>
+                                  setFieldValue(
+                                    `specifications.${index}.key`,
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="Key (e.g. Brand)"
+                                className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm outline-none focus:border-brand-500 transition-colors"
+                              />
+                            </div>
+                            <div className="w-full sm:flex-1">
+                              <input
+                                name={`specifications.${index}.value`}
+                                value={spec.value}
+                                onChange={(e) =>
+                                  setFieldValue(
+                                    `specifications.${index}.value`,
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="Value (e.g. Cipla)"
+                                className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm outline-none focus:border-brand-500 transition-colors"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => remove(index)}
+                              disabled={values.specifications.length === 1}
+                              className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink-200 text-ink-400 hover:bg-danger-50 hover:text-danger-600 hover:border-danger-200 disabled:opacity-50 cursor-pointer transition-colors"
+                              title="Remove"
+                            >
+                              <FiTrash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
 
-                <FieldArray name="specifications">
-                  {({ push, remove }) => (
-                    <div className="space-y-3">
-                      {values.specifications.map((spec, index) => (
-                        <div key={index} className="flex items-start gap-3">
-                          <div className="flex-1">
-                            <input
-                              name={`specifications.${index}.key`}
-                              value={spec.key}
-                              onChange={(e) =>
-                                setFieldValue(
-                                  `specifications.${index}.key`,
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Key (e.g. Brand)"
-                              className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm outline-none focus:border-brand-500"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <input
-                              name={`specifications.${index}.value`}
-                              value={spec.value}
-                              onChange={(e) =>
-                                setFieldValue(
-                                  `specifications.${index}.value`,
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Value (e.g. Cipla)"
-                              className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm outline-none focus:border-brand-500"
-                            />
-                          </div>
+                        <div className="pt-2">
                           <button
                             type="button"
-                            onClick={() => remove(index)}
-                            disabled={values.specifications.length === 1}
-                            className="mt-0.5 rounded-lg p-2.5 text-ink-400 hover:bg-danger-50 hover:text-danger-600 disabled:opacity-50 cursor-pointer"
-                            title="Remove Specification"
+                            onClick={() => push({ key: "", value: "" })}
+                            disabled={values.specifications.length >= MAX_SPECS}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
                           >
-                            <FiTrash2 />
+                            <FiPlus className="h-3.5 w-3.5" />
+                            Add Specification
                           </button>
                         </div>
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={() => push({ key: "", value: "" })}
-                        disabled={values.specifications.length >= MAX_SPECS}
-                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                      >
-                        <FiPlus className="h-3.5 w-3.5" />
-                        Add More
-                      </button>
-                    </div>
-                  )}
-                </FieldArray>
+                      </div>
+                    )}
+                  </FieldArray>
+                </div>
               </div>
 
-              {/* Pricing */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextInput
-                  label="MRP (₹)"
-                  name="mrp"
-                  type="number"
-                  placeholder="Enter MRP"
-                />
-                <TextInput
-                  label="Final Price (₹)"
-                  name="final_price"
-                  type="number"
-                  required
-                  placeholder="Enter selling price"
-                />
+              {/* SECTION 5: Pricing & Status */}
+              <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
+                <div className="bg-ink-50/50 px-5 py-3 border-b border-ink-100 flex items-center gap-2">
+                  <FiDollarSign className="text-brand-600 h-4 w-4" />
+                  <h2 className="text-sm font-semibold text-ink-900">
+                    Pricing & Status
+                  </h2>
+                </div>
+                <div className="p-5 space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <TextInput
+                      label="MRP (₹)"
+                      name="mrp"
+                      type="number"
+                      placeholder="Enter MRP"
+                    />
+                    <TextInput
+                      label="Final Price (₹)"
+                      name="final_price"
+                      type="number"
+                      required
+                      placeholder="Enter selling price"
+                    />
+                  </div>
+                  <div className="pt-2 border-t border-ink-100">
+                    <ToggleSwitch
+                      label="Product Status"
+                      name="status"
+                      description="Inactive products will be hidden from the patient app"
+                    />
+                  </div>
+                </div>
               </div>
-
-              <ToggleSwitch
-                label="Status"
-                name="status"
-                description="Active or inactive"
-              />
 
               {/* Form Actions */}
-              <div className="flex justify-end gap-3 border-t pt-5">
+              <div className="sticky bottom-0 z-10 flex items-center justify-end gap-3 rounded-xl border border-ink-100 bg-surface/90 p-4 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)] backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => navigate("/store/products")}
                   disabled={isPending || isSubmitting}
-                  className="px-4 py-2 border rounded-lg cursor-pointer disabled:opacity-60"
+                  className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-5 py-2.5 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isPending || isSubmitting}
-                  className="flex items-center gap-2 bg-btn-primary-bg hover:bg-btn-primary-bg-hover text-btn-primary-text px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-btn-primary-bg px-5 py-2.5 text-sm font-medium text-btn-primary-text transition-colors duration-200 hover:bg-btn-primary-bg-hover disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {(isPending || isSubmitting) && (
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
