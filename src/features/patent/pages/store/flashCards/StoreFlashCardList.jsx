@@ -35,7 +35,6 @@ const STATUS_OPTIONS = [
 const StoreFlashCardList = () => {
   const navigate = useNavigate();
 
-  // Filters State
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [subcategoryFilter, setSubcategoryFilter] = useState(null);
@@ -45,15 +44,12 @@ const StoreFlashCardList = () => {
   const [perPage] = useState(15);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // Modals State
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toggleTarget, setToggleTarget] = useState(null);
 
-  // API Mutations
   const deleteMutation = useDeleteStoreFlashCard();
   const toggleMutation = useToggleStoreFlashCardStatus();
 
-  // Fetch dropdown data (Categories)
   const { data: categoriesData } = useQuery({
     queryKey: ["categories-dropdown"],
     queryFn: () =>
@@ -67,7 +63,6 @@ const StoreFlashCardList = () => {
         }),
   });
 
-  // Fetch Subcategories
   const { data: subcategoriesData } = useQuery({
     queryKey: ["subcategories-dropdown", categoryFilter?.value],
     queryFn: () =>
@@ -86,7 +81,6 @@ const StoreFlashCardList = () => {
     enabled: !!categoryFilter?.value,
   });
 
-  // Fetch Products
   const { data: productsData } = useQuery({
     queryKey: [
       "products-dropdown",
@@ -123,9 +117,6 @@ const StoreFlashCardList = () => {
     label: p.name,
   }));
 
-  // ==========================================
-  // MAIN LIST QUERY
-  // ==========================================
   const params = {
     page,
     per_page: perPage,
@@ -148,9 +139,6 @@ const StoreFlashCardList = () => {
   const total = meta.total || 0;
   const metaPerPage = meta.per_page || perPage;
 
-  // ==========================================
-  // HANDLERS
-  // ==========================================
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
     setPage(1);
@@ -259,11 +247,9 @@ const StoreFlashCardList = () => {
           </div>
         </div>
 
-        {/* Expanded Filters */}
         {filtersOpen && (
           <div className="space-y-3 rounded-xl border border-ink-100 bg-ink-50/40 p-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Category */}
               <div>
                 <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Category
@@ -282,7 +268,6 @@ const StoreFlashCardList = () => {
                 />
               </div>
 
-              {/* Subcategory */}
               <div>
                 <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Subcategory
@@ -305,7 +290,6 @@ const StoreFlashCardList = () => {
                 />
               </div>
 
-              {/* Product */}
               <div>
                 <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Product
@@ -327,7 +311,6 @@ const StoreFlashCardList = () => {
                 />
               </div>
 
-              {/* Status */}
               <div>
                 <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Status
@@ -393,13 +376,13 @@ const StoreFlashCardList = () => {
                 key={card.id}
                 className="group flex flex-col overflow-hidden rounded-xl border border-ink-100 bg-surface transition-all hover:shadow-md"
               >
-                {/* Image Area */}
+                {/* Image Area (Scale removed) */}
                 <div className="relative flex aspect-[2/1] w-full items-center justify-center overflow-hidden border-b border-ink-100 bg-ink-50/30">
                   {card.image ? (
                     <img
                       src={card.image}
                       alt={card.title}
-                      className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                      className="h-full w-full object-contain p-2"
                     />
                   ) : (
                     <FiImage className="h-10 w-10 text-ink-300" />
@@ -420,7 +403,6 @@ const StoreFlashCardList = () => {
                     {card.title}
                   </h3>
 
-                  {/* Linked Product Details */}
                   <div className="mt-3 flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 text-[11px] text-ink-500">
                       <span className="inline-flex rounded bg-ink-100 px-1.5 py-0.5 font-medium uppercase tracking-wider">

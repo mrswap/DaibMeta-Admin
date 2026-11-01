@@ -196,7 +196,7 @@ const ChargesForm = () => {
         enableReinitialize
       >
         {({ values, isSubmitting, errors }) => (
-          <Form className="space-y-6">
+          <Form className="rounded-card border border-ink-100 bg-surface shadow-sm p-5 sm:p-6 space-y-8">
             {/* Info Alert */}
             <div className="flex items-start gap-3 rounded-xl border border-accent-100 bg-accent-50 p-4 text-sm text-accent-800">
               <FiInfo className="mt-0.5 h-4 w-4 shrink-0" />
@@ -208,8 +208,8 @@ const ChargesForm = () => {
             </div>
 
             {/* SECTION 1: Delivery Fees */}
-            <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
-              <div className="bg-ink-50/50 px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <FiTruck className="text-brand-600 h-5 w-5" />
                   <div>
@@ -221,92 +221,90 @@ const ChargesForm = () => {
                     </p>
                   </div>
                 </div>
-                <span className="text-xs font-medium bg-surface border border-ink-200 px-2.5 py-1 rounded-full text-ink-600">
+                <span className="text-xs font-medium bg-ink-50 border border-ink-200 px-2.5 py-1 rounded-full text-ink-600">
                   {values.delivery_charges.length} / {MAX_SLABS} slabs
                 </span>
               </div>
 
-              <div className="p-5">
-                <FieldArray name="delivery_charges">
-                  {({ push, remove }) => (
-                    <div className="space-y-4">
-                      {values.delivery_charges.map((slab, index) => (
-                        <div
-                          key={index}
-                          className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 p-4 sm:p-0 bg-ink-50/30 sm:bg-transparent rounded-lg border border-ink-100 sm:border-0"
-                        >
-                          <div className="grid w-full grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 flex-1">
-                            <TextInput
-                              name={`delivery_charges.${index}.min_amount`}
-                              placeholder="Min (₹)"
-                              type="number"
-                            />
-                            <TextInput
-                              name={`delivery_charges.${index}.max_amount`}
-                              placeholder="Max (₹) - Blank for unlimited"
-                              type="number"
-                            />
-                            <TextInput
-                              name={`delivery_charges.${index}.charge_amount`}
-                              placeholder="Charge (₹)"
-                              type="number"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => remove(index)}
-                            disabled={values.delivery_charges.length === 1}
-                            className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink-200 text-ink-400 hover:bg-danger-50 hover:text-danger-600 hover:border-danger-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                            title="Remove Slab"
-                          >
-                            <FiTrash2 className="h-4 w-4" />
-                          </button>
-
-                          {/* Mobile Remove Button */}
-                          <button
-                            type="button"
-                            onClick={() => remove(index)}
-                            disabled={values.delivery_charges.length === 1}
-                            className="flex sm:hidden w-full items-center justify-center gap-2 rounded-lg border border-danger-200 bg-danger-50 py-2 text-xs font-medium text-danger-600 disabled:opacity-50"
-                          >
-                            <FiTrash2 className="h-3.5 w-3.5" />
-                            Remove Slab
-                          </button>
+              <FieldArray name="delivery_charges">
+                {({ push, remove }) => (
+                  <div className="space-y-4">
+                    {values.delivery_charges.map((slab, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 p-4 sm:p-0 bg-ink-50/30 sm:bg-transparent rounded-lg border border-ink-100 sm:border-0"
+                      >
+                        <div className="grid w-full grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 flex-1">
+                          <TextInput
+                            name={`delivery_charges.${index}.min_amount`}
+                            placeholder="Min (₹)"
+                            type="number"
+                          />
+                          <TextInput
+                            name={`delivery_charges.${index}.max_amount`}
+                            placeholder="Max (₹) - Blank for unlimited"
+                            type="number"
+                          />
+                          <TextInput
+                            name={`delivery_charges.${index}.charge_amount`}
+                            placeholder="Charge (₹)"
+                            type="number"
+                          />
                         </div>
-                      ))}
-
-                      {typeof errors.delivery_charges === "string" && (
-                        <p className="text-xs text-danger-600 bg-danger-50 p-2 rounded border border-danger-100">
-                          {errors.delivery_charges}
-                        </p>
-                      )}
-
-                      <div className="pt-2">
                         <button
                           type="button"
-                          onClick={() =>
-                            push({
-                              min_amount: "",
-                              max_amount: "",
-                              charge_amount: "",
-                            })
-                          }
-                          disabled={values.delivery_charges.length >= MAX_SLABS}
-                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          onClick={() => remove(index)}
+                          disabled={values.delivery_charges.length === 1}
+                          className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink-200 text-ink-400 hover:bg-danger-50 hover:text-danger-600 hover:border-danger-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                          title="Remove Slab"
                         >
-                          <FiPlus className="h-3.5 w-3.5" />
-                          Add Delivery Slab
+                          <FiTrash2 className="h-4 w-4" />
+                        </button>
+
+                        {/* Mobile Remove Button */}
+                        <button
+                          type="button"
+                          onClick={() => remove(index)}
+                          disabled={values.delivery_charges.length === 1}
+                          className="flex sm:hidden w-full items-center justify-center gap-2 rounded-lg border border-danger-200 bg-danger-50 py-2 text-xs font-medium text-danger-600 disabled:opacity-50"
+                        >
+                          <FiTrash2 className="h-3.5 w-3.5" />
+                          Remove Slab
                         </button>
                       </div>
+                    ))}
+
+                    {typeof errors.delivery_charges === "string" && (
+                      <p className="text-xs text-danger-600 bg-danger-50 p-2 rounded border border-danger-100">
+                        {errors.delivery_charges}
+                      </p>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          push({
+                            min_amount: "",
+                            max_amount: "",
+                            charge_amount: "",
+                          })
+                        }
+                        disabled={values.delivery_charges.length >= MAX_SLABS}
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <FiPlus className="h-3.5 w-3.5" />
+                        Add Delivery Slab
+                      </button>
                     </div>
-                  )}
-                </FieldArray>
-              </div>
+                  </div>
+                )}
+              </FieldArray>
             </div>
 
             {/* SECTION 2: Processing Fees */}
-            <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
-              <div className="bg-ink-50/50 px-5 py-4 border-b border-ink-100 flex items-center justify-between">
+            <div className="border-t border-ink-100 pt-8">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <FiCpu className="text-brand-600 h-5 w-5" />
                   <div>
@@ -318,93 +316,89 @@ const ChargesForm = () => {
                     </p>
                   </div>
                 </div>
-                <span className="text-xs font-medium bg-surface border border-ink-200 px-2.5 py-1 rounded-full text-ink-600">
+                <span className="text-xs font-medium bg-ink-50 border border-ink-200 px-2.5 py-1 rounded-full text-ink-600">
                   {values.processing_charges.length} / {MAX_SLABS} slabs
                 </span>
               </div>
 
-              <div className="p-5">
-                <FieldArray name="processing_charges">
-                  {({ push, remove }) => (
-                    <div className="space-y-4">
-                      {values.processing_charges.map((slab, index) => (
-                        <div
-                          key={index}
-                          className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 p-4 sm:p-0 bg-ink-50/30 sm:bg-transparent rounded-lg border border-ink-100 sm:border-0"
-                        >
-                          <div className="grid w-full grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 flex-1">
-                            <TextInput
-                              name={`processing_charges.${index}.min_amount`}
-                              placeholder="Min (₹)"
-                              type="number"
-                            />
-                            <TextInput
-                              name={`processing_charges.${index}.max_amount`}
-                              placeholder="Max (₹) - Blank for unlimited"
-                              type="number"
-                            />
-                            <TextInput
-                              name={`processing_charges.${index}.charge_amount`}
-                              placeholder="Charge (₹)"
-                              type="number"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => remove(index)}
-                            disabled={values.processing_charges.length === 1}
-                            className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink-200 text-ink-400 hover:bg-danger-50 hover:text-danger-600 hover:border-danger-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                            title="Remove Slab"
-                          >
-                            <FiTrash2 className="h-4 w-4" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => remove(index)}
-                            disabled={values.processing_charges.length === 1}
-                            className="flex sm:hidden w-full items-center justify-center gap-2 rounded-lg border border-danger-200 bg-danger-50 py-2 text-xs font-medium text-danger-600 disabled:opacity-50"
-                          >
-                            <FiTrash2 className="h-3.5 w-3.5" />
-                            Remove Slab
-                          </button>
+              <FieldArray name="processing_charges">
+                {({ push, remove }) => (
+                  <div className="space-y-4">
+                    {values.processing_charges.map((slab, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 p-4 sm:p-0 bg-ink-50/30 sm:bg-transparent rounded-lg border border-ink-100 sm:border-0"
+                      >
+                        <div className="grid w-full grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 flex-1">
+                          <TextInput
+                            name={`processing_charges.${index}.min_amount`}
+                            placeholder="Min (₹)"
+                            type="number"
+                          />
+                          <TextInput
+                            name={`processing_charges.${index}.max_amount`}
+                            placeholder="Max (₹) - Blank for unlimited"
+                            type="number"
+                          />
+                          <TextInput
+                            name={`processing_charges.${index}.charge_amount`}
+                            placeholder="Charge (₹)"
+                            type="number"
+                          />
                         </div>
-                      ))}
-
-                      {typeof errors.processing_charges === "string" && (
-                        <p className="text-xs text-danger-600 bg-danger-50 p-2 rounded border border-danger-100">
-                          {errors.processing_charges}
-                        </p>
-                      )}
-
-                      <div className="pt-2">
                         <button
                           type="button"
-                          onClick={() =>
-                            push({
-                              min_amount: "",
-                              max_amount: "",
-                              charge_amount: "",
-                            })
-                          }
-                          disabled={
-                            values.processing_charges.length >= MAX_SLABS
-                          }
-                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          onClick={() => remove(index)}
+                          disabled={values.processing_charges.length === 1}
+                          className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink-200 text-ink-400 hover:bg-danger-50 hover:text-danger-600 hover:border-danger-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                          title="Remove Slab"
                         >
-                          <FiPlus className="h-3.5 w-3.5" />
-                          Add Processing Slab
+                          <FiTrash2 className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => remove(index)}
+                          disabled={values.processing_charges.length === 1}
+                          className="flex sm:hidden w-full items-center justify-center gap-2 rounded-lg border border-danger-200 bg-danger-50 py-2 text-xs font-medium text-danger-600 disabled:opacity-50"
+                        >
+                          <FiTrash2 className="h-3.5 w-3.5" />
+                          Remove Slab
                         </button>
                       </div>
+                    ))}
+
+                    {typeof errors.processing_charges === "string" && (
+                      <p className="text-xs text-danger-600 bg-danger-50 p-2 rounded border border-danger-100">
+                        {errors.processing_charges}
+                      </p>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          push({
+                            min_amount: "",
+                            max_amount: "",
+                            charge_amount: "",
+                          })
+                        }
+                        disabled={values.processing_charges.length >= MAX_SLABS}
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <FiPlus className="h-3.5 w-3.5" />
+                        Add Processing Slab
+                      </button>
                     </div>
-                  )}
-                </FieldArray>
-              </div>
+                  </div>
+                )}
+              </FieldArray>
             </div>
 
             {/* SECTION 3: Other Fees */}
-            <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
-              <div className="bg-ink-50/50 px-5 py-4 border-b border-ink-100 flex items-center gap-2">
+            <div className="border-t border-ink-100 pt-8">
+              <div className="flex items-center gap-2 mb-4">
                 <FiMoreHorizontal className="text-brand-600 h-5 w-5" />
                 <div>
                   <h2 className="text-sm font-semibold text-ink-900">
@@ -415,21 +409,19 @@ const ChargesForm = () => {
                   </p>
                 </div>
               </div>
-              <div className="p-5">
-                <div className="max-w-xs">
-                  <TextInput
-                    name="other_charge"
-                    label="Fixed Charge Amount (₹)"
-                    placeholder="e.g. 25"
-                    type="number"
-                    required
-                  />
-                </div>
+              <div className="max-w-xs">
+                <TextInput
+                  name="other_charge"
+                  label="Fixed Charge Amount (₹)"
+                  placeholder="e.g. 25"
+                  type="number"
+                  required
+                />
               </div>
             </div>
 
             {/* Action Button */}
-            <div className="sticky bottom-0 z-10 flex items-center justify-end gap-3 rounded-xl border border-ink-100 bg-surface/90 p-4 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)] backdrop-blur-md">
+            <div className="flex flex-col-reverse gap-3 border-t border-ink-100 bg-ink-50/30 px-5 py-4 sm:flex-row sm:justify-end sm:px-6 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 mt-6">
               <button
                 type="submit"
                 disabled={isSubmitting || saveMutation.isPending}

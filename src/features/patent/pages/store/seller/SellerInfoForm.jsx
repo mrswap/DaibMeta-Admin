@@ -4,13 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
-import {
-  FiArrowLeft,
-  FiUpload,
-  FiUserCheck,
-  FiX,
-  FiImage,
-} from "react-icons/fi";
+import { FiArrowLeft, FiX, FiImage } from "react-icons/fi";
 
 import {
   useStoreSeller,
@@ -134,106 +128,102 @@ const SellerInfoForm = () => {
         enableReinitialize
       >
         {({ isSubmitting }) => (
-          <Form className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
-            {/* Section Header */}
-            <div className="bg-ink-50/50 px-5 py-4 border-b border-ink-100 flex items-center gap-2">
-              <FiUserCheck className="text-brand-600 h-5 w-5" />
-              <h2 className="text-sm font-semibold text-ink-900">
-                Store Details
-              </h2>
+          <Form className="rounded-card border border-ink-100 bg-surface shadow-sm p-5 sm:p-6 space-y-6">
+            {/* Image Upload Box (Top) */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-form-label">
+                Seller Logo / Image{" "}
+                <span className="text-xs text-ink-400 font-normal">
+                  (Optional)
+                </span>
+              </label>
+
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                {imagePreview ? (
+                  <div className="group relative inline-block w-full max-w-[240px]">
+                    <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50/50 p-3">
+                      <img
+                        src={imagePreview}
+                        className="h-full w-full object-contain"
+                        alt="Preview"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-md transition-transform hover:scale-110 hover:bg-danger-600"
+                      title="Remove image"
+                    >
+                      <FiX size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex aspect-square w-full max-w-[240px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/30 text-ink-500 transition-all hover:border-brand-400 hover:bg-brand-50/30 hover:text-brand-700 cursor-pointer"
+                  >
+                    <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-sm">
+                      <FiImage className="h-5 w-5 text-ink-400" />
+                    </div>
+                    <span className="text-sm font-medium">Upload Logo</span>
+                    <span className="mt-1 text-[11px] text-ink-400">
+                      JPG, PNG, WEBP
+                    </span>
+                  </button>
+                )}
+
+                <div className="flex-1 pt-2">
+                  <p className="text-xs text-ink-500">
+                    Upload a square logo or image for your store.
+                  </p>
+                  <p className="text-xs text-form-help mt-1">
+                    Max size: {MAX_IMAGE_SIZE_MB} MB.
+                  </p>
+                  {imageError && (
+                    <p className="mt-1 text-xs text-danger-500">{imageError}</p>
+                  )}
+                </div>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageChange}
+                className="hidden"
+              />
             </div>
 
-            {/* Split Layout */}
-            <div className="grid grid-cols-1 gap-6 p-5 sm:p-6 lg:grid-cols-3">
-              {/* Left Side: Form Fields */}
-              <div className="space-y-5 lg:col-span-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <TextInput
-                    label="Store Title"
-                    name="store_title"
-                    required
-                    placeholder="Enter store title"
-                    maxLength={150}
-                  />
-                  <TextInput
-                    label="Tagline / Tag"
-                    name="tagline"
-                    placeholder="Enter tagline"
-                    maxLength={50}
-                  />
-                </div>
-
-                <FormikEditorField
-                  name="description"
-                  label="Description"
-                  placeholder="Describe the seller, policies, etc..."
-                  minHeight={250}
+            {/* Form Fields (Below Image) */}
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <TextInput
+                  label="Store Title"
+                  name="store_title"
                   required
+                  placeholder="Enter store title"
+                  maxLength={150}
+                />
+                <TextInput
+                  label="Tagline / Tag"
+                  name="tagline"
+                  placeholder="Enter tagline"
+                  maxLength={50}
                 />
               </div>
 
-              {/* Right Side: Image Upload */}
-              <div className="lg:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-form-label">
-                  Seller Logo / Image{" "}
-                  <span className="text-xs text-ink-400 font-normal">
-                    (Optional)
-                  </span>
-                </label>
-
-                <div className="flex flex-col items-start gap-3">
-                  {imagePreview ? (
-                    <div className="group relative inline-block w-full max-w-[240px]">
-                      <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50/50 p-3">
-                        <img
-                          src={imagePreview}
-                          className="h-full w-full object-contain"
-                          alt="Preview"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-md transition-transform hover:scale-110 hover:bg-danger-600"
-                        title="Remove image"
-                      >
-                        <FiX size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex aspect-square w-full max-w-[240px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/30 text-ink-500 transition-all hover:border-brand-400 hover:bg-brand-50/30 hover:text-brand-700 cursor-pointer"
-                    >
-                      <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-sm">
-                        <FiImage className="h-5 w-5 text-ink-400" />
-                      </div>
-                      <span className="text-sm font-medium">Upload Logo</span>
-                      <span className="mt-1 text-[11px] text-ink-400">
-                        JPG, PNG, WEBP
-                      </span>
-                    </button>
-                  )}
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-
-                  {imageError && (
-                    <p className="text-xs text-danger-500">{imageError}</p>
-                  )}
-                  <p className="text-xs text-form-help">Max size: 2 MB.</p>
-                </div>
-              </div>
+              <FormikEditorField
+                name="description"
+                label="Description"
+                placeholder="Describe the seller, policies, etc..."
+                minHeight={250}
+                required
+              />
             </div>
 
             {/* Form Actions Footer */}
-            <div className="flex flex-col-reverse gap-3 border-t border-ink-100 bg-ink-50/30 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+            <div className="flex flex-col-reverse gap-3 border-t border-ink-100 bg-ink-50/30 px-5 py-4 sm:flex-row sm:justify-end sm:px-6 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 mt-6">
               <button
                 type="submit"
                 disabled={isPending || isSubmitting}

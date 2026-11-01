@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
-import { FiArrowLeft, FiUpload, FiX, FiImage } from "react-icons/fi";
+import { FiArrowLeft, FiX, FiImage } from "react-icons/fi";
 
 import TextInput from "../../../common/form/TextInput";
 import TextareaField from "../../../common/form/TextareaField";
@@ -148,96 +148,99 @@ const CategoryForm = () => {
         enableReinitialize
       >
         {({ isSubmitting }) => (
-          <Form className="rounded-card border border-ink-100 bg-surface shadow-sm">
-            {/* Split Layout: Form Fields vs Image */}
-            <div className="grid grid-cols-1 gap-6 p-5 sm:p-6 lg:grid-cols-3">
-              {/* Left Side: Text Fields */}
-              <div className="space-y-5 lg:col-span-2">
-                <TextInput
-                  label="Category Name"
-                  name="name"
-                  required
-                  placeholder="Enter category name"
-                  maxLength={150}
-                />
-                <TextareaField
-                  label="Description"
-                  name="description"
-                  rows={5}
-                  placeholder="Enter description"
-                  maxLength={500}
-                />
-                <div className="pt-2">
-                  <ToggleSwitch
-                    label="Status"
-                    name="status"
-                    description="Inactive categories will be hidden on the app"
-                  />
+          <Form className="rounded-card border border-ink-100 bg-surface shadow-sm p-5 sm:p-6 space-y-6">
+            {/* Image Upload Box (Top) */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-form-label">
+                Category Image{" "}
+                <span className="text-xs text-ink-400 font-normal">
+                  (Optional)
+                </span>
+              </label>
+
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                {imagePreview ? (
+                  <div className="group relative inline-block w-full max-w-[240px]">
+                    <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50/50 p-3">
+                      <img
+                        src={imagePreview}
+                        className="h-full w-full object-contain"
+                        alt="Preview"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-md transition-transform hover:scale-110 hover:bg-danger-600"
+                      title="Remove image"
+                    >
+                      <FiX size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex aspect-square w-full max-w-[240px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/30 text-ink-500 transition-all hover:border-brand-400 hover:bg-brand-50/30 hover:text-brand-700 cursor-pointer"
+                  >
+                    <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-sm">
+                      <FiImage className="h-5 w-5 text-ink-400" />
+                    </div>
+                    <span className="text-sm font-medium">Upload Image</span>
+                    <span className="mt-1 text-[11px] text-ink-400">
+                      JPG, PNG, WEBP
+                    </span>
+                  </button>
+                )}
+
+                <div className="flex-1 pt-2">
+                  <p className="text-xs text-ink-500">
+                    Upload a square or rectangular image. This will be shown as
+                    the category thumbnail.
+                  </p>
+                  <p className="text-xs text-form-help mt-1">Max size: 2 MB.</p>
+                  {imageError && (
+                    <p className="mt-1 text-xs text-danger-500">{imageError}</p>
+                  )}
                 </div>
               </div>
 
-              {/* Right Side: Image Upload */}
-              <div className="lg:col-span-1">
-                <label className="mb-2 block text-sm font-medium text-form-label">
-                  Category Image{" "}
-                  <span className="text-xs text-ink-400 font-normal">
-                    (Optional)
-                  </span>
-                </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </div>
 
-                <div className="flex flex-col items-start gap-3">
-                  {imagePreview ? (
-                    <div className="group relative inline-block w-full max-w-[240px]">
-                      <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50/50 p-3">
-                        <img
-                          src={imagePreview}
-                          className="h-full w-full object-contain"
-                          alt="Preview"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-md transition-transform hover:scale-110 hover:bg-danger-600"
-                        title="Remove image"
-                      >
-                        <FiX size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex aspect-square w-full max-w-[240px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/30 text-ink-500 transition-all hover:border-brand-400 hover:bg-brand-50/30 hover:text-brand-700 cursor-pointer"
-                    >
-                      <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-sm">
-                        <FiImage className="h-5 w-5 text-ink-400" />
-                      </div>
-                      <span className="text-sm font-medium">Upload Image</span>
-                      <span className="mt-1 text-[11px] text-ink-400">
-                        JPG, PNG, WEBP
-                      </span>
-                    </button>
-                  )}
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-
-                  {imageError && (
-                    <p className="text-xs text-danger-500">{imageError}</p>
-                  )}
-                  <p className="text-xs text-form-help">Max size: 2 MB.</p>
-                </div>
+            {/* Form Fields (Below Image) */}
+            <div className="space-y-5">
+              <TextInput
+                label="Category Name"
+                name="name"
+                required
+                placeholder="Enter category name"
+                maxLength={150}
+              />
+              <TextareaField
+                label="Description"
+                name="description"
+                rows={4}
+                placeholder="Enter description"
+                maxLength={500}
+              />
+              <div className="pt-2">
+                <ToggleSwitch
+                  label="Status"
+                  name="status"
+                  description="Inactive categories will be hidden on the app"
+                />
               </div>
             </div>
 
             {/* Form Actions Footer */}
-            <div className="flex flex-col-reverse gap-3 border-t border-ink-100 bg-ink-50/30 px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+            <div className="flex flex-col-reverse gap-3 border-t border-ink-100 bg-ink-50/30 px-5 py-4 sm:flex-row sm:justify-end sm:px-6 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 mt-6">
               <button
                 type="button"
                 onClick={() => navigate("/store/categories")}

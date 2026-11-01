@@ -163,13 +163,13 @@ const CategoryList = () => {
                 key={item.id}
                 className="group flex flex-col overflow-hidden rounded-xl border border-ink-100 bg-surface transition-all hover:shadow-md"
               >
-                {/* Image Area */}
+                {/* Image Area (Scale removed) */}
                 <div className="relative flex h-44 w-full items-center justify-center overflow-hidden border-b border-ink-100 bg-ink-50/30">
                   {item.image ? (
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="h-full w-full object-contain p-3 transition-transform duration-300 group-hover:scale-105"
+                      className="h-full w-full object-contain p-3"
                     />
                   ) : (
                     <FiImage className="h-12 w-12 text-ink-300" />
