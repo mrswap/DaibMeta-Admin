@@ -1,6 +1,6 @@
 // src/features/patent/pages/store/flashCards/StoreFlashCardList.jsx
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,6 +13,7 @@ import {
   FiRefreshCw,
   FiFilter,
   FiX,
+  FiLayout,
 } from "react-icons/fi";
 
 import { api } from "../../../../../lib/axios";
@@ -34,7 +35,6 @@ const STATUS_OPTIONS = [
 const StoreFlashCardList = () => {
   const navigate = useNavigate();
 
-  // Filters State
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [subcategoryFilter, setSubcategoryFilter] = useState(null);
@@ -44,15 +44,12 @@ const StoreFlashCardList = () => {
   const [perPage] = useState(15);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // Modals State
-  const [deleteId, setDeleteId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [toggleTarget, setToggleTarget] = useState(null);
 
-  // API Mutations
   const deleteMutation = useDeleteStoreFlashCard();
   const toggleMutation = useToggleStoreFlashCardStatus();
 
-  // Fetch dropdown data (Categories)
   const { data: categoriesData } = useQuery({
     queryKey: ["categories-dropdown"],
     queryFn: () =>
@@ -66,7 +63,6 @@ const StoreFlashCardList = () => {
         }),
   });
 
-  // Fetch Subcategories
   const { data: subcategoriesData } = useQuery({
     queryKey: ["subcategories-dropdown", categoryFilter?.value],
     queryFn: () =>
@@ -85,7 +81,6 @@ const StoreFlashCardList = () => {
     enabled: !!categoryFilter?.value,
   });
 
-  // Fetch Products
   const { data: productsData } = useQuery({
     queryKey: [
       "products-dropdown",
@@ -109,7 +104,6 @@ const StoreFlashCardList = () => {
     enabled: !!categoryFilter?.value && !!subcategoryFilter?.value,
   });
 
-  // Format options
   const categoryOptions = (categoriesData || []).map((c) => ({
     value: c.id,
     label: c.name,
@@ -123,9 +117,6 @@ const StoreFlashCardList = () => {
     label: p.name,
   }));
 
-  // ==========================================
-  // MAIN LIST QUERY
-  // ==========================================
   const params = {
     page,
     per_page: perPage,
@@ -148,9 +139,6 @@ const StoreFlashCardList = () => {
   const total = meta.total || 0;
   const metaPerPage = meta.per_page || perPage;
 
-  // ==========================================
-  // HANDLERS
-  // ==========================================
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
     setPage(1);
@@ -166,9 +154,9 @@ const StoreFlashCardList = () => {
   };
 
   const handleConfirmDelete = () => {
-    if (!deleteId) return;
-    deleteMutation.mutate(deleteId, {
-      onSettled: () => setDeleteId(null),
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSettled: () => setDeleteTarget(null),
     });
   };
 
@@ -194,7 +182,7 @@ const StoreFlashCardList = () => {
     (statusFilter ? 1 : 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -207,17 +195,17 @@ const StoreFlashCardList = () => {
         </div>
         <button
           onClick={() => navigate("/store/flash-cards/new")}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700 sm:w-auto"
+          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface shadow-sm transition hover:bg-brand-700 sm:w-auto"
         >
           <FiPlus className="h-4 w-4" />
           Add Flash Card
         </button>
       </div>
 
-      {/* Search + Filter Toggle */}
+      {/* Filters Bar */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="flex flex-1 items-center gap-2 rounded-lg border border-form-border bg-surface px-3">
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+          <div className="flex w-full flex-1 items-center gap-2 rounded-lg border border-form-border bg-surface px-3">
             <FiSearch className="h-4 w-4 shrink-0 text-ink-400" />
             <input
               type="text"
@@ -229,40 +217,41 @@ const StoreFlashCardList = () => {
             />
           </div>
 
-          <button
-            onClick={() => setFiltersOpen((v) => !v)}
-            className={`inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm font-medium transition ${
-              filtersOpen || hasActiveFilters
-                ? "border-brand-300 bg-brand-50 text-brand-700"
-                : "border-ink-200 bg-surface text-ink-700 hover:bg-ink-50"
-            }`}
-          >
-            <FiFilter className="h-4 w-4" />
-            <span className="hidden sm:inline">Filters</span>
-            {activeFilterCount > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-brand-600 px-1.5 text-[10px] font-bold text-surface">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <button
+              onClick={() => setFiltersOpen((v) => !v)}
+              className={`inline-flex h-10 flex-1 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition sm:flex-none ${
+                filtersOpen || hasActiveFilters
+                  ? "border-brand-300 bg-brand-50 text-brand-700"
+                  : "border-ink-200 bg-surface text-ink-700 hover:bg-ink-50"
+              }`}
+            >
+              <FiFilter className="h-4 w-4" />
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-brand-600 px-1.5 text-[10px] font-bold text-surface">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
 
-          <button
-            onClick={() => refetch()}
-            className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-ink-200 bg-surface px-3 text-sm font-medium text-ink-700 hover:bg-ink-50"
-          >
-            <FiRefreshCw
-              className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
-            />
-          </button>
+            <button
+              onClick={() => refetch()}
+              title="Refresh"
+              className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-ink-200 bg-surface px-3 text-ink-700 transition hover:bg-ink-50 hover:text-brand-600"
+            >
+              <FiRefreshCw
+                className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+              />
+            </button>
+          </div>
         </div>
 
-        {/* Expanded Filters */}
         {filtersOpen && (
-          <div className="space-y-3 rounded-lg border border-ink-100 bg-ink-50/40 p-3 sm:p-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Category */}
+          <div className="space-y-3 rounded-xl border border-ink-100 bg-ink-50/40 p-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Category
                 </label>
                 <FilterSelect
@@ -279,9 +268,8 @@ const StoreFlashCardList = () => {
                 />
               </div>
 
-              {/* Subcategory */}
               <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Subcategory
                 </label>
                 <FilterSelect
@@ -302,9 +290,8 @@ const StoreFlashCardList = () => {
                 />
               </div>
 
-              {/* Product */}
               <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Product
                 </label>
                 <FilterSelect
@@ -324,9 +311,8 @@ const StoreFlashCardList = () => {
                 />
               </div>
 
-              {/* Status */}
               <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
                   Status
                 </label>
                 <FilterSelect
@@ -343,7 +329,7 @@ const StoreFlashCardList = () => {
             </div>
 
             {hasActiveFilters && (
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-2">
                 <button
                   onClick={clearFilters}
                   className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-ink-200 bg-surface px-3 py-1.5 text-xs font-medium text-ink-600 hover:bg-ink-100"
@@ -361,14 +347,17 @@ const StoreFlashCardList = () => {
       {isLoading ? (
         <Loader text="Loading flash cards..." />
       ) : list.length === 0 ? (
-        <div className="rounded-xl border border-ink-100 bg-surface p-16 text-center">
-          <h3 className="font-jakarta text-lg font-semibold text-ink-900">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-ink-200 bg-surface py-20 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-ink-50">
+            <FiLayout className="h-6 w-6 text-ink-400" />
+          </div>
+          <h3 className="mt-4 font-jakarta text-lg font-semibold text-ink-900">
             No flash cards found
           </h3>
-          <p className="text-sm text-ink-500 mt-1">
+          <p className="mt-1 max-w-sm text-sm text-ink-500">
             {hasActiveFilters
-              ? "Try adjusting your filters."
-              : "Add a new flash card to display on the store."}
+              ? "We couldn't find any flash cards matching your filters."
+              : "Get started by adding a new flash card for the store."}
           </p>
           {hasActiveFilters && (
             <button
@@ -381,14 +370,14 @@ const StoreFlashCardList = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {list.map((card) => (
               <div
                 key={card.id}
-                className="group flex flex-col overflow-hidden rounded-card border border-ink-100 bg-surface hover:shadow-sm transition-shadow"
+                className="group flex flex-col overflow-hidden rounded-xl border border-ink-100 bg-surface transition-all hover:shadow-md"
               >
-                {/* Image Area */}
-                <div className="relative h-40 w-full overflow-hidden bg-ink-50 flex items-center justify-center border-b border-ink-100">
+                {/* Image Area (Scale removed) */}
+                <div className="relative flex aspect-[2/1] w-full items-center justify-center overflow-hidden border-b border-ink-100 bg-ink-50/30">
                   {card.image ? (
                     <img
                       src={card.image}
@@ -409,58 +398,53 @@ const StoreFlashCardList = () => {
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 p-5">
-                  <h3 className="font-jakarta text-base font-semibold text-ink-900 line-clamp-1">
+                <div className="flex flex-1 flex-col p-4">
+                  <h3 className="font-jakarta text-base font-semibold text-ink-900 line-clamp-1 group-hover:text-brand-700 transition-colors">
                     {card.title}
                   </h3>
 
-                  {/* Linked Product */}
-                  <div className="mt-2 flex flex-col gap-1">
-                    <div className="inline-flex items-center gap-1.5 text-xs text-ink-600">
-                      <span className="font-medium text-ink-800">
-                        Category:
+                  <div className="mt-3 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 text-[11px] text-ink-500">
+                      <span className="inline-flex rounded bg-ink-100 px-1.5 py-0.5 font-medium uppercase tracking-wider">
+                        {card.category?.name || "No Category"}
                       </span>
-                      <span className="line-clamp-1">
-                        {card.category?.name || "—"}
-                      </span>
-                    </div>
-                    <div className="inline-flex items-center gap-1.5 text-xs text-ink-600">
-                      <span className="font-medium text-ink-800">Subcat:</span>
-                      <span className="line-clamp-1">
+                      <span className="truncate">
                         {card.subcategory?.name || "—"}
                       </span>
                     </div>
-                    <div className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800 w-fit">
-                      <FiLink className="h-3 w-3" />
+
+                    <div className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-md border border-accent-100 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">
+                      <FiLink className="h-3 w-3 shrink-0" />
                       <span className="line-clamp-1">
-                        {card.product?.name || "—"}
+                        {card.product?.name || "No Product Linked"}
                       </span>
                     </div>
                   </div>
-
-                  <p className="mt-3 text-xs text-ink-500">
-                    Sort Order: {card.sort_order}
-                  </p>
                 </div>
 
                 {/* Footer Actions */}
-                <div className="flex items-center justify-end border-t border-ink-100 bg-ink-50/40 px-5 py-3 gap-1">
-                  <button
-                    onClick={() =>
-                      navigate(`/store/flash-cards/${card.id}/edit`)
-                    }
-                    className="cursor-pointer rounded-lg p-2 text-ink-500 hover:bg-surface hover:text-brand-600 transition-colors"
-                    title="Edit"
-                  >
-                    <FiEdit2 className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(card.id)}
-                    className="cursor-pointer rounded-lg p-2 text-ink-500 hover:bg-surface hover:text-danger-600 transition-colors"
-                    title="Delete"
-                  >
-                    <FiTrash2 className="h-4 w-4" />
-                  </button>
+                <div className="flex items-center justify-between border-t border-ink-100 bg-ink-50/40 px-4 py-2.5">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-ink-500">
+                    Order: {card.sort_order}
+                  </span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() =>
+                        navigate(`/store/flash-cards/${card.id}/edit`)
+                      }
+                      className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-surface hover:text-brand-600 hover:shadow-sm"
+                      title="Edit"
+                    >
+                      <FiEdit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(card)}
+                      className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-surface hover:text-danger-600 hover:shadow-sm"
+                      title="Delete"
+                    >
+                      <FiTrash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -468,23 +452,30 @@ const StoreFlashCardList = () => {
 
           {/* Pagination */}
           {lastPage > 1 && (
-            <div className="flex items-center justify-between border-t border-ink-100 pt-4">
-              <p className="text-xs text-ink-500">
-                Showing {(currentPage - 1) * metaPerPage + 1} to{" "}
-                {Math.min(currentPage * metaPerPage, total)} of {total} entries
+            <div className="flex flex-col items-center justify-between gap-3 border-t border-ink-100 pt-4 sm:flex-row">
+              <p className="text-xs font-medium text-ink-500">
+                Showing{" "}
+                <span className="text-ink-900">
+                  {(currentPage - 1) * metaPerPage + 1}
+                </span>{" "}
+                to{" "}
+                <span className="text-ink-900">
+                  {Math.min(currentPage * metaPerPage, total)}
+                </span>{" "}
+                of <span className="text-ink-900">{total}</span> entries
               </p>
               <div className="flex gap-2">
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="rounded-lg border border-ink-200 px-3 py-1 text-sm disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed hover:bg-ink-50"
+                  className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button
                   disabled={currentPage === lastPage}
                   onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
-                  className="rounded-lg border border-ink-200 px-3 py-1 text-sm disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed hover:bg-ink-50"
+                  className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -496,13 +487,13 @@ const StoreFlashCardList = () => {
 
       {/* Delete Modal */}
       <ConfirmModal
-        open={!!deleteId}
+        open={!!deleteTarget}
         title="Delete Flash Card"
-        message="Are you sure you want to delete this flash card? This action cannot be undone."
+        message={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
         confirmText="Delete"
         variant="danger"
         onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteId(null)}
+        onCancel={() => setDeleteTarget(null)}
         loading={deleteMutation.isPending}
       />
 

@@ -5,13 +5,14 @@ import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { FiArrowLeft, FiUpload, FiX, FiLink } from "react-icons/fi";
+import { FiArrowLeft, FiUpload, FiX, FiLink, FiImage } from "react-icons/fi";
+
 import { api } from "../../../../../lib/axios";
 import {
   useStoreFlashCard,
   useCreateStoreFlashCard,
   useUpdateStoreFlashCard,
-} from "../../../queries/storeFlashCards"; // queries patent ke andar hi hai, so 3 steps
+} from "../../../queries/storeFlashCards";
 import { FilterSelect } from "../../../common/form";
 import TextInput from "../../../common/form/TextInput";
 import ToggleSwitch from "../../../common/form/ToggleSwitch";
@@ -32,12 +33,10 @@ const StoreFlashCardForm = () => {
   const [imageError, setImageError] = useState("");
   const [imageFile, setImageFile] = useState(null);
 
-  // Fetch existing card if editing
   const { data: flashCardData, isLoading: isCardLoading } = useStoreFlashCard(
     isEdit ? id : null,
   );
 
-  // Fetch Categories
   const { data: categoriesData } = useQuery({
     queryKey: ["categories-dropdown"],
     queryFn: () =>
@@ -64,7 +63,6 @@ const StoreFlashCardForm = () => {
     }
   }, [flashCardData]);
 
-  // Fetch Subcategories
   const { data: subcategoriesData } = useQuery({
     queryKey: ["subcategories-dropdown", selectedCategoryId],
     queryFn: () =>
@@ -79,7 +77,6 @@ const StoreFlashCardForm = () => {
     enabled: !!selectedCategoryId,
   });
 
-  // Fetch Products
   const { data: productsData } = useQuery({
     queryKey: ["products-dropdown", selectedCategoryId, selectedSubcategoryId],
     queryFn: () =>
@@ -206,16 +203,25 @@ const StoreFlashCardForm = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate("/store/flash-cards")}
-          className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 hover:bg-ink-50 transition-colors"
+          className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 transition-colors hover:bg-ink-50"
+          title="Go back"
         >
           <FiArrowLeft className="h-5 w-5 text-ink-700" />
         </button>
-        <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-          {isEdit ? "Edit Flash Card" : "Add Flash Card"}
-        </h1>
+        <div>
+          <h1 className="font-jakarta text-xl font-bold text-ink-900 sm:text-2xl">
+            {isEdit ? "Edit Flash Card" : "Add Flash Card"}
+          </h1>
+          <p className="mt-0.5 text-xs text-ink-500 sm:text-sm">
+            {isEdit
+              ? "Update details for this promotional banner"
+              : "Create a new promotional banner for the store"}
+          </p>
+        </div>
       </div>
 
       <Formik
@@ -226,8 +232,74 @@ const StoreFlashCardForm = () => {
         enableReinitialize
       >
         {({ isSubmitting, setFieldValue, values }) => (
-          <Form className="space-y-6">
-            <div className="rounded-card border border-ink-100 bg-surface p-5 space-y-6">
+          <Form className="rounded-card border border-ink-100 bg-surface shadow-sm p-5 sm:p-6 space-y-6">
+            {/* Image Upload Box (Top) */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-form-label">
+                Flash Card Image{" "}
+                {!isEdit && <span className="text-danger-500">*</span>}
+              </label>
+
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                {imagePreview ? (
+                  <div className="group relative inline-block w-full max-w-[300px]">
+                    <div className="flex aspect-[2/1] w-full items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50/50 p-2">
+                      <img
+                        src={imagePreview}
+                        className="h-full w-full object-contain"
+                        alt="Preview"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-md transition-transform hover:scale-110 hover:bg-danger-600"
+                      title="Remove image"
+                    >
+                      <FiX size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex aspect-[2/1] w-full max-w-[300px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/30 text-ink-500 transition-all hover:border-brand-400 hover:bg-brand-50/30 hover:text-brand-700 cursor-pointer"
+                  >
+                    <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-sm">
+                      <FiImage className="h-5 w-5 text-ink-400" />
+                    </div>
+                    <span className="text-sm font-medium">Upload Image</span>
+                    <span className="mt-1 text-[11px] text-ink-400">
+                      JPG, PNG, WEBP
+                    </span>
+                  </button>
+                )}
+
+                <div className="flex-1 pt-2">
+                  <p className="text-xs text-ink-500">
+                    Upload a landscape banner (e.g. 600x300 px) for best
+                    results.
+                  </p>
+                  <p className="text-xs text-form-help mt-1">
+                    Max size: {MAX_IMAGE_SIZE_MB} MB.
+                  </p>
+                  {imageError && (
+                    <p className="mt-1 text-xs text-danger-500">{imageError}</p>
+                  )}
+                </div>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </div>
+
+            {/* Form Fields (Below Image) */}
+            <div className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <TextInput
                   label="Title"
@@ -252,7 +324,6 @@ const StoreFlashCardForm = () => {
                     Link to Product
                   </h3>
                 </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-form-label">
@@ -315,70 +386,29 @@ const StoreFlashCardForm = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-form-label">
-                  Flash Card Image{" "}
-                  {!isEdit && <span className="text-danger-500">*</span>}
-                </label>
-                {imagePreview ? (
-                  <div className="relative inline-block">
-                    <div className="flex h-40 w-full max-w-md items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50 p-2">
-                      <img
-                        src={imagePreview}
-                        className="h-full w-full object-contain"
-                        alt="Preview"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute -right-2 -top-2 rounded-full bg-danger-500 p-1.5 text-white cursor-pointer hover:bg-danger-600"
-                    >
-                      <FiX size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex h-40 w-full max-w-md flex-col items-center justify-center border-2 border-dashed border-ink-200 rounded-xl bg-ink-50/40 text-ink-500 hover:border-brand-300 hover:text-brand-700 cursor-pointer transition-colors"
-                  >
-                    <FiUpload className="h-6 w-6 mb-1" />
-                    <span className="text-xs">Upload Image File</span>
-                  </button>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleImageChange}
-                  className="hidden"
+              <div className="pt-2">
+                <ToggleSwitch
+                  name="status"
+                  label="Active Status"
+                  description="Inactive flash cards will be hidden on the patient app"
                 />
-                {imageError && (
-                  <p className="text-danger-500 text-xs mt-1">{imageError}</p>
-                )}
               </div>
-
-              <ToggleSwitch
-                name="status"
-                label="Active Status"
-                description="Inactive flash cards will be hidden on the app"
-              />
             </div>
 
-            <div className="flex justify-end gap-3">
+            {/* Form Actions Footer */}
+            <div className="flex flex-col-reverse gap-3 border-t border-ink-100 bg-ink-50/30 px-5 py-4 sm:flex-row sm:justify-end sm:px-6 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 mt-6">
               <button
                 type="button"
                 onClick={() => navigate("/store/flash-cards")}
                 disabled={isPending || isSubmitting}
-                className="border border-ink-200 px-4 py-2.5 rounded-lg text-sm bg-surface text-ink-700 hover:bg-ink-50 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-5 py-2.5 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isPending || isSubmitting}
-                className="flex items-center gap-2 bg-btn-primary-bg hover:bg-btn-primary-bg-hover text-btn-primary-text px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-btn-primary-bg px-5 py-2.5 text-sm font-medium text-btn-primary-text transition-colors duration-200 hover:bg-btn-primary-bg-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {(isPending || isSubmitting) && (
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
