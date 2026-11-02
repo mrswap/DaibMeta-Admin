@@ -1,9 +1,7 @@
 // src/features/patent/pages/settings/components/TermsSettingsTab.jsx
 
 import { useState, useEffect, useMemo } from "react";
-import { Formik, Form } from "formik";
-import * as Yup from "yup";
-import { FiSave, FiFileText } from "react-icons/fi";
+import { FiSave } from "react-icons/fi";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 import Loader from "../../../common/Loader";
@@ -13,9 +11,6 @@ import {
   useCreateContentPage,
 } from "../../../queries/contentPages";
 
-const stripHtml = (html) => (html || "").replace(/<[^>]*>/g, "").trim();
-
-// Quill modules config
 const quillModules = {
   toolbar: [
     [{ header: [1, 2, 3, 4, false] }],
@@ -34,16 +29,24 @@ const quillModules = {
 };
 
 const TermsSettingsTab = () => {
-  const { data: apiData, isLoading } = useContentPage("terms_and_conditions");
+  // isLoading true hoga jab tak API fetch nahi hoti
+  const { data: response, isLoading } = useContentPage("terms_and_conditions");
+
+  // Safe data extraction
+  const apiData = response?.data || response;
+
   const updateMutation = useUpdateContentPage();
   const createMutation = useCreateContentPage();
 
   const [content, setContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isQuillReady, setIsQuillReady] = useState(false);
 
+  // Data aate hi content set karo aur Quill ko ready karo
   useEffect(() => {
     if (apiData) {
       setContent(apiData.content || "");
+      setIsQuillReady(true);
     }
   }, [apiData]);
 
@@ -52,7 +55,8 @@ const TermsSettingsTab = () => {
     return content !== initialContent;
   }, [content, apiData]);
 
-  if (isLoading) {
+  // 🔥 FIX: Jab tak API loading hai ya Quill ready nahi hai, tab tak loader dikhao
+  if (isLoading || !isQuillReady) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-ink-100 bg-surface">
         <Loader />
@@ -95,17 +99,17 @@ const TermsSettingsTab = () => {
               className="quill-wrapper overflow-hidden rounded-lg border border-form-border bg-form-bg"
               style={{ "--quill-min-height": "300px" }}
             >
+              {/* value={content} use karo */}
               <ReactQuill
                 theme="snow"
                 value={content}
-                onChange={setContent}
+                onChange={(val) => setContent(val)}
                 modules={quillModules}
                 placeholder="Write your terms and conditions here..."
               />
             </div>
           </div>
 
-          {/* Save button — only when changed or saving */}
           {(hasChanged || isSaving) && (
             <div className="mt-3 flex justify-end">
               <button
@@ -135,7 +139,6 @@ const TermsSettingsTab = () => {
         </div>
       </div>
 
-      {/* Unsaved indicator */}
       {hasChanged && !isSaving && (
         <div className="pointer-events-none sticky bottom-4 z-10 flex justify-end">
           <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-ink-200 bg-surface px-3 py-2 shadow-md">

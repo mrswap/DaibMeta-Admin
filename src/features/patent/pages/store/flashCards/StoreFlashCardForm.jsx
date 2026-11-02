@@ -5,7 +5,7 @@ import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { FiArrowLeft, FiUpload, FiX, FiLink, FiImage } from "react-icons/fi";
+import { FiArrowLeft, FiX, FiLink, FiImage } from "react-icons/fi";
 
 import { api } from "../../../../../lib/axios";
 import {
@@ -179,7 +179,6 @@ const StoreFlashCardForm = () => {
     if (imageFile) formData.append("image", imageFile);
 
     if (isEdit) {
-      formData.append("_method", "PUT");
       updateMutation.mutate(
         { id, formData },
         {
