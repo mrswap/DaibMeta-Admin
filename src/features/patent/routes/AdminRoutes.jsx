@@ -53,6 +53,14 @@ import HealthPackagesList from "../pages/healthPackages/HealthPackagesList";
 import HealthPackagesView from "../pages/healthPackages/HealthPackagesView";
 import HealthPackagesForm from "../pages/healthPackages/HealthPackagesForm";
 
+// Health Quiz Imports
+import HealthQuizQuestionList from "../pages/healthQuiz/questions/HealthQuizQuestionList";
+import HealthQuizQuestionForm from "../pages/healthQuiz/questions/HealthQuizQuestionForm";
+import HealthQuizHistoryList from "../pages/healthQuiz/history/HealthQuizHistoryList";
+import HealthQuizAttemptView from "../pages/healthQuiz/history/HealthQuizAttemptView";
+import HealthQuizLeaderboard from "../pages/healthQuiz/leaderboard/HealthQuizLeaderboard";
+import HealthQuizPatientLeaderboard from "../pages/healthQuiz/leaderboard/HealthQuizPatientLeaderboard";
+
 // CMS IMPORTS
 import BookAppointmentUI from "../pages/cms/BookAppointment/BookAppointmentUI";
 import BmiUI from "../pages/cms/Bmi/BmiUI";
@@ -152,6 +160,36 @@ const AdminRoutes = () => {
           <Route
             path="provider-availabilities/:id/exceptions"
             element={<AvailabilityExceptions />}
+          />
+
+          {/* Health Quiz */}
+          <Route
+            path="health-quiz/questions"
+            element={<HealthQuizQuestionList />}
+          />
+          <Route
+            path="health-quiz/questions/new"
+            element={<HealthQuizQuestionForm />}
+          />
+          <Route
+            path="health-quiz/questions/:id/edit"
+            element={<HealthQuizQuestionForm />}
+          />
+          <Route
+            path="health-quiz/history"
+            element={<HealthQuizHistoryList />}
+          />
+          <Route
+            path="health-quiz/history/:id"
+            element={<HealthQuizAttemptView />}
+          />
+          <Route
+            path="health-quiz/leaderboard"
+            element={<HealthQuizLeaderboard />}
+          />
+          <Route
+            path="health-quiz/leaderboard/:id"
+            element={<HealthQuizPatientLeaderboard />}
           />
 
           {/* Service Manager & Packages */}
