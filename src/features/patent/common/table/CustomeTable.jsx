@@ -1,3 +1,5 @@
+// src/features/patent/common/table/CustomeTable.jsx
+
 import { useState } from "react";
 
 /* ================= NORMALISE ================= */
@@ -78,21 +80,21 @@ const PageBtn = ({ children, onClick, isActive, isDisabled, title }) => {
 
   let variant = "";
   if (isActive) {
-    variant =
-      "bg-table-page-active-bg text-table-page-active-text font-bold shadow-md cursor-pointer";
+    // THEME FIX: Changed from table-page-active-bg to brand-600
+    variant = "bg-brand-600 text-white font-bold shadow-sm cursor-default";
   } else if (isDisabled) {
     variant =
       "bg-table-page-btn-disabled-bg text-table-page-btn-disabled-text cursor-not-allowed";
   } else {
     variant =
-      "border border-table-page-btn-border text-table-page-btn-text hover:border-table-page-btn-hover-border hover:text-table-page-btn-hover-text cursor-pointer";
+      "border border-table-page-btn-border text-table-page-btn-text hover:border-table-page-btn-hover-border hover:text-table-page-btn-hover-text hover:bg-ink-50 cursor-pointer";
   }
 
   return (
     <button
       title={title}
       onClick={onClick}
-      disabled={isDisabled}
+      disabled={isDisabled || isActive}
       className={`${base} ${variant}`}
     >
       {children}
