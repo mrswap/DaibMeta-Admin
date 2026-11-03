@@ -11,6 +11,7 @@
 //   FiLock,
 //   FiFileText,
 // } from "react-icons/fi";
+// import { useQueryClient } from "@tanstack/react-query";
 // import { useSettings, groupSettings } from "../../queries/settings";
 // import SettingsGroupTab from "./components/SettingsGroupTab";
 // import SettingsSkeleton from "./components/SettingsSkeleton";
@@ -54,7 +55,7 @@
 
 // const SettingsPage = () => {
 //   const [activeGroup, setActiveGroup] = useState("clinic");
-//   const [termsRefreshKey, setTermsRefreshKey] = useState(0); // Naya state
+//   const queryClient = useQueryClient();
 
 //   const { data, isLoading, isFetching, refetch } = useSettings();
 
@@ -69,10 +70,9 @@
 //     0,
 //   );
 
-//   // Refresh logic
 //   const handleRefresh = () => {
-//     refetch(); // Main settings refetch
-//     setTermsRefreshKey((prev) => prev + 1); // Terms tab force re-mount
+//     refetch();
+//     queryClient.invalidateQueries({ queryKey: ["content-pages"] });
 //   };
 
 //   return (
@@ -87,7 +87,6 @@
 //             Manage system configuration and preferences
 //           </p>
 //         </div>
-
 //         <div className="flex items-center gap-2">
 //           <span className="hidden text-xs text-ink-500 sm:inline">
 //             {totalSettings} settings
@@ -119,7 +118,6 @@
 //                   </p>
 //                 </div>
 //               </div>
-
 //               <nav className="flex gap-1 overflow-x-auto p-2 lg:flex-col lg:overflow-visible">
 //                 {GROUP_CONFIG.map(({ key, label, icon: Icon, restricted }) => {
 //                   const count =
@@ -127,7 +125,6 @@
 //                       ? 1
 //                       : grouped[key]?.length || 0;
 //                   const isActive = activeGroup === key;
-
 //                   return (
 //                     <button
 //                       key={key}
@@ -140,29 +137,19 @@
 //                       }`}
 //                     >
 //                       <Icon
-//                         className={`h-4 w-4 shrink-0 ${
-//                           isActive
-//                             ? "text-brand-600"
-//                             : "text-ink-400 group-hover:text-ink-600"
-//                         }`}
+//                         className={`h-4 w-4 shrink-0 ${isActive ? "text-brand-600" : "text-ink-400 group-hover:text-ink-600"}`}
 //                       />
 //                       <span className="whitespace-nowrap lg:flex-1 lg:whitespace-normal">
 //                         {label}
 //                       </span>
 //                       {restricted && (
 //                         <FiLock
-//                           className={`h-3 w-3 shrink-0 ${
-//                             isActive ? "text-warn-600" : "text-ink-400"
-//                           }`}
+//                           className={`h-3 w-3 shrink-0 ${isActive ? "text-warn-600" : "text-ink-400"}`}
 //                         />
 //                       )}
 //                       {count > 0 && (
 //                         <span
-//                           className={`hidden rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums lg:inline ${
-//                             isActive
-//                               ? "bg-brand-100 text-brand-700"
-//                               : "bg-ink-100 text-ink-500"
-//                           }`}
+//                           className={`hidden rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums lg:inline ${isActive ? "bg-brand-100 text-brand-700" : "bg-ink-100 text-ink-500"}`}
 //                         >
 //                           {count}
 //                         </span>
@@ -176,7 +163,6 @@
 
 //           {/* Right content — normal flow */}
 //           <div className="min-w-0">
-//             {/* Group header */}
 //             {activeConfig && (
 //               <div className="mb-4 overflow-hidden rounded-xl border border-ink-100 bg-surface px-5 py-4">
 //                 <div className="flex items-start gap-3">
@@ -190,8 +176,7 @@
 //                       </h2>
 //                       {activeConfig.restricted && (
 //                         <span className="inline-flex items-center gap-1 rounded-md border border-warn-200 bg-warn-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warn-800">
-//                           <FiLock className="h-2.5 w-2.5" />
-//                           Restricted
+//                           <FiLock className="h-2.5 w-2.5" /> Restricted
 //                         </span>
 //                       )}
 //                     </div>
@@ -209,9 +194,8 @@
 //               </div>
 //             )}
 
-//             {/* Render either the standard tab or the new Terms tab */}
 //             {isTermsTab ? (
-//               <TermsSettingsTab key={termsRefreshKey} />
+//               <TermsSettingsTab />
 //             ) : (
 //               <SettingsGroupTab group={activeGroup} settings={activeSettings} />
 //             )}
@@ -236,12 +220,14 @@ import {
   FiSliders,
   FiLock,
   FiFileText,
+  FiShield,
 } from "react-icons/fi";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSettings, groupSettings } from "../../queries/settings";
 import SettingsGroupTab from "./components/SettingsGroupTab";
 import SettingsSkeleton from "./components/SettingsSkeleton";
 import TermsSettingsTab from "./components/TermsSettingsTab";
+import ClinicPrivilegesSettingsTab from "./components/ClinicPrivilegesSettingsTab";
 
 const GROUP_CONFIG = [
   {
@@ -249,6 +235,12 @@ const GROUP_CONFIG = [
     label: "Clinic",
     description: "Basic clinic information and details",
     icon: FiHome,
+  },
+  {
+    key: "clinic_privileges",
+    label: "Clinical Privileges",
+    description: "Manage clinical privileges content and display",
+    icon: FiShield,
   },
   {
     key: "terms",
@@ -289,7 +281,10 @@ const SettingsPage = () => {
   const activeConfig = GROUP_CONFIG.find((g) => g.key === activeGroup);
 
   const isTermsTab = activeGroup === "terms";
-  const activeSettings = isTermsTab ? [] : grouped[activeGroup] || [];
+  const isClinicPrivilegesTab = activeGroup === "clinic_privileges";
+
+  const activeSettings =
+    isTermsTab || isClinicPrivilegesTab ? [] : grouped[activeGroup] || [];
 
   const totalSettings = Object.values(grouped).reduce(
     (acc, arr) => acc + arr.length,
@@ -410,7 +405,7 @@ const SettingsPage = () => {
                       {activeConfig.description}
                     </p>
                   </div>
-                  {!isTermsTab && (
+                  {!isTermsTab && !isClinicPrivilegesTab && (
                     <span className="hidden shrink-0 rounded-md border border-ink-200 bg-ink-50 px-2 py-1 text-[11px] font-medium text-ink-600 sm:inline">
                       {activeSettings.length}{" "}
                       {activeSettings.length === 1 ? "setting" : "settings"}
@@ -422,6 +417,8 @@ const SettingsPage = () => {
 
             {isTermsTab ? (
               <TermsSettingsTab />
+            ) : isClinicPrivilegesTab ? (
+              <ClinicPrivilegesSettingsTab />
             ) : (
               <SettingsGroupTab group={activeGroup} settings={activeSettings} />
             )}

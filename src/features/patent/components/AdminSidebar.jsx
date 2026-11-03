@@ -27,6 +27,7 @@ import {
   FiHelpCircle,
   FiList,
   FiAward,
+  FiMessageSquare,
 } from "react-icons/fi";
 import {
   MdOutlineDashboard,
@@ -89,6 +90,11 @@ const menuSections = [
   {
     title: "Operations",
     items: [
+      {
+        name: "Contact Messages",
+        path: "/contact-messages",
+        icon: FiMessageSquare,
+      },
       {
         name: "Health Quiz",
         collapsible: true,
