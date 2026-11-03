@@ -61,6 +61,10 @@ import HealthQuizAttemptView from "../pages/healthQuiz/history/HealthQuizAttempt
 import HealthQuizLeaderboard from "../pages/healthQuiz/leaderboard/HealthQuizLeaderboard";
 import HealthQuizPatientLeaderboard from "../pages/healthQuiz/leaderboard/HealthQuizPatientLeaderboard";
 
+// Contact Messages Imports
+import ContactMessageList from "../pages/contactMessages/ContactMessageList";
+import ContactMessageDetails from "../pages/contactMessages/ContactMessageDetails";
+
 // CMS IMPORTS
 import BookAppointmentUI from "../pages/cms/BookAppointment/BookAppointmentUI";
 import BmiUI from "../pages/cms/Bmi/BmiUI";
@@ -190,6 +194,13 @@ const AdminRoutes = () => {
           <Route
             path="health-quiz/leaderboard/:id"
             element={<HealthQuizPatientLeaderboard />}
+          />
+
+          {/* Contact Messages */}
+          <Route path="contact-messages" element={<ContactMessageList />} />
+          <Route
+            path="contact-messages/:id"
+            element={<ContactMessageDetails />}
           />
 
           {/* Service Manager & Packages */}
