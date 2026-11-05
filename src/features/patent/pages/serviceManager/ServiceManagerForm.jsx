@@ -5,14 +5,12 @@
 // import { FiArrowLeft, FiGrid, FiUpload, FiX } from "react-icons/fi";
 // import TextInput from "../../common/form/TextInput";
 // import TextareaField from "../../common/form/TextareaField";
-// import SelectField from "../../common/form/SelectField";
 // import ToggleSwitch from "../../common/form/ToggleSwitch";
 // import Loader from "../../common/Loader";
 // import {
 //   useService,
 //   useCreateService,
 //   useUpdateService,
-//   DISPLAY_MODES,
 // } from "../../queries/serviceManager";
 
 // const MAX_IMAGE_SIZE_MB = 2;
@@ -41,7 +39,6 @@
 //     name: existing?.name || "",
 //     description: existing?.description || "",
 //     success_message: existing?.success_message || "",
-//     display_mode: existing?.display_mode || "direct",
 //     is_active: existing?.is_active ?? true,
 //   };
 
@@ -49,7 +46,6 @@
 //     name: Yup.string().required("Service name is required").max(150),
 //     description: Yup.string().max(500),
 //     success_message: Yup.string().max(250),
-//     display_mode: Yup.mixed().required("Display mode is required"),
 //   });
 
 //   const handleImageChange = (e) => {
@@ -78,16 +74,11 @@
 //   };
 
 //   const handleSubmit = (values, { setSubmitting }) => {
-//     const finalDisplayMode =
-//       typeof values.display_mode === "object" && values.display_mode !== null
-//         ? values.display_mode.value
-//         : values.display_mode;
-
 //     const formData = new FormData();
 //     formData.append("name", values.name);
 //     formData.append("description", values.description || "");
 //     formData.append("success_message", values.success_message || "");
-//     formData.append("display_mode", finalDisplayMode);
+//     formData.append("display_mode", "direct"); // static
 //     formData.append("is_active", values.is_active ? "1" : "0");
 
 //     if (imageFile) formData.append("image", imageFile);
@@ -158,7 +149,6 @@
 //                     Service Image
 //                   </label>
 
-//                   {/* FIX: image container me flex, justify-center aur bg-ink-50 lagaya */}
 //                   {imagePreview ? (
 //                     <div className="relative inline-block">
 //                       <div className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50">
@@ -213,18 +203,6 @@
 //                   maxLength={250}
 //                 />
 
-//                 <SelectField
-//                   label="Where should this service appear?"
-//                   name="display_mode"
-//                   options={DISPLAY_MODES}
-//                   value={
-//                     DISPLAY_MODES.find(
-//                       (opt) => opt.value === initialValues.display_mode,
-//                     ) || DISPLAY_MODES[0]
-//                   }
-//                   required
-//                 />
-
 //                 <ToggleSwitch
 //                   name="is_active"
 //                   label="Active Status"
@@ -266,6 +244,8 @@
 // };
 
 // export default ServiceManagerForm;
+
+// src/features/patent/pages/serviceManager/ServiceManagerForm.jsx
 
 import React, { useRef, useState, useEffect } from "react";
 import { Formik, Form } from "formik";
@@ -413,49 +393,69 @@ const ServiceManagerForm = () => {
                   required
                 />
 
+                {/* --- IMAGE SECTION START --- */}
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-form-label">
+                  <label className="mb-2 block text-sm font-medium text-ink-900">
                     Service Image
                   </label>
 
-                  {imagePreview ? (
-                    <div className="relative inline-block">
-                      <div className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50">
-                        <img
-                          src={imagePreview}
-                          alt="Service preview"
-                          className="h-full w-full object-contain p-2"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1.5 text-white shadow-sm transition-colors hover:bg-danger-600"
-                      >
-                        <FiX className="h-3.5 w-3.5" />
-                      </button>
+                  <div className="flex flex-col md:flex-row md:items-start gap-6">
+                    {/* LEFT: Image Upload / Preview */}
+                    <div className="shrink-0">
+                      {imagePreview ? (
+                        <div className="relative inline-block">
+                          <div className="flex h-[120px] w-[120px] items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-white">
+                            <img
+                              src={imagePreview}
+                              alt="Service preview"
+                              className="h-full w-full object-contain"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            className="absolute -right-2 -top-2 rounded-full bg-danger-500 p-1 text-white shadow-sm hover:bg-danger-600 transition"
+                          >
+                            <FiX size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex h-[120px] w-[120px] flex-col items-center justify-center border border-dashed rounded-xl bg-ink-50/40 text-ink-500 hover:border-brand-300 hover:text-brand-700 transition"
+                        >
+                          <FiUpload className="h-5 w-5 mb-1" />
+                          <span className="text-xs text-center px-1">
+                            Upload Image
+                          </span>
+                        </button>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                      {imageError && (
+                        <p className="text-danger-500 text-xs mt-1 max-w-[120px]">
+                          {imageError}
+                        </p>
+                      )}
                     </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex h-40 w-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink-200 bg-ink-50/40 text-ink-500 transition-colors hover:border-brand-300 hover:bg-brand-50/30 hover:text-brand-700"
-                    >
-                      <FiUpload className="h-6 w-6" />
-                      <span className="text-xs font-medium">Upload Image</span>
-                    </button>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                  {imageError && (
-                    <p className="mt-2 text-xs text-form-error">{imageError}</p>
-                  )}
+
+                    {/* RIGHT: Simple Text Guide */}
+                    <div className="text-xs text-ink-600 space-y-1.5 mt-1">
+                      <p>
+                        <span className="font-medium text-ink-900">Size:</span>{" "}
+                        216 x 216 px
+                      </p>
+                      <p className="pt-1">Max 2 MB. JPG / PNG / WebP.</p>
+                    </div>
+                  </div>
                 </div>
+                {/* --- IMAGE SECTION END --- */}
 
                 <TextareaField
                   label="Description"
