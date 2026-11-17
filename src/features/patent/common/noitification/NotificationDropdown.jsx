@@ -1,330 +1,184 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+// src/features/patent/common/noitification/NotificationDropdown.jsx
+
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  getAllNotifications,
-  markNotificationAsRead,
-  getUnreadCount,
-  markAllAsRead,
-} from "../../../../redux/slice/notificationSlicer";
+  FiBell,
+  FiCalendar,
+  FiUser,
+  FiAlertCircle,
+  FiMail,
+  FiInfo,
+  FiArrowRight,
+} from "react-icons/fi";
 import {
-  IoNotificationsOutline,
-  IoCheckmarkCircle,
-  IoTimeOutline,
-} from "react-icons/io5";
-import { MdDoneAll } from "react-icons/md";
-import { FaChalkboardTeacher, FaTrophy, FaGraduationCap } from "react-icons/fa";
-import { GiDiploma } from "react-icons/gi";
-import { HiOutlineBell, HiOutlineBellAlert } from "react-icons/hi2";
-import { IoChevronBack, IoChevronForward } from "react-icons/io5";
+  useNotifications,
+  useMarkAsRead,
+  useMarkAllAsRead,
+} from "../../queries/notifications";
 import Loader from "../Loader";
-import { useTranslation } from "react-i18next";
 
-const NotificationDropdown = ({ isOpen, onClose }) => {
-  const dispatch = useDispatch();
+const getIcon = (type = "") => {
+  const t = type.toLowerCase();
+  if (t.includes("appointment")) return FiCalendar;
+  if (t.includes("patient")) return FiUser;
+  if (t.includes("alert") || t.includes("error")) return FiAlertCircle;
+  if (t.includes("lead")) return FiMail;
+  return FiInfo;
+};
+
+const getRelativeTime = (dateStr) => {
+  if (!dateStr) return "";
+  const now = new Date();
+  const then = new Date(dateStr);
+  const diffMs = now - then;
+  const m = Math.floor(diffMs / 60000);
+  const h = Math.floor(diffMs / 3600000);
+  const d = Math.floor(diffMs / 86400000);
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m}m ago`;
+  if (h < 24) return `${h}h ago`;
+  if (d < 7) return `${d}d ago`;
+  return then.toLocaleDateString();
+};
+
+const NotificationDropdown = ({ open, onClose }) => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const dropdownRef = useRef(null);
+  const ref = useRef(null);
 
-  const { notifications, unreadCount, pagination, isLoading } = useSelector(
-    (state) => state.notification,
-  );
+  const { data, isLoading } = useNotifications({ per_page: 10, page: 1 });
+  const markAsRead = useMarkAsRead();
+  const markAllAsRead = useMarkAllAsRead();
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const list = data?.list || [];
+  const hasUnread = list.some((n) => !n.read_at);
 
+  // Click outside + Escape
   useEffect(() => {
-    if (isOpen) {
-      dispatch(getAllNotifications({ page: currentPage, per_page: 4 }));
-      dispatch(getUnreadCount());
-    }
-  }, [isOpen, dispatch, currentPage]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        onClose();
-      }
+    if (!open) return;
+    const onClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
     };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, onClose]);
-
-  const getRelativeTime = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffSeconds = Math.floor((now - date) / 1000);
-    const diffMinutes = Math.floor(diffSeconds / 60);
-    const diffHours = Math.floor(diffMinutes / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffSeconds < 60) return t("notification.justNow");
-    if (diffMinutes < 60) return `${diffMinutes} ${t("notification.minAgo")}`;
-    if (diffHours < 24)
-      return `${diffHours} ${t("notification.hourAgo", { count: diffHours })}`;
-    if (diffDays === 1) return t("notification.yesterday");
-    if (diffDays < 7) return `${diffDays} ${t("notification.daysAgo")}`;
-    return date.toLocaleDateString();
-  };
-
-  const getIcon = (type) => {
-    const icons = {
-      TRAINING_ASSIGNED: <FaChalkboardTeacher size={16} />,
-      ASSESSMENT_COMPLETED: <IoCheckmarkCircle size={16} />,
-      CERTIFICATE_ISSUED: <GiDiploma size={16} />,
-      COURSE_COMPLETED: <FaGraduationCap size={16} />,
-      ACHIEVEMENT_UNLOCKED: <FaTrophy size={16} />,
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
     };
-    return icons[type] || <HiOutlineBell size={16} />;
-  };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
 
-  const handleNotificationClick = async (notification) => {
-    if (!notification.is_read) {
-      await dispatch(markNotificationAsRead(notification.id));
+  if (!open) return null;
 
-      dispatch(getUnreadCount());
-      dispatch(
-        getAllNotifications({
-          page: currentPage,
-          per_page: 4,
-        }),
-      );
-    }
-
-    navigate(`/notifications/${notification.id}`, {
-      state: { notification },
-    });
-
+  const handleItemClick = (notif) => {
+    if (!notif.read_at) markAsRead.mutate(notif.id);
     onClose();
+    navigate(`/notifications/${notif.id}`);
   };
 
-  const handleMarkAllAsRead = async () => {
-    if (unreadCount > 0) {
-      await dispatch(markAllAsRead());
-
-      dispatch(getUnreadCount());
-      dispatch(
-        getAllNotifications({
-          page: currentPage,
-          per_page: 4,
-        }),
-      );
-    }
-  };
-
-  const handleViewAllNotifications = () => {
+  const handleViewAll = () => {
+    onClose();
     navigate("/notifications");
-    onClose();
   };
-
-  const nextPage = () => {
-    if (currentPage < pagination.last_page) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const prevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  if (!isOpen) return null;
 
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
+    <div
+      ref={ref}
+      className="absolute right-0 top-full z-50 mt-2 w-96 overflow-hidden rounded-xl border border-ink-100 bg-surface shadow-lg"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-ink-100 px-4 py-3">
+        <h3 className="text-sm font-semibold text-ink-900">Notifications</h3>
+        {hasUnread && (
+          <button
+            type="button"
+            onClick={() => markAllAsRead.mutate()}
+            disabled={markAllAsRead.isPending}
+            className="cursor-pointer text-xs font-medium text-brand-700 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Mark all read
+          </button>
+        )}
+      </div>
 
-      <div
-        ref={dropdownRef}
-        className="absolute right-0 mt-3 w-96 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden"
-        style={{ top: "100%" }}
-      >
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-gray-100 bg-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="relative">
-                <IoNotificationsOutline className="text-gray-700 text-xl" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-semibold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                    {unreadCount}
-                  </span>
-                )}
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 tracking-wide">
-                {t("notification.notifications")}
-              </h3>
-            </div>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllAsRead}
-                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-indigo-50 transition-all duration-200"
-              >
-                <MdDoneAll size={16} />
-                {t("notification.markAllAsRead")}
-              </button>
-            )}
+      {/* Body */}
+      <div className="max-h-[420px] overflow-y-auto">
+        {isLoading ? (
+          <div className="px-4 py-8">
+            <Loader text="Loading..." />
           </div>
-          <p className="text-xs text-gray-400 mt-1.5 font-light tracking-wide">
-            {t("notification.stayUpdated")}
-          </p>
-        </div>
-
-        {/* Notifications List */}
-        <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
-          {isLoading ? (
-            <div className="py-12">
-              <Loader />
-            </div>
-          ) : notifications && notifications.length > 0 ? (
-            <>
-              {notifications.map((notification, index) => (
-                <div
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={`group relative px-5 py-4 cursor-pointer transition-all duration-200 hover:bg-gray-50/80 ${
-                    !notification.is_read ? "bg-indigo-50/20" : "bg-white"
+        ) : list.length === 0 ? (
+          <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+            <FiBell className="mb-3 h-10 w-10 text-ink-300" />
+            <p className="text-sm font-medium text-ink-700">No notifications</p>
+            <p className="mt-1 text-xs text-ink-500">You are all caught up.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-ink-100">
+            {list.map((notif) => {
+              const unread = !notif.read_at;
+              const Icon = getIcon(notif.type);
+              return (
+                <li
+                  key={notif.id}
+                  onClick={() => handleItemClick(notif)}
+                  className={`flex cursor-pointer items-start gap-3 px-4 py-3 transition hover:bg-ink-50 ${
+                    unread ? "bg-brand-50/40" : "bg-surface"
                   }`}
                 >
-                  {!notification.is_read && (
-                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-indigo-500"></div>
-                  )}
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                      unread
+                        ? "bg-brand-100 text-brand-700"
+                        : "bg-ink-100 text-ink-500"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
 
-                  <div className="flex gap-3">
-                    <div>
-                      <span
-                        className={`flex rounded-full p-2 mt-0.5 ${
-                          !notification.is_read
-                            ? "bg-indigo-100 text-indigo-600"
-                            : "bg-gray-50 text-gray-500"
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p
+                        className={`truncate text-sm ${
+                          unread
+                            ? "font-semibold text-ink-900"
+                            : "font-medium text-ink-800"
                         }`}
                       >
-                        {getIcon(notification.type)}
-                      </span>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4
-                          className={`text-sm font-medium tracking-wide ${
-                            !notification.is_read
-                              ? "text-gray-900 font-semibold"
-                              : "text-gray-700"
-                          }`}
-                        >
-                          {notification.title}
-                        </h4>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap">
-                          <IoTimeOutline size={11} />
-                          <span>
-                            {getRelativeTime(notification.created_at)}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1.5 leading-relaxed line-clamp-2">
-                        {notification.message}
+                        {notif.title || "Notification"}
                       </p>
-                      <div className="mt-3 flex items-center text-indigo-600 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 uppercase tracking-wider">
-                        {t("notification.readMore")}
-                        <svg
-                          className="ml-1 w-3 h-3"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </div>
+                      {unread && (
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-600" />
+                      )}
                     </div>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-ink-600">
+                      {notif.message}
+                    </p>
+                    <p className="mt-1 text-[10px] text-ink-400">
+                      {getRelativeTime(notif.created_at)}
+                    </p>
                   </div>
-                </div>
-              ))}
-
-              {pagination.last_page > 1 && (
-                <div className="flex items-center justify-between px-5 py-3 bg-gray-50/50 border-t border-gray-100">
-                  <button
-                    onClick={prevPage}
-                    disabled={currentPage === 1}
-                    className={`p-1.5 rounded-md transition-all duration-200 ${
-                      currentPage === 1
-                        ? "text-gray-300 cursor-not-allowed"
-                        : "text-gray-600 hover:text-indigo-600 hover:bg-indigo-100"
-                    }`}
-                  >
-                    <IoChevronBack size={18} />
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-600">
-                      {t("notification.page")}{" "}
-                      <span className="font-medium text-indigo-600">
-                        {currentPage}
-                      </span>{" "}
-                      {t("notification.of")} {pagination.last_page}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={nextPage}
-                    disabled={currentPage === pagination.last_page}
-                    className={`p-1.5 rounded-md transition-all duration-200 ${
-                      currentPage === pagination.last_page
-                        ? "text-gray-300 cursor-not-allowed"
-                        : "text-gray-600 hover:text-indigo-600 hover:bg-indigo-100"
-                    }`}
-                  >
-                    <IoChevronForward size={18} />
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="py-16 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-50 rounded-full mb-4">
-                <HiOutlineBellAlert className="text-gray-300 text-3xl" />
-              </div>
-              <p className="text-gray-500 text-sm font-medium">
-                {t("notification.noNotifications")}
-              </p>
-              <p className="text-gray-400 text-xs mt-1.5 font-light">
-                {t("notification.quietCenter")}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Sticky View All Button */}
-        <div className="sticky bottom-0 border-t border-gray-100 bg-white shadow-lg">
-          <button
-            onClick={handleViewAllNotifications}
-            className="w-full py-3 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 transition-all duration-200 flex items-center justify-center gap-2"
-          >
-            <span>{t("notification.viewAll")}</span>
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
-        </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
-    </>
+
+      {/* Footer */}
+      {list.length > 0 && (
+        <button
+          type="button"
+          onClick={handleViewAll}
+          className="flex w-full cursor-pointer items-center justify-center gap-1.5 border-t border-ink-100 bg-ink-50/40 px-4 py-2.5 text-xs font-medium text-brand-700 transition hover:bg-ink-50"
+        >
+          View all notifications
+          <FiArrowRight className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
   );
 };
 

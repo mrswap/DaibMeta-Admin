@@ -1,3 +1,219 @@
+// // src/features/patent/pages/roles/components/RoleForm.jsx
+
+// import { Formik, Form, useFormikContext } from "formik";
+// import * as Yup from "yup";
+// import { FiX } from "react-icons/fi";
+// import { useCreateRole, useUpdateRole } from "../../../queries/roles";
+// import {
+//   TextInput,
+//   TextareaField,
+//   FormButton,
+//   ToggleSwitch,
+// } from "../../../common/form";
+
+// const RoleFormInner = ({ onClose, isEdit, isSystem, isPending }) => {
+//   const { values } = useFormikContext();
+
+//   return (
+//     <Form className="px-5 py-5">
+//       <TextInput
+//         label="Role Name"
+//         name="name"
+//         placeholder="e.g. receptionist"
+//         maxLength={150}
+//         required
+//         isDisabled={isSystem}
+//       />
+//       <p className="-mt-3 mb-3 text-xs text-form-help">
+//         Lowercase, underscores allowed (e.g. <code>front_desk</code>)
+//       </p>
+
+//       <TextInput
+//         label="Display Label"
+//         name="label"
+//         placeholder="e.g. Receptionist"
+//         maxLength={150}
+//         required
+//       />
+
+//       <TextareaField
+//         label="Description"
+//         name="description"
+//         rows={3}
+//         placeholder="Short description..."
+//         maxLength={500}
+//       />
+
+//       <TextInput
+//         label="Sort Order"
+//         name="sort_order"
+//         type="number"
+//         placeholder="0"
+//       />
+
+//       <div className="mb-4 space-y-3">
+//         <ToggleSwitch
+//           name="status"
+//           label="Status"
+//           isDisabled={isSystem}
+//           description={
+//             isSystem
+//               ? "System role — cannot be disabled"
+//               : values.status
+//                 ? "Active"
+//                 : "Inactive"
+//           }
+//         />
+
+//         <ToggleSwitch
+//           name="is_provider"
+//           label="Provider Role"
+//           description="Enable if this role provides appointment/slot availability"
+//         />
+//       </div>
+
+//       <div className="mt-4 flex justify-end gap-3 border-t border-ink-100 pt-4">
+//         <button
+//           type="button"
+//           onClick={onClose}
+//           disabled={isPending}
+//           className="cursor-pointer rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
+//         >
+//           Cancel
+//         </button>
+//         <div className="w-32">
+//           <FormButton
+//             type="submit"
+//             text={
+//               isPending
+//                 ? isEdit
+//                   ? "Updating..."
+//                   : "Creating..."
+//                 : isEdit
+//                   ? "Update"
+//                   : "Create"
+//             }
+//             disabled={isPending}
+//           />
+//         </div>
+//       </div>
+//     </Form>
+//   );
+// };
+
+// const RoleForm = ({ open, onClose, initialData }) => {
+//   const isEdit = !!initialData;
+//   const isSystem = initialData?.is_system === true;
+
+//   const createMutation = useCreateRole();
+//   const updateMutation = useUpdateRole();
+
+//   if (!open) return null;
+
+//   const isPending = createMutation.isPending || updateMutation.isPending;
+
+//   const initialValues = {
+//     name: initialData?.name || "",
+//     label: initialData?.label || "",
+//     description: initialData?.description || "",
+//     status: initialData?.status ?? true,
+//     is_provider: initialData?.is_provider ?? false,
+//     sort_order: initialData?.sort_order ?? 0,
+//   };
+
+//   const validationSchema = Yup.object({
+//     name: Yup.string()
+//       .trim()
+//       .required("Role name is required")
+//       .max(150, "Max 150 characters")
+//       .matches(
+//         /^[a-z0-9]+(?:_[a-z0-9]+)*$/,
+//         "Only lowercase letters, numbers and underscores allowed",
+//       ),
+//     label: Yup.string()
+//       .trim()
+//       .required("Label is required")
+//       .max(150, "Max 150 characters"),
+//     description: Yup.string().nullable(),
+//     status: Yup.boolean(),
+//     is_provider: Yup.boolean(),
+//     sort_order: Yup.number()
+//       .typeError("Must be a number")
+//       .integer("Must be an integer")
+//       .min(0, "Cannot be negative"),
+//   });
+
+//   const handleSubmit = (values) => {
+//     const payload = {
+//       label: values.label.trim(),
+//       description: values.description?.trim() || null,
+//       sort_order: Number(values.sort_order) || 0,
+//       is_provider: values.is_provider,
+//     };
+
+//     if (!isSystem) {
+//       payload.name = values.name.trim();
+//       payload.status = values.status;
+//     }
+
+//     const mutation = isEdit
+//       ? updateMutation.mutateAsync({ id: initialData.id, payload })
+//       : createMutation.mutateAsync(payload);
+
+//     mutation.then(() => onClose()).catch(() => {});
+//   };
+
+//   return (
+//     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+//       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+
+//       {/* FIX: Added max-h-[90vh] and overflow-y-auto for vertical scrolling */}
+//       <div className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl border border-ink-200 bg-surface shadow-xl">
+//         {/* FIX: Sticky Header */}
+//         <div className="flex shrink-0 items-center justify-between border-b border-ink-100 px-5 py-4">
+//           <div>
+//             <h2 className="font-jakarta text-lg font-bold text-ink-900">
+//               {isEdit ? "Edit Role" : "Add Role"}
+//             </h2>
+//             {isSystem && (
+//               <p className="mt-0.5 text-xs text-warn-800">
+//                 System role — name &amp; status cannot be changed
+//               </p>
+//             )}
+//           </div>
+//           <button
+//             type="button"
+//             onClick={onClose}
+//             className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50 hover:text-ink-900"
+//           >
+//             <FiX className="h-5 w-5" />
+//           </button>
+//         </div>
+
+//         {/* FIX: Scrollable content area */}
+//         <div className="overflow-y-auto">
+//           <Formik
+//             key={initialData?.id || "new"}
+//             initialValues={initialValues}
+//             validationSchema={validationSchema}
+//             onSubmit={handleSubmit}
+//             enableReinitialize
+//           >
+//             <RoleFormInner
+//               onClose={onClose}
+//               isEdit={isEdit}
+//               isSystem={isSystem}
+//               isPending={isPending}
+//             />
+//           </Formik>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default RoleForm;
+
 // src/features/patent/pages/roles/components/RoleForm.jsx
 
 import { Formik, Form, useFormikContext } from "formik";
@@ -24,16 +240,12 @@ const RoleFormInner = ({ onClose, isEdit, isSystem, isPending }) => {
         required
         isDisabled={isSystem}
       />
-      <p className="-mt-3 mb-3 text-xs text-form-help">
-        Lowercase, underscores allowed (e.g. <code>front_desk</code>)
-      </p>
 
       <TextInput
         label="Display Label"
         name="label"
         placeholder="e.g. Receptionist"
         maxLength={150}
-        required
       />
 
       <TextareaField
@@ -130,10 +342,7 @@ const RoleForm = ({ open, onClose, initialData }) => {
         /^[a-z0-9]+(?:_[a-z0-9]+)*$/,
         "Only lowercase letters, numbers and underscores allowed",
       ),
-    label: Yup.string()
-      .trim()
-      .required("Label is required")
-      .max(150, "Max 150 characters"),
+    label: Yup.string().trim().max(150, "Max 150 characters"),
     description: Yup.string().nullable(),
     status: Yup.boolean(),
     is_provider: Yup.boolean(),
@@ -145,7 +354,7 @@ const RoleForm = ({ open, onClose, initialData }) => {
 
   const handleSubmit = (values) => {
     const payload = {
-      label: values.label.trim(),
+      label: values.label?.trim() || values.name.trim(),
       description: values.description?.trim() || null,
       sort_order: Number(values.sort_order) || 0,
       is_provider: values.is_provider,
@@ -167,9 +376,7 @@ const RoleForm = ({ open, onClose, initialData }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      {/* FIX: Added max-h-[90vh] and overflow-y-auto for vertical scrolling */}
       <div className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl border border-ink-200 bg-surface shadow-xl">
-        {/* FIX: Sticky Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-ink-100 px-5 py-4">
           <div>
             <h2 className="font-jakarta text-lg font-bold text-ink-900">
@@ -190,7 +397,6 @@ const RoleForm = ({ open, onClose, initialData }) => {
           </button>
         </div>
 
-        {/* FIX: Scrollable content area */}
         <div className="overflow-y-auto">
           <Formik
             key={initialData?.id || "new"}

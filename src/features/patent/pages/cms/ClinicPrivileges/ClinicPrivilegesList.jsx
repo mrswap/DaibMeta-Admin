@@ -413,9 +413,9 @@ const ClinicPrivilegesList = () => {
       align: "right",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row)}>
+          {/* <IconBtn title="View" onClick={() => handleView(row)}>
             <FiEye className="h-4 w-4" />
-          </IconBtn>
+          </IconBtn> */}
           <IconBtn title="Edit" onClick={() => handleEdit(row)}>
             <FiEdit2 className="h-4 w-4" />
           </IconBtn>

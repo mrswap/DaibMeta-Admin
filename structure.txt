@@ -164,6 +164,9 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  |     ├── SymptomsList.jsx
 |  |     |  |     └── SymptomsUI.jsx
 |  |     |  ├── ComingSoon.jsx
+|  |     |  ├── contactMessages
+|  |     |  |  ├── ContactMessageDetails.jsx
+|  |     |  |  └── ContactMessageList.jsx
 |  |     |  ├── dashboad
 |  |     |  |  ├── components
 |  |     |  |  |  └── DoctroSlots.jsx
@@ -180,6 +183,16 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  |  ├── HealthPackagesForm.jsx
 |  |     |  |  ├── HealthPackagesList.jsx
 |  |     |  |  └── HealthPackagesView.jsx
+|  |     |  ├── healthQuiz
+|  |     |  |  ├── history
+|  |     |  |  |  ├── HealthQuizAttemptView.jsx
+|  |     |  |  |  └── HealthQuizHistoryList.jsx
+|  |     |  |  ├── leaderboard
+|  |     |  |  |  ├── HealthQuizLeaderboard.jsx
+|  |     |  |  |  └── HealthQuizPatientLeaderboard.jsx
+|  |     |  |  └── questions
+|  |     |  |     ├── HealthQuizQuestionForm.jsx
+|  |     |  |     └── HealthQuizQuestionList.jsx
 |  |     |  ├── healthTips
 |  |     |  |  ├── HealthTipsForm.jsx
 |  |     |  |  ├── HealthTipsList.jsx
@@ -220,6 +233,7 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  |  └── ServiceManagerView.jsx
 |  |     |  ├── settings
 |  |     |  |  ├── components
+|  |     |  |  |  ├── ClinicPrivilegesSettingsTab.jsx
 |  |     |  |  |  ├── SettingField.jsx
 |  |     |  |  |  ├── SettingsGroupTab.jsx
 |  |     |  |  |  ├── SettingsSkeleton.jsx
@@ -278,9 +292,11 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  ├── banners.js
 |  |     |  ├── bookingCalendar.js
 |  |     |  ├── clinicPrivileges.js
+|  |     |  ├── contactMessages.js
 |  |     |  ├── contentPages.js
 |  |     |  ├── exceptionManagement.js
 |  |     |  ├── healthPackages.js
+|  |     |  ├── healthQuiz.js
 |  |     |  ├── healthTips.js
 |  |     |  ├── homeCms.js
 |  |     |  ├── knowYourHealth.js
@@ -292,7 +308,13 @@ E:\NetswapTechnology\DMT\dmt-web
 |  |     |  ├── settings.js
 |  |     |  ├── specializations.js
 |  |     |  ├── staff.js
+|  |     |  ├── storeCategories.js
+|  |     |  ├── storeCharges.js
 |  |     |  ├── storeFlashCards.js
+|  |     |  ├── storeLeads.js
+|  |     |  ├── storeProducts.js
+|  |     |  ├── storeSeller.js
+|  |     |  ├── storeSubcategories.js
 |  |     |  └── visits.js
 |  |     └── routes
 |  |        ├── AdminRoutes.jsx
@@ -314,6 +336,6 @@ E:\NetswapTechnology\DMT\dmt-web
 ├── vercel.json
 └── vite.config.js
 
-directory: 1971 file: 17382
+directory: 1980 file: 17428
 
-ignored: directory (154)
+ignored: directory (155)
