@@ -1,3 +1,5 @@
+// src/features/patent/pages/patients/components/PatientView.jsx
+
 import { useState } from "react";
 import {
   FiX,
@@ -11,10 +13,12 @@ import {
   FiActivity,
   FiHash,
   FiClock,
+  FiLock,
 } from "react-icons/fi";
 import { usePatient } from "../../../queries/patients";
 import Loader from "../../../common/Loader";
 import FamilyMembersSection from "./FamilyMembersSection";
+import { usePermission } from "../../../hooks/usePermission";
 
 const TABS = [
   { key: "overview", label: "Overview", icon: FiUser },
@@ -29,7 +33,13 @@ const getInitials = (name = "") => {
 };
 
 const PatientView = ({ open, onClose, id, onEdit }) => {
-  const { data, isLoading } = usePatient(id);
+  const { can } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("patients", "view");
+  const canManage = can("patients", "manage");
+
+  const { data, isLoading } = usePatient(id, { enabled: canView && open });
   const [activeTab, setActiveTab] = useState("overview");
 
   if (!open) return null;
@@ -47,7 +57,8 @@ const PatientView = ({ open, onClose, id, onEdit }) => {
             Patient Details
           </h2>
           <div className="flex items-center gap-2">
-            {onEdit && data && (
+            {/* Edit Button - Only if canManage */}
+            {canManage && onEdit && data && (
               <button
                 onClick={() => {
                   onClose();
@@ -59,6 +70,7 @@ const PatientView = ({ open, onClose, id, onEdit }) => {
                 Edit
               </button>
             )}
+
             <button
               onClick={onClose}
               className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50"
@@ -172,7 +184,10 @@ const PatientView = ({ open, onClose, id, onEdit }) => {
                 )}
 
                 {activeTab === "family" && !isFamilyMember && (
-                  <FamilyMembersSection patientId={data.id} />
+                  <FamilyMembersSection
+                    patientId={data.id}
+                    canManage={canManage} // ✅ Passed down if family members add/edit is allowed
+                  />
                 )}
               </div>
             </>

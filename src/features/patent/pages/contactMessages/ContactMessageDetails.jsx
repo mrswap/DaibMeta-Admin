@@ -14,6 +14,7 @@ import {
   FiChevronDown,
   FiCheck,
   FiRefreshCw,
+  FiLock,
 } from "react-icons/fi";
 
 import {
@@ -21,6 +22,7 @@ import {
   useUpdateContactMessageStatus,
 } from "../../queries/contactMessages";
 import Loader from "../../common/Loader";
+import { usePermission } from "../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   {
@@ -57,9 +59,22 @@ const formatDateTime = (dateStr) => {
 const ContactMessageDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
 
-  const { data: message, isLoading, isError } = useContactMessage(id);
-  const updateMutation = useUpdateContactMessageStatus();
+  // ==================== PERMISSIONS ====================
+  const canView = can("contact_messages", "view");
+  const canManage = can("contact_messages", "manage");
+
+  const {
+    data: message,
+    isLoading,
+    isError,
+  } = useContactMessage(id, {
+    enabled: canView,
+  });
+  const updateMutation = useUpdateContactMessageStatus({
+    enabled: canManage,
+  });
 
   const [selectedStatus, setSelectedStatus] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -82,7 +97,36 @@ const ContactMessageDetails = () => {
     }
   }, [message?.status]);
 
-  if (isLoading) return <Loader text="Loading message details..." />;
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view contact message details.
+        </p>
+        <button
+          onClick={() => navigate("/contact-messages")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Back to Messages
+        </button>
+      </div>
+    );
+  }
+
+  if (isLoading && canView) {
+    return <Loader text="Loading message details..." />;
+  }
 
   if (isError || !message) {
     return (
@@ -115,6 +159,7 @@ const ContactMessageDetails = () => {
   }
 
   const handleStatusUpdate = () => {
+    if (!canManage) return;
     if (!selectedStatus || selectedStatus === message.status) return;
     updateMutation.mutate({ id, status: selectedStatus });
   };
@@ -144,76 +189,90 @@ const ContactMessageDetails = () => {
           </div>
         </div>
 
-        {/* Right side: Status Update Control */}
-        <div className="flex items-center gap-3">
-          <div className="relative" ref={dropdownRef}>
-            <button
-              type="button"
-              onClick={() => setIsDropdownOpen((prev) => !prev)}
-              className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2 text-sm transition-colors min-w-[140px] ${
-                isDropdownOpen
-                  ? "border-brand-400 ring-1 ring-brand-100"
-                  : "border-ink-200 hover:border-ink-300"
-              }`}
-            >
-              <span
-                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ${
-                  selectedOption?.colorClass ||
-                  "bg-ink-100 text-ink-600 ring-ink-200"
+        {/* Right side: Status Update Control — Only if canManage */}
+        {canManage ? (
+          <div className="flex items-center gap-3">
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen((prev) => !prev)}
+                className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2 text-sm transition-colors min-w-[140px] ${
+                  isDropdownOpen
+                    ? "border-brand-400 ring-1 ring-brand-100"
+                    : "border-ink-200 hover:border-ink-300"
                 }`}
               >
-                {selectedOption?.label || "Select Status"}
-              </span>
-              <FiChevronDown
-                className={`h-4 w-4 text-ink-400 transition-transform ${
-                  isDropdownOpen ? "rotate-180" : ""
-                }`}
-              />
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ${
+                    selectedOption?.colorClass ||
+                    "bg-ink-100 text-ink-600 ring-ink-200"
+                  }`}
+                >
+                  {selectedOption?.label || "Select Status"}
+                </span>
+                <FiChevronDown
+                  className={`h-4 w-4 text-ink-400 transition-transform ${
+                    isDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-ink-100 bg-surface shadow-lg">
+                  {STATUS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setSelectedStatus(opt.value);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-ink-50 ${
+                        selectedStatus === opt.value
+                          ? "bg-brand-50/50 font-medium text-brand-700"
+                          : "text-ink-700"
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {selectedStatus === opt.value && (
+                        <FiCheck className="h-4 w-4 text-brand-600" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleStatusUpdate}
+              disabled={!isStatusChanged || updateMutation.isPending}
+              className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+                isStatusChanged
+                  ? "bg-btn-primary-bg text-btn-primary-text hover:bg-btn-primary-bg-hover shadow-sm"
+                  : "bg-ink-100 text-ink-400 cursor-not-allowed"
+              }`}
+            >
+              {updateMutation.isPending ? (
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <FiRefreshCw className="h-4 w-4" />
+              )}
+              Save
             </button>
-
-            {isDropdownOpen && (
-              <div className="absolute right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-ink-100 bg-surface shadow-lg">
-                {STATUS_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => {
-                      setSelectedStatus(opt.value);
-                      setIsDropdownOpen(false);
-                    }}
-                    className={`flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-ink-50 ${
-                      selectedStatus === opt.value
-                        ? "bg-brand-50/50 font-medium text-brand-700"
-                        : "text-ink-700"
-                    }`}
-                  >
-                    <span>{opt.label}</span>
-                    {selectedStatus === opt.value && (
-                      <FiCheck className="h-4 w-4 text-brand-600" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-
-          <button
-            onClick={handleStatusUpdate}
-            disabled={!isStatusChanged || updateMutation.isPending}
-            className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-              isStatusChanged
-                ? "bg-btn-primary-bg text-btn-primary-text hover:bg-btn-primary-bg-hover shadow-sm"
-                : "bg-ink-100 text-ink-400 cursor-not-allowed"
-            }`}
-          >
-            {updateMutation.isPending ? (
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-            ) : (
-              <FiRefreshCw className="h-4 w-4" />
-            )}
-            Save
-          </button>
-        </div>
+        ) : (
+          /* Read-only Status Badge if !canManage */
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ring-1 ${
+                selectedOption?.colorClass ||
+                "bg-ink-100 text-ink-600 ring-ink-200"
+              }`}
+            >
+              {selectedOption?.label || "Unknown"}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

@@ -10,6 +10,7 @@ import {
   FiUser,
   FiClock,
   FiFileText,
+  FiLock,
 } from "react-icons/fi";
 import { useCreateFollowUp } from "../../../../queries/visits";
 import { useStaff } from "../../../../queries/staff";
@@ -47,7 +48,6 @@ const FollowUpFormInner = ({
   isPending,
   providerOptions,
   appointmentTypeOptions,
-  setAutoDate,
 }) => {
   const { values, setFieldValue } = useFormikContext();
   const showAppointment = values.book_appointment === true;
@@ -194,7 +194,7 @@ const FollowUpFormInner = ({
 };
 
 // ==================== MAIN ====================
-const FollowUpTab = ({ visitId }) => {
+const FollowUpTab = ({ visitId, canManage = false }) => {
   const createMutation = useCreateFollowUp();
 
   const { data: staffData } = useStaff({ per_page: 100, status: 1 });
@@ -277,6 +277,8 @@ const FollowUpTab = ({ visitId }) => {
 
   // Submit
   const handleSubmit = (values, { resetForm }) => {
+    if (!canManage) return;
+
     const payload = {
       follow_up_days: Number(values.follow_up_days),
       follow_up_date: values.follow_up_date,
@@ -301,6 +303,39 @@ const FollowUpTab = ({ visitId }) => {
   };
 
   const isPending = createMutation.isPending;
+
+  // ==================== READ-ONLY GUARD ====================
+  // View-only users cannot create follow-ups
+  if (!canManage) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start gap-2.5 rounded-lg border border-warn-200 bg-warn-50/50 px-4 py-3">
+          <FiLock className="mt-0.5 h-4 w-4 shrink-0 text-warn-700" />
+          <div>
+            <p className="text-xs font-semibold text-warn-900">
+              Read-only access
+            </p>
+            <p className="mt-0.5 text-[11px] text-warn-800">
+              You can view follow-up details, but creating a follow-up requires
+              manage permission.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-dashed border-ink-200 bg-ink-50/40 py-12 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100">
+            <FiCalendar className="h-5 w-5 text-ink-500" />
+          </div>
+          <p className="text-sm font-medium text-ink-700">
+            No follow-up available
+          </p>
+          <p className="mt-1 text-xs text-ink-500">
+            You do not have permission to create follow-ups for this visit.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">

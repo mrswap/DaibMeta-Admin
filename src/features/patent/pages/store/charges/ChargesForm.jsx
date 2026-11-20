@@ -11,6 +11,7 @@ import {
   FiPlus,
   FiTrash2,
   FiInfo,
+  FiLock,
 } from "react-icons/fi";
 
 import {
@@ -19,6 +20,7 @@ import {
 } from "../../../queries/storeCharges";
 import TextInput from "../../../common/form/TextInput";
 import Loader from "../../../common/Loader";
+import { usePermission } from "../../../hooks/usePermission";
 
 const MAX_SLABS = 4;
 
@@ -51,9 +53,47 @@ const validateSlabs = (slabs) => {
 
 const ChargesForm = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
 
-  const { data: chargesData, isLoading } = useStoreCharges();
+  // ==================== PERMISSIONS ====================
+  const canView = can("store", "view");
+  const canManage = can("store", "manage");
+
+  const { data: chargesData, isLoading } = useStoreCharges(
+    {},
+    {
+      enabled: canView,
+    },
+  );
   const saveMutation = useSaveStoreCharges();
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view store charges. Please contact your
+          administrator.
+        </p>
+        <button
+          onClick={() => navigate("/store")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Back to Store
+        </button>
+      </div>
+    );
+  }
 
   // Prepare initial values
   const initialValues = {
@@ -147,6 +187,11 @@ const ChargesForm = () => {
   });
 
   const handleSubmit = (values) => {
+    if (!canManage) {
+      setSubmitting(false);
+      return;
+    }
+
     const payload = {
       delivery_charges: values.delivery_charges.map((s) => ({
         min_amount: Number(s.min_amount),
@@ -184,7 +229,9 @@ const ChargesForm = () => {
             Store Charges
           </h1>
           <p className="mt-0.5 text-xs text-ink-500 sm:text-sm">
-            Configure delivery, processing and other fees
+            {canManage
+              ? "Configure delivery, processing and other fees"
+              : "View delivery, processing and other fees (Read-only)"}
           </p>
         </div>
       </div>
@@ -239,38 +286,46 @@ const ChargesForm = () => {
                             name={`delivery_charges.${index}.min_amount`}
                             placeholder="Min (₹)"
                             type="number"
+                            disabled={!canManage}
                           />
                           <TextInput
                             name={`delivery_charges.${index}.max_amount`}
                             placeholder="Max (₹) - Blank for unlimited"
                             type="number"
+                            disabled={!canManage}
                           />
                           <TextInput
                             name={`delivery_charges.${index}.charge_amount`}
                             placeholder="Charge (₹)"
                             type="number"
+                            disabled={!canManage}
                           />
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => remove(index)}
-                          disabled={values.delivery_charges.length === 1}
-                          className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink-200 text-ink-400 hover:bg-danger-50 hover:text-danger-600 hover:border-danger-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                          title="Remove Slab"
-                        >
-                          <FiTrash2 className="h-4 w-4" />
-                        </button>
 
-                        {/* Mobile Remove Button */}
-                        <button
-                          type="button"
-                          onClick={() => remove(index)}
-                          disabled={values.delivery_charges.length === 1}
-                          className="flex sm:hidden w-full items-center justify-center gap-2 rounded-lg border border-danger-200 bg-danger-50 py-2 text-xs font-medium text-danger-600 disabled:opacity-50"
-                        >
-                          <FiTrash2 className="h-3.5 w-3.5" />
-                          Remove Slab
-                        </button>
+                        {/* Remove Buttons - Hide if !canManage */}
+                        {canManage && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => remove(index)}
+                              disabled={values.delivery_charges.length === 1}
+                              className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink-200 text-ink-400 hover:bg-danger-50 hover:text-danger-600 hover:border-danger-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                              title="Remove Slab"
+                            >
+                              <FiTrash2 className="h-4 w-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => remove(index)}
+                              disabled={values.delivery_charges.length === 1}
+                              className="flex sm:hidden w-full items-center justify-center gap-2 rounded-lg border border-danger-200 bg-danger-50 py-2 text-xs font-medium text-danger-600 disabled:opacity-50"
+                            >
+                              <FiTrash2 className="h-3.5 w-3.5" />
+                              Remove Slab
+                            </button>
+                          </>
+                        )}
                       </div>
                     ))}
 
@@ -280,23 +335,26 @@ const ChargesForm = () => {
                       </p>
                     )}
 
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          push({
-                            min_amount: "",
-                            max_amount: "",
-                            charge_amount: "",
-                          })
-                        }
-                        disabled={values.delivery_charges.length >= MAX_SLABS}
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <FiPlus className="h-3.5 w-3.5" />
-                        Add Delivery Slab
-                      </button>
-                    </div>
+                    {/* Add Button - Hide if !canManage */}
+                    {canManage && (
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            push({
+                              min_amount: "",
+                              max_amount: "",
+                              charge_amount: "",
+                            })
+                          }
+                          disabled={values.delivery_charges.length >= MAX_SLABS}
+                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <FiPlus className="h-3.5 w-3.5" />
+                          Add Delivery Slab
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </FieldArray>
@@ -334,37 +392,46 @@ const ChargesForm = () => {
                             name={`processing_charges.${index}.min_amount`}
                             placeholder="Min (₹)"
                             type="number"
+                            disabled={!canManage}
                           />
                           <TextInput
                             name={`processing_charges.${index}.max_amount`}
                             placeholder="Max (₹) - Blank for unlimited"
                             type="number"
+                            disabled={!canManage}
                           />
                           <TextInput
                             name={`processing_charges.${index}.charge_amount`}
                             placeholder="Charge (₹)"
                             type="number"
+                            disabled={!canManage}
                           />
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => remove(index)}
-                          disabled={values.processing_charges.length === 1}
-                          className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink-200 text-ink-400 hover:bg-danger-50 hover:text-danger-600 hover:border-danger-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                          title="Remove Slab"
-                        >
-                          <FiTrash2 className="h-4 w-4" />
-                        </button>
 
-                        <button
-                          type="button"
-                          onClick={() => remove(index)}
-                          disabled={values.processing_charges.length === 1}
-                          className="flex sm:hidden w-full items-center justify-center gap-2 rounded-lg border border-danger-200 bg-danger-50 py-2 text-xs font-medium text-danger-600 disabled:opacity-50"
-                        >
-                          <FiTrash2 className="h-3.5 w-3.5" />
-                          Remove Slab
-                        </button>
+                        {/* Remove Buttons - Hide if !canManage */}
+                        {canManage && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => remove(index)}
+                              disabled={values.processing_charges.length === 1}
+                              className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink-200 text-ink-400 hover:bg-danger-50 hover:text-danger-600 hover:border-danger-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                              title="Remove Slab"
+                            >
+                              <FiTrash2 className="h-4 w-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => remove(index)}
+                              disabled={values.processing_charges.length === 1}
+                              className="flex sm:hidden w-full items-center justify-center gap-2 rounded-lg border border-danger-200 bg-danger-50 py-2 text-xs font-medium text-danger-600 disabled:opacity-50"
+                            >
+                              <FiTrash2 className="h-3.5 w-3.5" />
+                              Remove Slab
+                            </button>
+                          </>
+                        )}
                       </div>
                     ))}
 
@@ -374,23 +441,28 @@ const ChargesForm = () => {
                       </p>
                     )}
 
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          push({
-                            min_amount: "",
-                            max_amount: "",
-                            charge_amount: "",
-                          })
-                        }
-                        disabled={values.processing_charges.length >= MAX_SLABS}
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <FiPlus className="h-3.5 w-3.5" />
-                        Add Processing Slab
-                      </button>
-                    </div>
+                    {/* Add Button - Hide if !canManage */}
+                    {canManage && (
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            push({
+                              min_amount: "",
+                              max_amount: "",
+                              charge_amount: "",
+                            })
+                          }
+                          disabled={
+                            values.processing_charges.length >= MAX_SLABS
+                          }
+                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <FiPlus className="h-3.5 w-3.5" />
+                          Add Processing Slab
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </FieldArray>
@@ -416,23 +488,26 @@ const ChargesForm = () => {
                   placeholder="e.g. 25"
                   type="number"
                   required
+                  disabled={!canManage}
                 />
               </div>
             </div>
 
-            {/* Action Button */}
-            <div className="flex flex-col-reverse gap-3 border-t border-ink-100 bg-ink-50/30 px-5 py-4 sm:flex-row sm:justify-end sm:px-6 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 mt-6">
-              <button
-                type="submit"
-                disabled={isSubmitting || saveMutation.isPending}
-                className="flex w-full sm:w-auto cursor-pointer items-center justify-center gap-2 rounded-lg bg-btn-primary-bg px-6 py-2.5 font-semibold text-btn-primary-text transition-colors duration-200 hover:bg-btn-primary-bg-hover disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {(isSubmitting || saveMutation.isPending) && (
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                )}
-                Save Charges
-              </button>
-            </div>
+            {/* Action Button - Hide if !canManage */}
+            {canManage && (
+              <div className="flex flex-col-reverse gap-3 border-t border-ink-100 bg-ink-50/30 px-5 py-4 sm:flex-row sm:justify-end sm:px-6 -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 mt-6">
+                <button
+                  type="submit"
+                  disabled={isSubmitting || saveMutation.isPending}
+                  className="flex w-full sm:w-auto cursor-pointer items-center justify-center gap-2 rounded-lg bg-btn-primary-bg px-6 py-2.5 font-semibold text-btn-primary-text transition-colors duration-200 hover:bg-btn-primary-bg-hover disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {(isSubmitting || saveMutation.isPending) && (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  )}
+                  Save Charges
+                </button>
+              </div>
+            )}
           </Form>
         )}
       </Formik>

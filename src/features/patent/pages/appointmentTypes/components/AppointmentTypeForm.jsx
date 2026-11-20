@@ -7,6 +7,7 @@ import {
 } from "../../../queries/appointmentTypes";
 import { useRoles } from "../../../queries/roles";
 import { TextInput, FormButton, FilterSelect } from "../../../common/form";
+import { usePermission } from "../../../hooks/usePermission";
 
 // Backend allowed roles (Doc point 4)
 const ALLOWED_ROLE_NAMES = ["doctor", "dietitian", "pathologist", "guest"];
@@ -16,10 +17,13 @@ const AppointmentTypeForm = ({ open, onClose, initialData }) => {
   const isEdit = !!initialData;
   const createMutation = useCreateAppointmentType();
   const updateMutation = useUpdateAppointmentType();
+  const { can } = usePermission();
+
+  const canViewRoles = can("roles", "view");
 
   // ==================== ROLES ====================
   const { data: rolesData } = useRoles({ per_page: 100 });
-  const allRoles = rolesData?.list || [];
+  const allRoles = canViewRoles ? rolesData?.list || [] : [];
   const allowedRoles = allRoles.filter((r) =>
     ALLOWED_ROLE_NAMES.includes(r.name),
   );
@@ -204,6 +208,7 @@ const AppointmentTypeForm = ({ open, onClose, initialData }) => {
                 options={roleOptions}
                 placeholder="Select role..."
                 isClearable
+                isDisabled={isEdit}
               />
               {errors.role_id && (
                 <p className="mt-1 text-xs text-form-error">{errors.role_id}</p>

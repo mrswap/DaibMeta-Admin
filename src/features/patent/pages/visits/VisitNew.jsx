@@ -12,6 +12,7 @@ import {
   FiCheck,
   FiInfo,
   FiAlertCircle,
+  FiLock,
 } from "react-icons/fi";
 import {
   useCreateVisit,
@@ -29,6 +30,8 @@ import {
   validatePhone,
 } from "../../common/form";
 import SlotSelector from "./components/SlotSelector";
+import { usePermission } from "../../hooks/usePermission";
+import Loader from "../../common/Loader";
 
 // ==================== HELPERS ====================
 const todayStr = () => {
@@ -461,6 +464,10 @@ const VisitNewInner = ({
 // ==================== MAIN ====================
 const VisitNew = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  const canView = can("visits", "view");
+  const canManage = can("visits", "manage");
   const createVisit = useCreateVisit();
   const createPatient = useCreatePatient();
 
@@ -609,6 +616,7 @@ const VisitNew = () => {
 
   // ==================== SUBMIT ====================
   const handleSubmit = async (values) => {
+    if (!canManage) return;
     setSubmitError(null);
 
     try {
@@ -667,6 +675,28 @@ const VisitNew = () => {
   };
 
   const isPending = createVisit.isPending || createPatient.isPending;
+
+  if (permLoading) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canManage) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to create visits.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-5">

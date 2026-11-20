@@ -1,3 +1,5 @@
+// src/features/patent/pages/appointmentTypes/AppointmentTypeList.jsx
+
 import { useState } from "react";
 import {
   FiPlus,
@@ -6,6 +8,7 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
+  FiLock,
 } from "react-icons/fi";
 import {
   useAppointmentTypes,
@@ -19,32 +22,27 @@ import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect, ActionToggle } from "../../common/form";
+import { usePermission } from "../../hooks/usePermission";
 
 const ALLOWED_ROLE_NAMES = ["doctor", "dietitian", "pathologist", "guest"];
-
 const STATUS_OPTIONS = [
   { value: "true", label: "Active" },
   { value: "false", label: "Inactive" },
 ];
 
 const AppointmentTypeList = () => {
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState(null);
-  const [statusFilter, setStatusFilter] = useState(null);
-  const [page, setPage] = useState(1);
-  const [perPage] = useState(10);
+  const { can, isLoading: permLoading } = usePermission();
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editData, setEditData] = useState(null);
-  const [viewId, setViewId] = useState(null);
+  // ==================== PERMISSIONS ====================
+  const canView = can("appointment_types", "view");
+  const canManage = can("appointment_types", "manage");
 
-  const [confirm, setConfirm] = useState({
-    open: false,
-    type: null,
-    item: null,
+  // Roles access (for the role filter)
+  const canViewRoles = can("roles", "view");
+  const { data: rolesData } = useRoles(canViewRoles ? { per_page: 100 } : {}, {
+    enabled: canViewRoles,
   });
 
-  const { data: rolesData } = useRoles({ per_page: 100 });
   const allRoles = rolesData?.list || [];
   const allowedRoles = allRoles.filter((r) =>
     ALLOWED_ROLE_NAMES.includes(r.name),
@@ -55,6 +53,22 @@ const AppointmentTypeList = () => {
     label: r.label,
   }));
 
+  // ==================== STATE ====================
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(10);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [viewId, setViewId] = useState(null);
+  const [confirm, setConfirm] = useState({
+    open: false,
+    type: null,
+    item: null,
+  });
+
   const params = {
     page,
     per_page: perPage,
@@ -63,30 +77,36 @@ const AppointmentTypeList = () => {
     ...(statusFilter?.value && { status: statusFilter.value }),
   };
 
-  const { data, isLoading, isFetching, refetch } = useAppointmentTypes(params);
+  const { data, isLoading, isFetching, refetch } = useAppointmentTypes(params, {
+    enabled: canView,
+  });
   const toggleStatus = useToggleAppointmentTypeStatus();
   const deleteMutation = useDeleteAppointmentType();
 
   const list = data?.list || [];
   const meta = data?.meta || {};
 
+  // ==================== HANDLERS ====================
   const handleAdd = () => {
+    if (!canManage) return;
     setEditData(null);
     setFormOpen(true);
   };
-
   const handleEdit = (item) => {
+    if (!canManage) return;
     setEditData(item);
     setFormOpen(true);
   };
-
-  const handleView = (id) => setViewId(id);
-
+  const handleView = (id) => {
+    if (!canView) return;
+    setViewId(id);
+  };
   const handleToggleClick = (item) => {
+    if (!canManage) return;
     setConfirm({ open: true, type: "toggle", item });
   };
-
   const handleDeleteClick = (item) => {
+    if (!canManage) return;
     setConfirm({ open: true, type: "delete", item });
   };
 
@@ -99,14 +119,33 @@ const AppointmentTypeList = () => {
     });
   };
 
-  const handleCancel = () => {
+  const handleCancel = () =>
     setConfirm({ open: false, type: null, item: null });
-  };
 
   const currentPage = meta.current_page || 1;
   const lastPage = meta.last_page || 1;
   const total = meta.total || 0;
   const metaPerPage = meta.per_page || perPage;
+
+  if (permLoading) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view appointment types.
+        </p>
+      </div>
+    );
+  }
 
   const columns = [
     {
@@ -156,22 +195,41 @@ const AppointmentTypeList = () => {
       header: "Actions",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row.id)}>
-            <FiEye className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-            <FiEdit2 className="h-4 w-4" />
-          </IconBtn>
-          <ActionToggle
-            active={row.status}
-            onClick={() => handleToggleClick(row)}
-            loading={
-              toggleStatus.isPending && toggleStatus.variables === row.id
-            }
-          />
-          <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
-            <FiTrash2 className="h-4 w-4" />
-          </IconBtn>
+          {/* View Permission */}
+          {canView && (
+            <IconBtn title="View" onClick={() => handleView(row.id)}>
+              <FiEye className="h-4 w-4" />
+            </IconBtn>
+          )}
+
+          {/* Manage Permission */}
+          {canManage && (
+            <>
+              <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+                <FiEdit2 className="h-4 w-4" />
+              </IconBtn>
+
+              <ActionToggle
+                active={row.status}
+                onClick={() => handleToggleClick(row)}
+                loading={
+                  toggleStatus.isPending && toggleStatus.variables === row.id
+                }
+              />
+
+              <IconBtn
+                title="Delete"
+                onClick={() => handleDeleteClick(row)}
+                danger
+              >
+                <FiTrash2 className="h-4 w-4" />
+              </IconBtn>
+            </>
+          )}
+
+          {!canView && !canManage && (
+            <span className="text-xs text-ink-400">—</span>
+          )}
         </div>
       ),
     },
@@ -189,9 +247,7 @@ const AppointmentTypeList = () => {
           title: confirm.item?.status
             ? "Deactivate Appointment Type"
             : "Activate Appointment Type",
-          message: `Are you sure you want to ${
-            confirm.item?.status ? "deactivate" : "activate"
-          } "${confirm.item?.name}"?`,
+          message: `Are you sure you want to ${confirm.item?.status ? "deactivate" : "activate"} "${confirm.item?.name}"?`,
           confirmText: confirm.item?.status ? "Deactivate" : "Activate",
           variant: "warn",
         };
@@ -207,13 +263,14 @@ const AppointmentTypeList = () => {
             Manage appointment types and their provider roles
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
-        >
-          <FiPlus className="h-4 w-4" />
-          Add Appointment Type
-        </button>
+        {canManage && (
+          <button
+            onClick={handleAdd}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
+          >
+            <FiPlus className="h-4 w-4" /> Add Appointment Type
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-surface p-4 lg:flex-row lg:items-center">
@@ -232,17 +289,19 @@ const AppointmentTypeList = () => {
           />
         </div>
 
-        <FilterSelect
-          value={roleFilter}
-          onChange={(v) => {
-            setRoleFilter(v);
-            setPage(1);
-          }}
-          options={roleOptions}
-          placeholder="All Roles"
-          isClearable
-          width="w-48"
-        />
+        {canViewRoles && roleOptions.length > 0 && (
+          <FilterSelect
+            value={roleFilter}
+            onChange={(v) => {
+              setRoleFilter(v);
+              setPage(1);
+            }}
+            options={roleOptions}
+            placeholder="All Roles"
+            isClearable
+            width="w-48"
+          />
+        )}
 
         <FilterSelect
           value={statusFilter}
@@ -262,7 +321,7 @@ const AppointmentTypeList = () => {
         >
           <FiRefreshCw
             className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
-          />
+          />{" "}
           Refresh
         </button>
       </div>
@@ -287,39 +346,44 @@ const AppointmentTypeList = () => {
         />
       )}
 
-      <AppointmentTypeForm
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditData(null);
-        }}
-        initialData={editData}
-      />
-      <AppointmentTypeView
-        open={!!viewId}
-        onClose={() => setViewId(null)}
-        id={viewId}
-      />
+      {canManage && (
+        <AppointmentTypeForm
+          open={formOpen}
+          onClose={() => {
+            setFormOpen(false);
+            setEditData(null);
+          }}
+          initialData={editData}
+        />
+      )}
 
-      <ConfirmModal
-        open={confirm.open}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        confirmText={confirmConfig.confirmText}
-        variant={confirmConfig.variant}
-        onConfirm={handleConfirm}
-        onCancel={handleCancel}
-        loading={toggleStatus.isPending || deleteMutation.isPending}
-      />
+      {canView && (
+        <AppointmentTypeView
+          open={!!viewId}
+          onClose={() => setViewId(null)}
+          id={viewId}
+        />
+      )}
+
+      {canManage && (
+        <ConfirmModal
+          open={confirm.open}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          confirmText={confirmConfig.confirmText}
+          variant={confirmConfig.variant}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+          loading={toggleStatus.isPending || deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 };
 
 const StatusBadge = ({ active }) => (
   <span
-    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-      active ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"
-    }`}
+    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${active ? "bg-brand-50 text-brand-700" : "bg-ink-100 text-ink-600"}`}
   >
     {active ? "Active" : "Inactive"}
   </span>
@@ -331,11 +395,7 @@ const IconBtn = ({ children, title, onClick, disabled, danger }) => (
     title={title}
     onClick={onClick}
     disabled={disabled}
-    className={`cursor-pointer rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${
-      danger
-        ? "text-danger-500 hover:bg-danger-50"
-        : "text-ink-600 hover:bg-ink-100 hover:text-ink-900"
-    }`}
+    className={`cursor-pointer rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-40 ${danger ? "text-danger-500 hover:bg-danger-50" : "text-ink-600 hover:bg-ink-100 hover:text-ink-900"}`}
   >
     {children}
   </button>

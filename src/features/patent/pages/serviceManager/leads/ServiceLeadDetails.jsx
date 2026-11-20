@@ -12,6 +12,7 @@ import {
   FiMessageSquare,
   FiCheckCircle,
   FiFileText,
+  FiLock,
 } from "react-icons/fi";
 import Loader from "../../../common/Loader";
 import { FilterSelect } from "../../../common/form";
@@ -21,6 +22,7 @@ import {
   useUpdateLeadNotes,
   LEAD_STATUSES,
 } from "../../../queries/serviceManager";
+import { usePermission } from "../../../hooks/usePermission";
 
 const STATUS_OPTIONS = LEAD_STATUSES.map((s) => ({
   value: s.value,
@@ -30,8 +32,13 @@ const STATUS_OPTIONS = LEAD_STATUSES.map((s) => ({
 const ServiceLeadDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
 
-  const { data: lead, isLoading } = useServiceLead(id);
+  // ==================== PERMISSIONS ====================
+  const canView = can("services", "view");
+  const canManage = can("services", "manage");
+
+  const { data: lead, isLoading } = useServiceLead(id, { enabled: canView });
   const statusMutation = useUpdateLeadStatus();
   const notesMutation = useUpdateLeadNotes();
 
@@ -49,13 +56,46 @@ const ServiceLeadDetails = () => {
   }, [lead]);
 
   const handleUpdateStatus = () => {
-    if (!status) return;
+    if (!canView || !status) return;
     statusMutation.mutate({ id, payload: { status: status.value } });
   };
 
   const handleSaveNotes = () => {
+    if (!canView) return;
     notesMutation.mutate({ id, admin_notes: notes.trim() || null });
   };
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view this lead. Please contact your
+          administrator.
+        </p>
+
+        <button
+          onClick={() => navigate(-1)}
+          className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-ink-50"
+        >
+          <FiArrowLeft className="h-4 w-4" />
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading) return <Loader text="Loading lead details..." />;
   if (!lead)
@@ -207,67 +247,90 @@ const ServiceLeadDetails = () => {
           </div>
         </div>
 
-        {/* Right Column: Action & Notes */}
-        <div className="space-y-6 lg:col-span-1">
-          {/* Status Update */}
-          <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
-            <div className="border-b border-ink-100 px-5 py-4 flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ink-50 text-ink-600">
-                <FiCheckCircle className="h-4 w-4" />
+        {/* Right Column: Action & Notes — Only if Manager */}
+        {canManage ? (
+          <div className="space-y-6 lg:col-span-1">
+            {/* Status Update */}
+            <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
+              <div className="border-b border-ink-100 px-5 py-4 flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ink-50 text-ink-600">
+                  <FiCheckCircle className="h-4 w-4" />
+                </div>
+                <h2 className="text-sm font-semibold text-ink-900">
+                  Update Status
+                </h2>
               </div>
-              <h2 className="text-sm font-semibold text-ink-900">
-                Update Status
-              </h2>
+              <div className="p-5 space-y-3">
+                <FilterSelect
+                  options={STATUS_OPTIONS}
+                  value={status}
+                  onChange={setStatus}
+                  placeholder="Select status"
+                />
+                <button
+                  onClick={handleUpdateStatus}
+                  disabled={
+                    statusMutation.isPending || status?.value === lead.status
+                  }
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {statusMutation.isPending ? "Updating..." : "Update Status"}
+                </button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
-              <FilterSelect
-                options={STATUS_OPTIONS}
-                value={status}
-                onChange={setStatus}
-                placeholder="Select status"
-              />
-              <button
-                onClick={handleUpdateStatus}
-                disabled={
-                  statusMutation.isPending || status?.value === lead.status
-                }
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {statusMutation.isPending ? "Updating..." : "Update Status"}
-              </button>
-            </div>
-          </div>
 
-          {/* Admin Notes */}
-          <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
-            <div className="border-b border-ink-100 px-5 py-4 flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ink-50 text-ink-600">
-                <FiFileText className="h-4 w-4" />
+            {/* Admin Notes */}
+            <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
+              <div className="border-b border-ink-100 px-5 py-4 flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ink-50 text-ink-600">
+                  <FiFileText className="h-4 w-4" />
+                </div>
+                <h2 className="text-sm font-semibold text-ink-900">
+                  Admin Notes
+                </h2>
               </div>
-              <h2 className="text-sm font-semibold text-ink-900">
-                Admin Notes
-              </h2>
-            </div>
-            <div className="p-5 space-y-3">
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add internal notes here..."
-                className="w-full rounded-lg border border-form-border bg-form-bg p-3 text-sm outline-none transition-colors focus:border-form-border-focus focus:ring-1 focus:ring-form-ring"
-                rows={6}
-                maxLength={500}
-              />
-              <button
-                onClick={handleSaveNotes}
-                disabled={notesMutation.isPending}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FiSave />{" "}
-                {notesMutation.isPending ? "Saving..." : "Save Notes"}
-              </button>
+              <div className="p-5 space-y-3">
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add internal notes here..."
+                  className="w-full rounded-lg border border-form-border bg-form-bg p-3 text-sm outline-none transition-colors focus:border-form-border-focus focus:ring-1 focus:ring-form-ring"
+                  rows={6}
+                  maxLength={500}
+                />
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={notesMutation.isPending}
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <FiSave />{" "}
+                  {notesMutation.isPending ? "Saving..." : "Save Notes"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          /* Read-only Admin Notes view */
+          <div className="space-y-6 lg:col-span-1">
+            <div className="rounded-xl border border-ink-100 bg-surface shadow-sm overflow-hidden">
+              <div className="border-b border-ink-100 px-5 py-4 flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-ink-50 text-ink-600">
+                  <FiFileText className="h-4 w-4" />
+                </div>
+                <h2 className="text-sm font-semibold text-ink-900">
+                  Admin Notes
+                </h2>
+              </div>
+              <div className="p-5">
+                <p className="text-sm text-ink-700 whitespace-pre-wrap">
+                  {lead.admin_notes || (
+                    <span className="italic text-ink-400">No notes added.</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

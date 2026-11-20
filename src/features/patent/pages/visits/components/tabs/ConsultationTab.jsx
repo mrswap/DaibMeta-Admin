@@ -28,7 +28,7 @@ const formatDateTime = (d) => {
 };
 
 // ==================== MAIN ====================
-const ConsultationTab = ({ visitId, visitStatus }) => {
+const ConsultationTab = ({ visitId, visitStatus, canManage = false }) => {
   const {
     data: consultation,
     isLoading,
@@ -39,8 +39,9 @@ const ConsultationTab = ({ visitId, visitStatus }) => {
   const [isEditing, setIsEditing] = useState(false);
   const updateMutation = useUpdateConsultation();
 
-  // Consultation is editable only when visit is in_consultation
-  const canEdit = visitStatus === "in_consultation";
+  // Consultation is editable only when visit is in_consultation AND user has manage permission
+  const isStatusEditable = visitStatus === "in_consultation";
+  const canEdit = canManage && isStatusEditable;
   const isEditable = canEdit && isEditing;
 
   // 404 → not started
@@ -66,7 +67,9 @@ const ConsultationTab = ({ visitId, visitStatus }) => {
         </p>
         <p className="mt-1 text-xs text-ink-500">
           {visitStatus === "waiting"
-            ? "Start consultation from Overview tab to record clinical data."
+            ? canManage
+              ? "Start consultation from Overview tab to record clinical data."
+              : "Consultation has not started yet."
             : "No consultation data available for this visit."}
         </p>
       </div>
@@ -90,6 +93,8 @@ const ConsultationTab = ({ visitId, visitStatus }) => {
 
   // ==================== SUBMIT ====================
   const handleSubmit = (values) => {
+    if (!canManage) return;
+
     const payload = {
       symptoms: values.symptoms?.trim() || null,
       clinical_details: values.clinical_details?.trim() || null,
@@ -111,7 +116,7 @@ const ConsultationTab = ({ visitId, visitStatus }) => {
   return (
     <div className="space-y-4">
       {/* Status notices */}
-      {!canEdit && (
+      {canManage && !isStatusEditable && (
         <div className="flex items-start gap-2.5 rounded-lg border border-warn-200 bg-warn-50/50 px-4 py-3">
           <FiLock className="mt-0.5 h-4 w-4 shrink-0 text-warn-700" />
           <div>

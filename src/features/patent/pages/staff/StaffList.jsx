@@ -9,6 +9,7 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
+  FiLock,
 } from "react-icons/fi";
 import {
   useStaff,
@@ -20,6 +21,7 @@ import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect, ActionToggle } from "../../common/form";
+import { usePermission } from "../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   { value: "1", label: "Active" },
@@ -28,6 +30,7 @@ const STATUS_OPTIONS = [
 
 const StaffList = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState(null);
@@ -41,7 +44,14 @@ const StaffList = () => {
     item: null,
   });
 
-  const { data: rolesData } = useRoles({ per_page: 100 });
+  // ==================== PERMISSIONS ====================
+  const canView = can("staff", "view");
+  const canManage = can("staff", "manage");
+
+  const canViewRoles = can("roles", "view");
+  const { data: rolesData } = useRoles(canViewRoles ? { per_page: 100 } : {}, {
+    enabled: canViewRoles,
+  });
   const roles = rolesData?.list || [];
 
   const roleOptions = roles.map((r) => ({
@@ -57,7 +67,9 @@ const StaffList = () => {
     ...(statusFilter?.value && { status: statusFilter.value }),
   };
 
-  const { data, isLoading, isFetching, refetch } = useStaff(params);
+  const { data, isLoading, isFetching, refetch } = useStaff(params, {
+    enabled: canView,
+  });
   const toggleStatus = useToggleStaffStatus();
   const deleteMutation = useDeleteStaff();
 
@@ -65,24 +77,27 @@ const StaffList = () => {
   const meta = data?.meta || {};
 
   const handleAdd = () => {
+    if (!canManage) return;
     navigate("/staff/new");
   };
 
   const handleEdit = (item) => {
+    if (!canManage) return;
     navigate(`/staff/${item.id}/edit`);
   };
 
   const handleView = (id) => {
+    if (!canView) return;
     navigate(`/staff/${id}`);
   };
 
   const handleToggleClick = (item) => {
-    if (item.is_super_admin) return;
+    if (!canManage || item.is_super_admin) return;
     setConfirm({ open: true, type: "toggle", item });
   };
 
   const handleDeleteClick = (item) => {
-    if (item.is_super_admin) return;
+    if (!canManage || item.is_super_admin) return;
     setConfirm({ open: true, type: "delete", item });
   };
 
@@ -179,30 +194,43 @@ const StaffList = () => {
       header: "Actions",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row.id)}>
-            <FiEye className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-            <FiEdit2 className="h-4 w-4" />
-          </IconBtn>
-          <ActionToggle
-            active={row.status}
-            onClick={() => handleToggleClick(row)}
-            loading={
-              toggleStatus.isPending && toggleStatus.variables === row.id
-            }
-            disabled={row.is_super_admin}
-          />
-          <IconBtn
-            title={
-              row.is_super_admin ? "Super Admin cannot be deleted" : "Delete"
-            }
-            onClick={() => handleDeleteClick(row)}
-            disabled={row.is_super_admin}
-            danger
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </IconBtn>
+          {/* View */}
+          {/* {canView && (
+            <IconBtn title="View" onClick={() => handleView(row.id)}>
+              <FiEye className="h-4 w-4" />
+            </IconBtn>
+          )} */}
+
+          {/* Manage Actions */}
+          {canManage && (
+            <>
+              <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+                <FiEdit2 className="h-4 w-4" />
+              </IconBtn>
+
+              <ActionToggle
+                active={row.status}
+                onClick={() => handleToggleClick(row)}
+                loading={
+                  toggleStatus.isPending && toggleStatus.variables === row.id
+                }
+                disabled={row.is_super_admin}
+              />
+
+              <IconBtn
+                title={
+                  row.is_super_admin
+                    ? "Super Admin cannot be deleted"
+                    : "Delete"
+                }
+                onClick={() => handleDeleteClick(row)}
+                disabled={row.is_super_admin}
+                danger
+              >
+                <FiTrash2 className="h-4 w-4" />
+              </IconBtn>
+            </>
+          )}
         </div>
       ),
     },
@@ -227,6 +255,28 @@ const StaffList = () => {
           variant: "warn",
         };
 
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view staff. Please contact your
+          administrator.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -238,13 +288,15 @@ const StaffList = () => {
             Manage admin panel staff members
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
-        >
-          <FiPlus className="h-4 w-4" />
-          Add Staff
-        </button>
+        {canManage && (
+          <button
+            onClick={handleAdd}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
+          >
+            <FiPlus className="h-4 w-4" />
+            Add Staff
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-surface p-4 lg:flex-row lg:items-center">
@@ -263,17 +315,19 @@ const StaffList = () => {
           />
         </div>
 
-        <FilterSelect
-          value={roleFilter}
-          onChange={(v) => {
-            setRoleFilter(v);
-            setPage(1);
-          }}
-          options={roleOptions}
-          placeholder="All Roles"
-          isClearable
-          width="w-48"
-        />
+        {canViewRoles && roleOptions.length > 0 && (
+          <FilterSelect
+            value={roleFilter}
+            onChange={(v) => {
+              setRoleFilter(v);
+              setPage(1);
+            }}
+            options={roleOptions}
+            placeholder="All Roles"
+            isClearable
+            width="w-48"
+          />
+        )}
 
         <FilterSelect
           value={statusFilter}
@@ -316,16 +370,18 @@ const StaffList = () => {
         />
       )}
 
-      <ConfirmModal
-        open={confirm.open}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        confirmText={confirmConfig.confirmText}
-        variant={confirmConfig.variant}
-        onConfirm={handleConfirm}
-        onCancel={handleCancel}
-        loading={toggleStatus.isPending || deleteMutation.isPending}
-      />
+      {canManage && (
+        <ConfirmModal
+          open={confirm.open}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          confirmText={confirmConfig.confirmText}
+          variant={confirmConfig.variant}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+          loading={toggleStatus.isPending || deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 };

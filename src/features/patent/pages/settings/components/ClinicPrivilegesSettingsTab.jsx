@@ -6,6 +6,7 @@ import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 import Loader from "../../../common/Loader";
 import { useSettings, useUpdateSetting } from "../../../queries/settings";
+import { usePermission } from "../../../hooks/usePermission";
 
 const quillModules = {
   toolbar: [
@@ -24,8 +25,20 @@ const quillModules = {
   ],
 };
 
+// Read-only toolbar config (empty)
+const readOnlyModules = {
+  toolbar: false,
+};
+
 const ClinicPrivilegesSettingsTab = () => {
-  const { data: allSettings, isLoading } = useSettings();
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ✅ FIX: Settings page ke andar hai, isliye settings.manage check hoga
+  const canManage = can("settings", "manage");
+
+  const { data: allSettings, isLoading } = useSettings({
+    enabled: can("settings", "view"),
+  });
   const updateMutation = useUpdateSetting();
 
   const [title, setTitle] = useState("");
@@ -63,7 +76,7 @@ const ClinicPrivilegesSettingsTab = () => {
 
   // Determine if any changes were made
   const hasChanged = useMemo(() => {
-    if (!settingRecord) return false;
+    if (!canManage || !settingRecord) return false;
     try {
       const parsed = settingRecord.value
         ? typeof settingRecord.value === "string"
@@ -79,9 +92,9 @@ const ClinicPrivilegesSettingsTab = () => {
     } catch {
       return true;
     }
-  }, [title, buttonName, description, content, settingRecord]);
+  }, [title, buttonName, description, content, settingRecord, canManage]);
 
-  if (isLoading || !isQuillReady) {
+  if (permLoading || isLoading || !isQuillReady) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-ink-100 bg-surface">
         <Loader />
@@ -101,6 +114,7 @@ const ClinicPrivilegesSettingsTab = () => {
   }
 
   const handleSave = () => {
+    if (!canManage) return;
     setIsSaving(true);
 
     // Save as JSON object (backend type is json)
@@ -145,7 +159,8 @@ const ClinicPrivilegesSettingsTab = () => {
                 maxLength={150}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Enter title"
-                className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-[13px] text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                disabled={!canManage}
+                className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-[13px] text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:opacity-70"
               />
             </div>
 
@@ -159,7 +174,8 @@ const ClinicPrivilegesSettingsTab = () => {
                 maxLength={50}
                 onChange={(e) => setButtonName(e.target.value)}
                 placeholder="Enter button name"
-                className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-[13px] text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+                disabled={!canManage}
+                className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-[13px] text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:opacity-70"
               />
             </div>
           </div>
@@ -175,7 +191,8 @@ const ClinicPrivilegesSettingsTab = () => {
               maxLength={500}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter description"
-              className="w-full resize-y rounded-lg border border-ink-200 bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
+              disabled={!canManage}
+              className="w-full resize-y rounded-lg border border-ink-200 bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:opacity-70"
             />
           </div>
 
@@ -185,21 +202,22 @@ const ClinicPrivilegesSettingsTab = () => {
               Content
             </label>
             <div
-              className="quill-wrapper overflow-hidden rounded-lg border border-form-border bg-form-bg"
+              className={`quill-wrapper overflow-hidden rounded-lg border border-form-border bg-form-bg ${!canManage ? "opacity-80 pointer-events-none" : ""}`}
               style={{ "--quill-min-height": "300px" }}
             >
               <ReactQuill
                 theme="snow"
                 value={content}
-                onChange={(val) => setContent(val)}
-                modules={quillModules}
+                onChange={(val) => canManage && setContent(val)}
+                modules={canManage ? quillModules : readOnlyModules}
+                readOnly={!canManage}
                 placeholder="Write the content here..."
               />
             </div>
           </div>
 
-          {/* Save Button */}
-          {(hasChanged || isSaving) && (
+          {/* Save Button - Only if canManage */}
+          {canManage && (hasChanged || isSaving) && (
             <div className="flex justify-end pt-2">
               <button
                 type="button"
@@ -228,8 +246,8 @@ const ClinicPrivilegesSettingsTab = () => {
         </div>
       </div>
 
-      {/* Unsaved indicator */}
-      {hasChanged && !isSaving && (
+      {/* Unsaved indicator - Only if canManage */}
+      {canManage && hasChanged && !isSaving && (
         <div className="pointer-events-none sticky bottom-4 z-10 flex justify-end">
           <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-ink-200 bg-surface px-3 py-2 shadow-md">
             <span className="flex h-5 min-w-[20px] items-center justify-center rounded bg-warn-100 px-1 text-[11px] font-bold tabular-nums text-warn-800">

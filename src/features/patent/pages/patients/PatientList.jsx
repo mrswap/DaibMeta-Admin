@@ -1,3 +1,5 @@
+// src/features/patent/pages/patients/PatientList.jsx
+
 import { useState } from "react";
 import {
   FiPlus,
@@ -8,6 +10,7 @@ import {
   FiEye,
   FiGrid,
   FiList,
+  FiLock,
 } from "react-icons/fi";
 import {
   usePatients,
@@ -21,6 +24,7 @@ import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect, ActionToggle } from "../../common/form";
+import { usePermission } from "../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   { value: "1", label: "Active" },
@@ -28,6 +32,12 @@ const STATUS_OPTIONS = [
 ];
 
 const PatientList = () => {
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("patients", "view");
+  const canManage = can("patients", "manage");
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
   const [page, setPage] = useState(1);
@@ -51,7 +61,10 @@ const PatientList = () => {
     ...(statusFilter?.value && { status: statusFilter.value }),
   };
 
-  const { data, isLoading, isFetching, refetch } = usePatients(params);
+  // API gated by view permission
+  const { data, isLoading, isFetching, refetch } = usePatients(params, {
+    enabled: canView,
+  });
   const toggleStatus = useTogglePatientStatus();
   const deleteMutation = useDeletePatient();
 
@@ -59,25 +72,30 @@ const PatientList = () => {
   const meta = data?.meta || {};
 
   const handleAdd = () => {
+    if (!canManage) return;
     setEditData(null);
     setFormOpen(true);
   };
 
   const handleEdit = (item) => {
+    if (!canManage) return;
     setEditData(item);
     setFormOpen(true);
   };
 
   const handleView = (itemOrId) => {
+    if (!canView) return;
     const id = typeof itemOrId === "object" ? itemOrId.id : itemOrId;
     setViewId(id);
   };
 
   const handleToggleClick = (item) => {
+    if (!canManage) return;
     setConfirm({ open: true, type: "toggle", item });
   };
 
   const handleDeleteClick = (item) => {
+    if (!canManage) return;
     setConfirm({ open: true, type: "delete", item });
   };
 
@@ -99,6 +117,29 @@ const PatientList = () => {
   const total = meta.total || 0;
   const metaPerPage = meta.per_page || perPage;
 
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view patients. Please contact your
+          administrator.
+        </p>
+      </div>
+    );
+  }
+
+  // ==================== COLUMNS ====================
   const columns = [
     {
       header: "#",
@@ -179,22 +220,35 @@ const PatientList = () => {
       header: "Actions",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row)}>
-            <FiEye className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-            <FiEdit2 className="h-4 w-4" />
-          </IconBtn>
-          <ActionToggle
-            active={row.status}
-            onClick={() => handleToggleClick(row)}
-            loading={
-              toggleStatus.isPending && toggleStatus.variables === row.id
-            }
-          />
-          <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
-            <FiTrash2 className="h-4 w-4" />
-          </IconBtn>
+          {/* View (Eye) always visible if canView (which is true since page is rendered) */}
+          {canView && (
+            <IconBtn title="View" onClick={() => handleView(row)}>
+              <FiEye className="h-4 w-4" />
+            </IconBtn>
+          )}
+
+          {/* Edit / Toggle / Delete ONLY if canManage */}
+          {canManage && (
+            <>
+              <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+                <FiEdit2 className="h-4 w-4" />
+              </IconBtn>
+              <ActionToggle
+                active={row.status}
+                onClick={() => handleToggleClick(row)}
+                loading={
+                  toggleStatus.isPending && toggleStatus.variables === row.id
+                }
+              />
+              <IconBtn
+                title="Delete"
+                onClick={() => handleDeleteClick(row)}
+                danger
+              >
+                <FiTrash2 className="h-4 w-4" />
+              </IconBtn>
+            </>
+          )}
         </div>
       ),
     },
@@ -221,6 +275,7 @@ const PatientList = () => {
 
   return (
     <div className="space-y-5">
+      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
@@ -231,15 +286,18 @@ const PatientList = () => {
             {total > 0 && ` · ${total} total`}
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
-        >
-          <FiPlus className="h-4 w-4" />
-          Add Patient
-        </button>
+        {canManage && (
+          <button
+            onClick={handleAdd}
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
+          >
+            <FiPlus className="h-4 w-4" />
+            Add Patient
+          </button>
+        )}
       </div>
 
+      {/* Filters Bar */}
       <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-surface p-4 lg:flex-row lg:items-center">
         <div className="flex flex-1 items-center gap-2 rounded-lg border border-form-border bg-form-bg px-3">
           <FiSearch className="h-4 w-4 text-ink-400" />
@@ -306,6 +364,7 @@ const PatientList = () => {
         </div>
       </div>
 
+      {/* Content */}
       {isLoading ? (
         <Loader text="Loading patients..." />
       ) : list.length === 0 ? (
@@ -316,9 +375,11 @@ const PatientList = () => {
           <p className="mt-1 text-xs text-ink-500">
             {search
               ? "Try a different search term or clear filters."
-              : "Add your first patient to get started."}
+              : canManage
+                ? "Add your first patient to get started."
+                : "No patients have been added yet."}
           </p>
-          {!search && (
+          {!search && canManage && (
             <button
               onClick={handleAdd}
               className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
@@ -339,6 +400,7 @@ const PatientList = () => {
                 onEdit={handleEdit}
                 onToggle={handleToggleClick}
                 onDelete={handleDeleteClick}
+                canManage={canManage}
               />
             ))}
           </div>
@@ -385,35 +447,44 @@ const PatientList = () => {
         />
       )}
 
-      <PatientForm
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditData(null);
-        }}
-        initialData={editData}
-      />
-      <PatientView
-        open={!!viewId}
-        onClose={() => setViewId(null)}
-        id={viewId}
-        onEdit={handleEdit}
-      />
+      {/* Form & Modals — Only if canManage */}
+      {canManage && (
+        <PatientForm
+          open={formOpen}
+          onClose={() => {
+            setFormOpen(false);
+            setEditData(null);
+          }}
+          initialData={editData}
+        />
+      )}
 
-      <ConfirmModal
-        open={confirm.open}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        confirmText={confirmConfig.confirmText}
-        variant={confirmConfig.variant}
-        onConfirm={handleConfirm}
-        onCancel={handleCancel}
-        loading={toggleStatus.isPending || deleteMutation.isPending}
-      />
+      {canView && (
+        <PatientView
+          open={!!viewId}
+          onClose={() => setViewId(null)}
+          id={viewId}
+          onEdit={handleEdit}
+        />
+      )}
+
+      {canManage && (
+        <ConfirmModal
+          open={confirm.open}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          confirmText={confirmConfig.confirmText}
+          variant={confirmConfig.variant}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+          loading={toggleStatus.isPending || deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 };
 
+// ==================== HELPERS ====================
 const StatusBadge = ({ active }) => (
   <span
     className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${

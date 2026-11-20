@@ -1,3 +1,5 @@
+// src/features/patent/pages/appointments/AppointmentView.jsx
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import {
@@ -12,6 +14,7 @@ import {
   FiActivity,
   FiRefreshCw,
   FiTrash2,
+  FiLock,
 } from "react-icons/fi";
 import {
   useAppointment,
@@ -23,22 +26,53 @@ import AppointmentStatusBadge from "./components/AppointmentStatusBadge";
 import AppointmentStatusModal from "./components/AppointmentStatusModal";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
+import { usePermission } from "../../hooks/usePermission";
 
 const AppointmentView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { can } = usePermission();
 
-  const { data, isLoading } = useAppointment(id);
+  // ==================== PERMISSIONS ====================
+  const canView = can("appointment", "view");
+  const canManage = can("appointment", "manage");
+
+  const { data, isLoading } = useAppointment(id, { enabled: canView });
   const deleteMutation = useDeleteAppointment();
 
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleDeleteConfirm = () => {
+    if (!canManage) return;
     deleteMutation.mutate(id, {
       onSuccess: () => navigate("/appointments"),
     });
   };
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view appointments. Please contact your
+          administrator.
+        </p>
+        <button
+          onClick={() => navigate("/appointments")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Back to Appointments
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading) return <Loader text="Loading appointment..." />;
 
@@ -60,6 +94,9 @@ const AppointmentView = () => {
     ? new Date(data.appointment_date)
     : null;
 
+  // Option B: action container only renders if user can manage
+  const showActions = canManage;
+
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* Header */}
@@ -80,32 +117,39 @@ const AppointmentView = () => {
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="flex flex-wrap gap-2">
-          {allowedTransitions.length > 0 && (
+        {/* Action buttons — only when user can manage */}
+        {showActions && (
+          <div className="flex flex-wrap gap-2">
+            {/* Change Status */}
+            {allowedTransitions.length > 0 && (
+              <button
+                onClick={() => setStatusModalOpen(true)}
+                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100 sm:flex-none sm:text-sm"
+              >
+                <FiRefreshCw className="h-3.5 w-3.5" />
+                Change Status
+              </button>
+            )}
+
+            {/* Edit */}
             <button
-              onClick={() => setStatusModalOpen(true)}
-              className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100 sm:flex-none sm:text-sm"
+              onClick={() => navigate(`/appointments/${id}/edit`)}
+              className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-surface hover:bg-brand-700 sm:flex-none sm:text-sm"
             >
-              <FiRefreshCw className="h-3.5 w-3.5" />
-              Change Status
+              <FiEdit2 className="h-3.5 w-3.5" />
+              Edit
             </button>
-          )}
-          <button
-            onClick={() => navigate(`/appointments/${id}/edit`)}
-            className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-surface hover:bg-brand-700 sm:flex-none sm:text-sm"
-          >
-            <FiEdit2 className="h-3.5 w-3.5" />
-            Edit
-          </button>
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-xs font-semibold text-danger-700 hover:bg-danger-100 sm:flex-none sm:text-sm"
-          >
-            <FiTrash2 className="h-3.5 w-3.5" />
-            Delete
-          </button>
-        </div>
+
+            {/* Delete */}
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-xs font-semibold text-danger-700 hover:bg-danger-100 sm:flex-none sm:text-sm"
+            >
+              <FiTrash2 className="h-3.5 w-3.5" />
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Hero card — date + time */}
@@ -281,26 +325,30 @@ const AppointmentView = () => {
         </InfoGrid>
       </Section>
 
-      {/* Status Modal */}
-      <AppointmentStatusModal
-        open={statusModalOpen}
-        onClose={() => setStatusModalOpen(false)}
-        appointmentId={id}
-        currentStatus={data.status}
-        allowedTransitions={allowedTransitions}
-      />
+      {/* Status Modal — only if user can manage */}
+      {canManage && allowedTransitions.length > 0 && (
+        <AppointmentStatusModal
+          open={statusModalOpen}
+          onClose={() => setStatusModalOpen(false)}
+          appointmentId={id}
+          currentStatus={data.status}
+          allowedTransitions={allowedTransitions}
+        />
+      )}
 
-      {/* Delete Confirm */}
-      <ConfirmModal
-        open={confirmDelete}
-        title="Delete Appointment"
-        message="Are you sure you want to delete this appointment? This action cannot be undone."
-        confirmText="Delete"
-        variant="danger"
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setConfirmDelete(false)}
-        loading={deleteMutation.isPending}
-      />
+      {/* Delete Confirm — only if user can manage */}
+      {canManage && (
+        <ConfirmModal
+          open={confirmDelete}
+          title="Delete Appointment"
+          message="Are you sure you want to delete this appointment? This action cannot be undone."
+          confirmText="Delete"
+          variant="danger"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setConfirmDelete(false)}
+          loading={deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 };

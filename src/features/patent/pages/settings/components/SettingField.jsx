@@ -43,51 +43,107 @@ const isEditorKey = (key) => {
   return EDITOR_KEYS.includes(key);
 };
 
-const SettingField = ({ setting, value, onChange }) => {
+const SettingField = ({ setting, value, onChange, canManage = false }) => {
   if (setting.is_sensitive || setting.type === "password") {
     return (
-      <SensitiveField setting={setting} value={value} onChange={onChange} />
+      <SensitiveField
+        setting={setting}
+        value={value}
+        onChange={onChange}
+        canManage={canManage}
+      />
     );
   }
 
   switch (setting.type) {
     case "boolean":
       return (
-        <BooleanField setting={setting} value={value} onChange={onChange} />
+        <BooleanField
+          setting={setting}
+          value={value}
+          onChange={onChange}
+          canManage={canManage}
+        />
       );
     case "text":
       if (isEditorKey(setting.key)) {
         return (
-          <EditorField setting={setting} value={value} onChange={onChange} />
+          <EditorField
+            setting={setting}
+            value={value}
+            onChange={onChange}
+            canManage={canManage}
+          />
         );
       }
       return (
-        <TextareaField setting={setting} value={value} onChange={onChange} />
+        <TextareaField
+          setting={setting}
+          value={value}
+          onChange={onChange}
+          canManage={canManage}
+        />
       );
     case "integer":
       return (
-        <NumberField setting={setting} value={value} onChange={onChange} />
+        <NumberField
+          setting={setting}
+          value={value}
+          onChange={onChange}
+          canManage={canManage}
+        />
       );
     case "url":
-      return <UrlField setting={setting} value={value} onChange={onChange} />;
+      return (
+        <UrlField
+          setting={setting}
+          value={value}
+          onChange={onChange}
+          canManage={canManage}
+        />
+      );
     case "json":
-      return <JsonField setting={setting} value={value} onChange={onChange} />;
+      return (
+        <JsonField
+          setting={setting}
+          value={value}
+          onChange={onChange}
+          canManage={canManage}
+        />
+      );
     case "file":
-      return <FileField setting={setting} value={value} />;
+      return (
+        <FileField setting={setting} value={value} canManage={canManage} />
+      );
     case "string":
     default:
       if (isPhoneKey(setting.key)) {
         return (
-          <PhoneField setting={setting} value={value} onChange={onChange} />
+          <PhoneField
+            setting={setting}
+            value={value}
+            onChange={onChange}
+            canManage={canManage}
+          />
         );
       }
       if (isEditorKey(setting.key)) {
         return (
-          <EditorField setting={setting} value={value} onChange={onChange} />
+          <EditorField
+            setting={setting}
+            value={value}
+            onChange={onChange}
+            canManage={canManage}
+          />
         );
       }
       return (
-        <StringField setting={setting} value={value} onChange={onChange} />
+        <StringField
+          setting={setting}
+          value={value}
+          onChange={onChange}
+          canManage={canManage}
+        />
       );
   }
 };
@@ -109,18 +165,23 @@ const FieldWrapper = ({ label, help, children, status }) => (
 );
 
 const inputCls =
-  "h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-[13px] text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15";
+  "h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-[13px] text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:opacity-70";
 
 const textareaCls =
-  "w-full resize-y rounded-lg border border-ink-200 bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15";
+  "w-full resize-y rounded-lg border border-ink-200 bg-surface px-3 py-2 text-[13px] leading-relaxed text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:opacity-70";
 
 // ==================== EDITOR ====================
 const MAX_EDITOR_IMAGE_SIZE_MB = 2;
 
-const EditorField = ({ setting, value, onChange }) => {
+const readOnlyModules = {
+  toolbar: false,
+};
+
+const EditorField = ({ setting, value, onChange, canManage }) => {
   const quillRef = useRef(null);
 
   const imageHandler = () => {
+    if (!canManage) return;
     const input = document.createElement("input");
     input.setAttribute("type", "file");
     input.setAttribute("accept", "image/*");
@@ -175,7 +236,7 @@ const EditorField = ({ setting, value, onChange }) => {
         },
       },
     }),
-    [],
+    [canManage],
   );
 
   const formats = [
@@ -199,19 +260,19 @@ const EditorField = ({ setting, value, onChange }) => {
   ];
 
   return (
-    // HELP PROP REMOVED HERE
     <FieldWrapper label={formatLabel(setting.key)} status={setting.status}>
       <div
-        className="quill-wrapper overflow-hidden rounded-lg border border-form-border bg-form-bg"
+        className={`quill-wrapper overflow-hidden rounded-lg border border-form-border bg-form-bg ${!canManage ? "opacity-80 pointer-events-none" : ""}`}
         style={{ "--quill-min-height": "220px" }}
       >
         <ReactQuill
           ref={quillRef}
           theme="snow"
           value={value || ""}
-          onChange={(html) => onChange(html)}
-          modules={modules}
+          onChange={(html) => canManage && onChange(html)}
+          modules={canManage ? modules : readOnlyModules}
           formats={formats}
+          readOnly={!canManage}
           placeholder={`Enter ${formatLabel(setting.key).toLowerCase()}`}
         />
       </div>
@@ -220,7 +281,7 @@ const EditorField = ({ setting, value, onChange }) => {
 };
 
 // ==================== STRING ====================
-const StringField = ({ setting, value, onChange }) => (
+const StringField = ({ setting, value, onChange, canManage }) => (
   <FieldWrapper label={formatLabel(setting.key)} status={setting.status}>
     <input
       type="text"
@@ -228,13 +289,14 @@ const StringField = ({ setting, value, onChange }) => (
       maxLength={150}
       onChange={(e) => onChange(e.target.value)}
       placeholder={`Enter ${formatLabel(setting.key).toLowerCase()}`}
+      disabled={!canManage}
       className={inputCls}
     />
   </FieldWrapper>
 );
 
 // ==================== PHONE ====================
-const PhoneField = ({ setting, value, onChange }) => (
+const PhoneField = ({ setting, value, onChange, canManage }) => (
   <PhoneInputField
     name={setting.key}
     label={formatLabel(setting.key)}
@@ -242,12 +304,13 @@ const PhoneField = ({ setting, value, onChange }) => (
     defaultCountry="IN"
     isFormik={false}
     value={value ?? ""}
-    onChange={(val) => onChange(val || "")}
+    onChange={(val) => canManage && onChange(val || "")}
+    disabled={!canManage}
   />
 );
 
 // ==================== TEXTAREA ====================
-const TextareaField = ({ setting, value, onChange }) => (
+const TextareaField = ({ setting, value, onChange, canManage }) => (
   <FieldWrapper label={formatLabel(setting.key)} status={setting.status}>
     <textarea
       rows={3}
@@ -255,13 +318,14 @@ const TextareaField = ({ setting, value, onChange }) => (
       maxLength={500}
       onChange={(e) => onChange(e.target.value)}
       placeholder={`Enter ${formatLabel(setting.key).toLowerCase()}`}
+      disabled={!canManage}
       className={textareaCls}
     />
   </FieldWrapper>
 );
 
 // ==================== NUMBER ====================
-const NumberField = ({ setting, value, onChange }) => (
+const NumberField = ({ setting, value, onChange, canManage }) => (
   <FieldWrapper label={formatLabel(setting.key)} status={setting.status}>
     <input
       type="number"
@@ -270,13 +334,14 @@ const NumberField = ({ setting, value, onChange }) => (
         onChange(e.target.value === "" ? "" : Number(e.target.value))
       }
       placeholder="0"
+      disabled={!canManage}
       className={inputCls}
     />
   </FieldWrapper>
 );
 
 // ==================== URL ====================
-const UrlField = ({ setting, value, onChange }) => (
+const UrlField = ({ setting, value, onChange, canManage }) => (
   <FieldWrapper label={formatLabel(setting.key)} status={setting.status}>
     <input
       type="url"
@@ -284,13 +349,14 @@ const UrlField = ({ setting, value, onChange }) => (
       maxLength={500}
       onChange={(e) => onChange(e.target.value)}
       placeholder="https://example.com"
+      disabled={!canManage}
       className={inputCls}
     />
   </FieldWrapper>
 );
 
 // ==================== BOOLEAN ====================
-const BooleanField = ({ setting, value, onChange }) => {
+const BooleanField = ({ setting, value, onChange, canManage }) => {
   const isOn = !!value;
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-ink-200 bg-surface px-4 py-3">
@@ -306,10 +372,11 @@ const BooleanField = ({ setting, value, onChange }) => {
         type="button"
         role="switch"
         aria-checked={isOn}
-        onClick={() => onChange(!isOn)}
-        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${
+        onClick={() => canManage && onChange(!isOn)}
+        disabled={!canManage}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ${
           isOn ? "bg-brand-600" : "bg-ink-300"
-        }`}
+        } ${!canManage ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
       >
         <span
           className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
@@ -322,7 +389,7 @@ const BooleanField = ({ setting, value, onChange }) => {
 };
 
 // ==================== JSON ====================
-const JsonField = ({ setting, value, onChange }) => {
+const JsonField = ({ setting, value, onChange, canManage }) => {
   const [text, setText] = useState("");
   const [error, setError] = useState("");
 
@@ -335,6 +402,7 @@ const JsonField = ({ setting, value, onChange }) => {
   }, [value]);
 
   const handleChange = (v) => {
+    if (!canManage) return;
     setText(v);
     try {
       const parsed = v.trim() === "" ? null : JSON.parse(v);
@@ -357,7 +425,8 @@ const JsonField = ({ setting, value, onChange }) => {
         maxLength={5000}
         onChange={(e) => handleChange(e.target.value)}
         placeholder="{ }"
-        className={`w-full resize-y rounded-lg border bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-ink-800 outline-none transition ${
+        disabled={!canManage}
+        className={`w-full resize-y rounded-lg border bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-ink-800 outline-none transition disabled:cursor-not-allowed disabled:bg-ink-50 disabled:opacity-70 ${
           error
             ? "border-danger-500 focus:ring-2 focus:ring-danger-500/15"
             : "border-ink-200 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15"
@@ -371,7 +440,7 @@ const JsonField = ({ setting, value, onChange }) => {
 };
 
 // ==================== SENSITIVE ====================
-const SensitiveField = ({ setting, value, onChange }) => {
+const SensitiveField = ({ setting, value, onChange, canManage }) => {
   const [editing, setEditing] = useState(false);
   const [localValue, setLocalValue] = useState("");
   const [show, setShow] = useState(false);
@@ -387,19 +456,22 @@ const SensitiveField = ({ setting, value, onChange }) => {
               {value ? "Configured" : "Not configured"}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="shrink-0 cursor-pointer rounded-md border border-ink-200 bg-surface px-2.5 py-1 text-[11px] font-semibold text-ink-700 transition hover:bg-ink-50"
-          >
-            Change
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="shrink-0 cursor-pointer rounded-md border border-ink-200 bg-surface px-2.5 py-1 text-[11px] font-semibold text-ink-700 transition hover:bg-ink-50"
+            >
+              Change
+            </button>
+          )}
         </div>
       </FieldWrapper>
     );
   }
 
   const handleSave = () => {
+    if (!canManage) return;
     updateMutation.mutate(
       {
         id: setting.id,
@@ -474,7 +546,7 @@ const SensitiveField = ({ setting, value, onChange }) => {
 };
 
 // ==================== FILE ====================
-const FileField = ({ setting, value }) => {
+const FileField = ({ setting, value, canManage }) => {
   const fileInputRef = useRef(null);
   const uploadMutation = useUploadFileSetting();
 
@@ -486,6 +558,7 @@ const FileField = ({ setting, value }) => {
   const displayUrl = localPreview || getFileUrl(currentValue);
 
   const handleFileSelect = (e) => {
+    if (!canManage) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -572,29 +645,33 @@ const FileField = ({ setting, value }) => {
             </div>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileSelect}
-              className="hidden"
-              id={`file-input-${setting.id}`}
-            />
-            <label
-              htmlFor={`file-input-${setting.id}`}
-              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50 ${
-                uploadMutation.isPending ? "pointer-events-none opacity-50" : ""
-              }`}
-            >
-              <FiUpload className="h-3.5 w-3.5" />
-              {uploadMutation.isPending
-                ? "Uploading..."
-                : currentValue
-                  ? "Replace File"
-                  : "Upload File"}
-            </label>
-          </div>
+          {canManage && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+                id={`file-input-${setting.id}`}
+              />
+              <label
+                htmlFor={`file-input-${setting.id}`}
+                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50 ${
+                  uploadMutation.isPending
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }`}
+              >
+                <FiUpload className="h-3.5 w-3.5" />
+                {uploadMutation.isPending
+                  ? "Uploading..."
+                  : currentValue
+                    ? "Replace File"
+                    : "Upload File"}
+              </label>
+            </div>
+          )}
 
           <p className="mt-2 text-[10px] text-ink-500">
             Accepted: images. Max size depends on server configuration.

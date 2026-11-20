@@ -3,12 +3,17 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  FiPlus,
+  FiEdit2,
+  FiTrash2,
+  FiArrowRight,
   FiSearch,
+  FiGrid,
+  FiImage,
+  FiLock,
   FiEye,
   FiFilter,
-  FiX,
   FiRefreshCw,
-  FiCalendar,
 } from "react-icons/fi";
 
 import Loader from "../../../common/Loader";
@@ -19,6 +24,7 @@ import {
   LEAD_STATUSES,
   getLeadStatusLabel,
 } from "../../../queries/serviceManager";
+import { usePermission } from "../../../hooks/usePermission";
 
 const STATUS_OPTIONS = LEAD_STATUSES.map((s) => ({
   value: s.value,
@@ -27,6 +33,11 @@ const STATUS_OPTIONS = LEAD_STATUSES.map((s) => ({
 
 const ServiceLeadList = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("services", "view");
+  const canManage = can("services", "manage");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
@@ -45,7 +56,11 @@ const ServiceLeadList = () => {
     to_date: dateTo || undefined,
   };
 
-  const { data, isLoading, isFetching, refetch } = useServiceLeads(params);
+  // API gated by view permission
+  const { data, isLoading, isFetching, refetch } = useServiceLeads(params, {
+    enabled: canView,
+  });
+
   const leads = data?.list || [];
   const meta = data?.meta || {};
 
@@ -73,6 +88,42 @@ const ServiceLeadList = () => {
     setSearch(e.target.value);
     setPage(1);
   };
+
+  const handleView = (id) => {
+    if (!canView) return;
+    navigate(`/service-manager/leads/${id}`);
+  };
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view service leads. Please contact your
+          administrator.
+        </p>
+
+        <button
+          onClick={() => navigate(-1)}
+          className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-ink-50"
+        >
+          <FiArrowLeft className="h-4 w-4" />
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   // ==================== COLUMNS ====================
   const columns = [
@@ -139,16 +190,47 @@ const ServiceLeadList = () => {
     {
       header: "Actions",
       align: "right",
-      render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={() => navigate(`/service-manager/leads/${row.id}`)}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50"
-          >
-            <FiEye className="h-4 w-4" /> View
-          </button>
-        </div>
-      ),
+      render: (_, row) => {
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {/* View - services.view permission */}
+            {canView && (
+              <button
+                onClick={() => navigate(`/service-manager/leads/${row.id}`)}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50"
+                title="View Lead"
+              >
+                <FiEye className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Manage Actions - services.manage permission */}
+            {canManage && (
+              <>
+                <button
+                  onClick={() => navigate(`/service-manager/${row.id}/edit`)}
+                  className="cursor-pointer rounded-lg p-2 text-ink-500 hover:bg-ink-50 hover:text-brand-600"
+                  title="Edit Service"
+                >
+                  <FiEdit2 className="h-4 w-4" />
+                </button>
+
+                <button
+                  onClick={() => setDeleteId(row.id)}
+                  className="cursor-pointer rounded-lg p-2 text-ink-500 hover:bg-danger-50 hover:text-danger-600"
+                  title="Delete Service"
+                >
+                  <FiTrash2 className="h-4 w-4" />
+                </button>
+              </>
+            )}
+
+            {!canView && !canManage && (
+              <span className="text-xs text-ink-400">—</span>
+            )}
+          </div>
+        );
+      },
     },
   ];
 

@@ -11,6 +11,7 @@ import {
   FiCheck,
   FiAlertCircle,
   FiInfo,
+  FiLock,
 } from "react-icons/fi";
 import {
   useVisit,
@@ -22,6 +23,7 @@ import { useStaff } from "../../queries/staff";
 import { SelectField, FormButton } from "../../common/form";
 import Loader from "../../common/Loader";
 import SlotSelector from "./components/SlotSelector";
+import { usePermission } from "../../hooks/usePermission";
 
 // ==================== HELPERS ====================
 const todayStr = () => {
@@ -219,8 +221,13 @@ const VisitEditInner = ({
 const VisitEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
 
-  const { data: visit, isLoading } = useVisit(id);
+  // ==================== PERMISSIONS ====================
+  const canView = can("visits", "view");
+  const canManage = can("visits", "manage");
+
+  const { data: visit, isLoading } = useVisit(id, { enabled: canView });
   const updateVisit = useUpdateVisit();
 
   const [selectedProviderId, setSelectedProviderId] = useState(null);
@@ -243,15 +250,12 @@ const VisitEdit = () => {
   useEffect(() => {
     if (!visit) return;
 
-    // Provider
     const providerId = visit.provider?.id || visit.provider_id;
     setSelectedProviderId(providerId);
 
-    // Date
     const date = visit.visit_schedule?.date || visit.visit_date || todayStr();
     setSelectedDate(date);
 
-    // Slot
     const startTime =
       visit.visit_schedule?.start_time?.slice(0, 5) ||
       visit.slot_start_time?.slice(0, 5);
@@ -331,6 +335,8 @@ const VisitEdit = () => {
 
   // ==================== SUBMIT ====================
   const handleSubmit = (values) => {
+    if (!canManage) return;
+
     const payload = {
       provider_id: values.provider_id?.value,
       visit_date: values.visit_date,
@@ -347,6 +353,51 @@ const VisitEdit = () => {
       },
     );
   };
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view this visit.
+        </p>
+      </div>
+    );
+  }
+
+  // Strict Guard: Only Managers can edit
+  if (!canManage) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to edit this visit. Please contact your
+          administrator.
+        </p>
+        <button
+          onClick={() => navigate(`/visits/${id}`)}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Back to Visit
+        </button>
+      </div>
+    );
+  }
 
   // ==================== LOADING / NOT FOUND ====================
   if (isLoading) return <Loader text="Loading visit..." />;

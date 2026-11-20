@@ -9,12 +9,14 @@ import {
   FiMail,
   FiCheckCircle,
   FiClock,
+  FiLock,
 } from "react-icons/fi";
 
 import { useContactMessages } from "../../queries/contactMessages";
 import Loader from "../../common/Loader";
 import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect } from "../../common/form";
+import { usePermission } from "../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
@@ -38,6 +40,12 @@ const formatDateTime = (dateStr) => {
 
 const ContactMessageList = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("contact_messages", "view");
+  // Future proofing: agar manage action aaye
+  const canManage = can("contact_messages", "manage");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
@@ -51,7 +59,10 @@ const ContactMessageList = () => {
     ...(statusFilter?.value && { status: statusFilter.value }),
   };
 
-  const { data, isLoading, isFetching, refetch } = useContactMessages(params);
+  // API gated by view permission
+  const { data, isLoading, isFetching, refetch } = useContactMessages(params, {
+    enabled: canView,
+  });
 
   const list = data?.list || [];
   const meta = data?.meta || {};
@@ -74,6 +85,33 @@ const ContactMessageList = () => {
     setSearch(e.target.value);
     setPage(1);
   };
+
+  const handleView = (id) => {
+    if (!canView) return;
+    navigate(`/contact-messages/${id}`);
+  };
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view contact messages. Please contact
+          your administrator.
+        </p>
+      </div>
+    );
+  }
 
   // ==================== COLUMNS ====================
   const columns = [
@@ -137,13 +175,15 @@ const ContactMessageList = () => {
       align: "right",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={() => navigate(`/contact-messages/${row.id}`)}
-            className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-brand-50 hover:text-brand-600"
-            title="View Details"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
+          {canView && (
+            <button
+              onClick={() => handleView(row.id)}
+              className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-brand-50 hover:text-brand-600"
+              title="View Details"
+            >
+              <FiEye className="h-4 w-4" />
+            </button>
+          )}
         </div>
       ),
     },

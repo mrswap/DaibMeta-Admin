@@ -2,11 +2,19 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiRefreshCw, FiEye, FiAward, FiClock } from "react-icons/fi";
+import {
+  FiSearch,
+  FiRefreshCw,
+  FiEye,
+  FiAward,
+  FiClock,
+  FiLock,
+} from "react-icons/fi";
 
 import { useHealthQuizLeaderboard } from "../../../queries/healthQuiz";
 import Loader from "../../../common/Loader";
 import CustomeTable from "../../../common/table/CustomeTable";
+import { usePermission } from "../../../hooks/usePermission";
 
 const formatTime = (seconds) => {
   if (!seconds && seconds !== 0) return "—";
@@ -17,6 +25,10 @@ const formatTime = (seconds) => {
 
 const HealthQuizLeaderboard = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("health_quiz", "view");
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -28,8 +40,11 @@ const HealthQuizLeaderboard = () => {
     ...(search && { search }),
   };
 
-  const { data, isLoading, isFetching, refetch } =
-    useHealthQuizLeaderboard(params);
+  // API gated by view permission
+  const { data, isLoading, isFetching, refetch } = useHealthQuizLeaderboard(
+    params,
+    { enabled: canView },
+  );
 
   const list = data?.list || [];
   const meta = data?.meta || {};
@@ -43,6 +58,33 @@ const HealthQuizLeaderboard = () => {
     setSearch(e.target.value);
     setPage(1);
   };
+
+  const handleView = (patientId) => {
+    if (!canView) return;
+    navigate(`/health-quiz/leaderboard/${patientId}`);
+  };
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view the quiz leaderboard. Please
+          contact your administrator.
+        </p>
+      </div>
+    );
+  }
 
   // ==================== COLUMNS ====================
   const columns = [
@@ -118,10 +160,9 @@ const HealthQuizLeaderboard = () => {
       align: "right",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
+          {/* Option A: View allowed for view-only users */}
           <button
-            onClick={() =>
-              navigate(`/health-quiz/leaderboard/${row.patient_id}`)
-            }
+            onClick={() => handleView(row.patient_id)}
             className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-brand-50 hover:text-brand-600"
             title="View Patient Performance"
           >
