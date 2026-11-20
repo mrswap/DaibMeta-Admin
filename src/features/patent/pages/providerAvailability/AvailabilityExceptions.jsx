@@ -29,6 +29,7 @@ import {
 } from "../../queries/availabilityExceptions";
 import Loader from "../../common/Loader";
 import { useToast } from "../../common/toast/ToastContext";
+import { usePermission } from "../../hooks/usePermission";
 
 const INITIAL_VISIBLE_DATES = 30;
 const LOAD_MORE_INCREMENT = 30;
@@ -38,6 +39,9 @@ const AvailabilityExceptions = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { can, isLoading: permLoading } = usePermission();
+
+  const canManage = can("availability", "manage");
 
   const { data: availability, isLoading: loadingAvailability } =
     useProviderAvailability(id);
@@ -396,6 +400,34 @@ const AvailabilityExceptions = () => {
   const handleSaveCancel = () => {
     setSaveModalOpen(false);
   };
+
+  if (permLoading && !canManage)
+    return <Loader text="Checking permissions..." />;
+
+  if (!canManage) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to manage availability exceptions.
+        </p>
+
+        <button
+          onClick={() => navigate("/provider-availabilities")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          Back to Availabilities
+        </button>
+      </div>
+    );
+  }
 
   if (loadingAvailability) return <Loader text="Loading..." />;
 

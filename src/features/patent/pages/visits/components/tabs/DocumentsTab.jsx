@@ -9,6 +9,7 @@ import {
   FiX,
   FiPaperclip,
   FiExternalLink,
+  FiLock,
 } from "react-icons/fi";
 import {
   useVisitDocuments,
@@ -49,7 +50,7 @@ const getFileUrl = (filePath) => {
 };
 
 // ==================== MAIN ====================
-const DocumentsTab = ({ visitId }) => {
+const DocumentsTab = ({ visitId, canManage = false }) => {
   const { data: documents, isLoading } = useVisitDocuments(visitId);
   const uploadMutation = useUploadDocument();
   const deleteMutation = useDeleteDocument();
@@ -78,12 +79,18 @@ const DocumentsTab = ({ visitId }) => {
   const totalDocs = Array.isArray(documents) ? documents.length : 0;
 
   // ==================== HANDLERS ====================
+  const handleUploadClick = () => {
+    if (!canManage) return;
+    setUploadOpen(true);
+  };
+
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) setSelectedFile(file);
   };
 
   const handleUpload = () => {
+    if (!canManage) return;
     if (!docType || !selectedFile) return;
     uploadMutation.mutate(
       {
@@ -107,10 +114,12 @@ const DocumentsTab = ({ visitId }) => {
   };
 
   const handleDeleteClick = (item) => {
+    if (!canManage) return;
     setConfirm({ open: true, item });
   };
 
   const handleDeleteConfirm = () => {
+    if (!canManage) return;
     const { item } = confirm;
     if (!item) return;
     deleteMutation.mutate(
@@ -126,6 +135,22 @@ const DocumentsTab = ({ visitId }) => {
 
   return (
     <div className="space-y-4">
+      {/* Read-only notice for users without manage permission */}
+      {!canManage && totalDocs > 0 && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-warn-200 bg-warn-50/50 px-4 py-3">
+          <FiLock className="mt-0.5 h-4 w-4 shrink-0 text-warn-700" />
+          <div>
+            <p className="text-xs font-semibold text-warn-900">
+              Read-only access
+            </p>
+            <p className="mt-0.5 text-[11px] text-warn-800">
+              You can view and download documents, but uploading or deleting
+              requires manage permission.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-100 bg-ink-50/40 px-4 py-2.5">
         <div className="flex items-center gap-2">
@@ -137,18 +162,22 @@ const DocumentsTab = ({ visitId }) => {
             {totalDocs}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => setUploadOpen(true)}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-surface hover:bg-brand-700"
-        >
-          <FiUpload className="h-3.5 w-3.5" />
-          Upload Document
-        </button>
+
+        {/* Upload button — only if canManage */}
+        {canManage && (
+          <button
+            type="button"
+            onClick={handleUploadClick}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-surface hover:bg-brand-700"
+          >
+            <FiUpload className="h-3.5 w-3.5" />
+            Upload Document
+          </button>
+        )}
       </div>
 
-      {/* Upload form */}
-      {uploadOpen && (
+      {/* Upload form — only if canManage */}
+      {canManage && uploadOpen && (
         <div className="overflow-hidden rounded-xl border border-brand-200 bg-brand-50/30">
           <div className="flex items-center justify-between border-b border-brand-200 bg-brand-50/60 px-4 py-2.5">
             <p className="text-xs font-semibold text-brand-900">
@@ -243,7 +272,9 @@ const DocumentsTab = ({ visitId }) => {
           </div>
           <p className="text-sm font-medium text-ink-700">No documents</p>
           <p className="mt-1 text-xs text-ink-500">
-            Upload prescriptions, reports, or other medical documents.
+            {canManage
+              ? "Upload prescriptions, reports, or other medical documents."
+              : "No documents have been uploaded for this visit yet."}
           </p>
         </div>
       )}
@@ -274,6 +305,7 @@ const DocumentsTab = ({ visitId }) => {
                     <DocumentRow
                       key={doc.id}
                       doc={doc}
+                      canManage={canManage}
                       onDelete={() => handleDeleteClick(doc)}
                     />
                   ))}
@@ -284,25 +316,27 @@ const DocumentsTab = ({ visitId }) => {
         </div>
       )}
 
-      {/* Delete Confirm */}
-      <ConfirmModal
-        open={confirm.open}
-        title="Delete Document"
-        message={`Are you sure you want to delete "${
-          confirm.item?.original_name || "this document"
-        }"? This action cannot be undone.`}
-        confirmText="Delete"
-        variant="danger"
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setConfirm({ open: false, item: null })}
-        loading={deleteMutation.isPending}
-      />
+      {/* Delete Confirm — only if canManage */}
+      {canManage && (
+        <ConfirmModal
+          open={confirm.open}
+          title="Delete Document"
+          message={`Are you sure you want to delete "${
+            confirm.item?.original_name || "this document"
+          }"? This action cannot be undone.`}
+          confirmText="Delete"
+          variant="danger"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setConfirm({ open: false, item: null })}
+          loading={deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 };
 
 // ==================== DOCUMENT ROW ====================
-const DocumentRow = ({ doc, onDelete }) => {
+const DocumentRow = ({ doc, onDelete, canManage }) => {
   const isImage = doc.mime_type?.startsWith("image/");
   const Icon = isImage ? FiImage : FiFile;
 
@@ -330,6 +364,7 @@ const DocumentRow = ({ doc, onDelete }) => {
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
+        {/* Open/Download — allowed with view permission */}
         {doc.file_path && (
           <a
             href={getFileUrl(doc.file_path)}
@@ -341,14 +376,18 @@ const DocumentRow = ({ doc, onDelete }) => {
             <FiExternalLink className="h-4 w-4" />
           </a>
         )}
-        <button
-          type="button"
-          onClick={onDelete}
-          title="Delete"
-          className="cursor-pointer rounded-lg p-1.5 text-danger-500 transition hover:bg-danger-50"
-        >
-          <FiTrash2 className="h-4 w-4" />
-        </button>
+
+        {/* Delete — only if canManage */}
+        {canManage && (
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Delete"
+            className="cursor-pointer rounded-lg p-1.5 text-danger-500 transition hover:bg-danger-50"
+          >
+            <FiTrash2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </div>
   );

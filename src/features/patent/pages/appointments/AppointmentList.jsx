@@ -12,6 +12,7 @@ import {
   FiFilter,
   FiX,
   FiCalendar,
+  FiLock,
 } from "react-icons/fi";
 import {
   useAppointments,
@@ -25,6 +26,7 @@ import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect, DatePicker } from "../../common/form";
+import { usePermission } from "../../hooks/usePermission";
 
 const STATUS_OPTIONS = APPOINTMENT_STATUSES.map((s) => ({
   value: s.value,
@@ -47,6 +49,7 @@ const formatTime12 = (t) => {
 
 const AppointmentList = () => {
   const navigate = useNavigate();
+  const { can } = usePermission();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
@@ -64,8 +67,17 @@ const AppointmentList = () => {
     item: null,
   });
 
+  // ==================== PERMISSIONS ====================
+  const canView = can("appointment", "view");
+  const canManage = can("appointment", "manage");
+
+  const canViewStaff = can("staff", "view");
+
   // ==================== LOAD PROVIDERS ====================
-  const { data: staffData } = useStaff({ per_page: 100, status: 1 });
+  const { data: staffData } = useStaff(
+    canViewStaff ? { per_page: 100, status: 1 } : {},
+    { enabled: canViewStaff },
+  );
 
   const providerOptions = useMemo(
     () =>
@@ -88,18 +100,31 @@ const AppointmentList = () => {
     ...(dateToFilter && { date_to: dateToFilter }),
   };
 
-  const { data, isLoading, isFetching, refetch } = useAppointments(params);
+  const { data, isLoading, isFetching, refetch } = useAppointments(params, {
+    enabled: canView,
+  });
   const deleteMutation = useDeleteAppointment();
 
   const list = data?.list || [];
   const meta = data?.meta || {};
 
-  const handleView = (row) => navigate(`/appointments/${row.id}`);
-  const handleEdit = (row) => navigate(`/appointments/${row.id}/edit`);
-  const handleBook = () => navigate("/appointments/book");
+  const handleView = (row) => {
+    if (!canView) return;
+    navigate(`/appointments/${row.id}`);
+  };
+  const handleEdit = (row) => {
+    if (!canManage) return;
+    navigate(`/appointments/${row.id}/edit`);
+  };
+  const handleBook = () => {
+    if (!canManage) return;
+    navigate("/appointments/book");
+  };
 
-  const handleDeleteClick = (row) =>
+  const handleDeleteClick = (row) => {
+    if (!canManage) return;
     setConfirm({ open: true, type: "delete", item: row });
+  };
 
   const handleConfirm = () => {
     const { item } = confirm;
@@ -227,21 +252,57 @@ const AppointmentList = () => {
     {
       header: "Actions",
       align: "right",
-      render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row)}>
-            <FiEye className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-            <FiEdit2 className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
-            <FiTrash2 className="h-4 w-4" />
-          </IconBtn>
-        </div>
-      ),
+      render: (_, row) => {
+        if (!canView && !canManage) {
+          return <span className="text-xs text-ink-400">—</span>;
+        }
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {canView && (
+              <IconBtn title="View" onClick={() => handleView(row)}>
+                <FiEye className="h-4 w-4" />
+              </IconBtn>
+            )}
+
+            {canManage && (
+              <>
+                <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+                  <FiEdit2 className="h-4 w-4" />
+                </IconBtn>
+
+                <IconBtn
+                  title="Delete"
+                  onClick={() => handleDeleteClick(row)}
+                  danger
+                >
+                  <FiTrash2 className="h-4 w-4" />
+                </IconBtn>
+              </>
+            )}
+          </div>
+        );
+      },
     },
   ];
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view appointments. Please contact your
+          administrator.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -259,13 +320,15 @@ const AppointmentList = () => {
               : "Manage patient appointments"}
           </p>
         </div>
-        <button
-          onClick={handleBook}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700 sm:w-auto"
-        >
-          <FiPlus className="h-4 w-4" />
-          Book Appointment
-        </button>
+        {canManage && (
+          <button
+            onClick={handleBook}
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700 sm:w-auto"
+          >
+            <FiPlus className="h-4 w-4" />
+            Book Appointment
+          </button>
+        )}
       </div>
 
       {/* Search + Filter toggle */}
@@ -351,22 +414,24 @@ const AppointmentList = () => {
               </div>
 
               {/* Provider */}
-              <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
-                  Provider
-                </label>
-                <FilterSelect
-                  value={providerFilter}
-                  onChange={(v) => {
-                    setProviderFilter(v);
-                    setPage(1);
-                  }}
-                  options={providerOptions}
-                  placeholder="All Providers"
-                  isClearable
-                  isDisabled={providerOptions.length === 0}
-                />
-              </div>
+              {canViewStaff && (
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-500">
+                    Provider
+                  </label>
+                  <FilterSelect
+                    value={providerFilter}
+                    onChange={(v) => {
+                      setProviderFilter(v);
+                      setPage(1);
+                    }}
+                    options={providerOptions}
+                    placeholder="All Providers"
+                    isClearable
+                    isDisabled={providerOptions.length === 0}
+                  />
+                </div>
+              )}
 
               {/* Date From */}
               <div>
@@ -428,6 +493,7 @@ const AppointmentList = () => {
           hasFilters={hasActiveFilters}
           onClear={clearFilters}
           onBook={handleBook}
+          canManage={canManage}
         />
       ) : (
         <CustomeTable
@@ -447,17 +513,19 @@ const AppointmentList = () => {
         />
       )}
 
-      {/* Confirm Modal */}
-      <ConfirmModal
-        open={confirm.open}
-        title="Delete Appointment"
-        message="Are you sure you want to delete this appointment? This action cannot be undone."
-        confirmText="Delete"
-        variant="danger"
-        onConfirm={handleConfirm}
-        onCancel={() => setConfirm({ open: false, type: null, item: null })}
-        loading={deleteMutation.isPending}
-      />
+      {/* Confirm Modal — only when canManage */}
+      {canManage && (
+        <ConfirmModal
+          open={confirm.open}
+          title="Delete Appointment"
+          message="Are you sure you want to delete this appointment? This action cannot be undone."
+          confirmText="Delete"
+          variant="danger"
+          onConfirm={handleConfirm}
+          onCancel={() => setConfirm({ open: false, type: null, item: null })}
+          loading={deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 };
@@ -472,7 +540,7 @@ const SourceBadge = ({ source }) => {
   );
 };
 
-const EmptyState = ({ hasFilters, onClear, onBook }) => (
+const EmptyState = ({ hasFilters, onClear, onBook, canManage }) => (
   <div className="rounded-xl border border-dashed border-ink-200 bg-surface py-16 text-center">
     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100">
       <FiCalendar className="h-5 w-5 text-ink-400" />
@@ -483,7 +551,9 @@ const EmptyState = ({ hasFilters, onClear, onBook }) => (
     <p className="mt-1 text-xs text-ink-500">
       {hasFilters
         ? "Try a different filter or clear them."
-        : "Book your first appointment to get started."}
+        : canManage
+          ? "Book your first appointment to get started."
+          : "No appointments have been booked yet."}
     </p>
     <div className="mt-4">
       {hasFilters ? (
@@ -494,7 +564,7 @@ const EmptyState = ({ hasFilters, onClear, onBook }) => (
           <FiX className="h-4 w-4" />
           Clear Filters
         </button>
-      ) : (
+      ) : canManage ? (
         <button
           onClick={onBook}
           className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
@@ -502,7 +572,7 @@ const EmptyState = ({ hasFilters, onClear, onBook }) => (
           <FiPlus className="h-4 w-4" />
           Book Appointment
         </button>
-      )}
+      ) : null}
     </div>
   </div>
 );

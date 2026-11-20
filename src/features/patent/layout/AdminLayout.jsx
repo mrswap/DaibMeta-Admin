@@ -26,3 +26,36 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
+
+// src / features / patent / layout / AdminLayout.jsx;
+
+// import React, { useState } from "react";
+// import { Outlet } from "react-router-dom";
+// import AdminNavbar from "../components/AdminNavbar";
+// import AdminSidebar from "../components/AdminSidebar";
+// import NavigationGuard from "../routes/NavigationGuard";
+
+// const AdminLayout = () => {
+//   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+//   return (
+//     <div className="min-h-screen bg-app font-inter text-ink-800">
+//       <NavigationGuard />
+//       <div className="flex">
+//         <AdminSidebar
+//           sidebarOpen={sidebarOpen}
+//           setSidebarOpen={setSidebarOpen}
+//         />
+
+//         <div className="flex min-w-0 flex-1 flex-col">
+//           <AdminNavbar setSidebarOpen={setSidebarOpen} />
+//           <main className="flex-1 p-4 sm:p-6">
+//             <Outlet />
+//           </main>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default AdminLayout;

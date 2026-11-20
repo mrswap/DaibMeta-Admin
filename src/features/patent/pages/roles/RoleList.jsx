@@ -1,6 +1,7 @@
 // src/features/patent/pages/roles/RoleList.jsx
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FiPlus,
   FiSearch,
@@ -8,6 +9,7 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
+  FiLock,
 } from "react-icons/fi";
 import {
   useRoles,
@@ -15,30 +17,31 @@ import {
   useDeleteRole,
 } from "../../queries/roles";
 import RoleForm from "./components/RoleForm";
-import RoleView from "./components/RoleView";
 import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect, ActionToggle } from "../../common/form";
+import { usePermission } from "../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   { value: "1", label: "Active" },
   { value: "0", label: "Inactive" },
 ];
 
-// FIX: Text chhota kiya taaki UI na bigde
 const TYPE_OPTIONS = [
   { value: "1", label: "System" },
   { value: "0", label: "Custom" },
 ];
 
-// FIX: Text chhota kiya
 const PROVIDER_OPTIONS = [
   { value: "1", label: "Providers" },
   { value: "0", label: "Non-Providers" },
 ];
 
 const RoleList = () => {
+  const navigate = useNavigate();
+  const { can } = usePermission();
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
   const [systemFilter, setSystemFilter] = useState(null);
@@ -48,13 +51,16 @@ const RoleList = () => {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editData, setEditData] = useState(null);
-  const [viewId, setViewId] = useState(null);
 
   const [confirm, setConfirm] = useState({
     open: false,
     type: null,
     item: null,
   });
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("roles", "view");
+  const canManage = can("roles", "manage");
 
   const params = {
     page,
@@ -65,7 +71,9 @@ const RoleList = () => {
     ...(providerFilter?.value && { is_provider: providerFilter.value }),
   };
 
-  const { data, isLoading, isFetching, refetch } = useRoles(params);
+  const { data, isLoading, isFetching, refetch } = useRoles(params, {
+    enabled: canView,
+  });
   const toggleStatus = useToggleRoleStatus();
   const deleteMutation = useDeleteRole();
 
@@ -73,24 +81,29 @@ const RoleList = () => {
   const meta = data?.meta || {};
 
   const handleAdd = () => {
+    if (!canManage) return;
     setEditData(null);
     setFormOpen(true);
   };
 
   const handleEdit = (item) => {
+    if (!canManage) return;
     setEditData(item);
     setFormOpen(true);
   };
 
-  const handleView = (id) => setViewId(id);
+  const handleView = (id) => {
+    if (!canView) return;
+    navigate(`/roles/${id}`);
+  };
 
   const handleToggleClick = (item) => {
-    if (item.is_system) return;
+    if (!canManage || item.is_system) return;
     setConfirm({ open: true, type: "toggle", item });
   };
 
   const handleDeleteClick = (item) => {
-    if (item.is_system) return;
+    if (!canManage || item.is_system) return;
     setConfirm({ open: true, type: "delete", item });
   };
 
@@ -169,28 +182,43 @@ const RoleList = () => {
       header: "Actions",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row.id)}>
-            <FiEye className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-            <FiEdit2 className="h-4 w-4" />
-          </IconBtn>
-          <ActionToggle
-            active={row.status}
-            onClick={() => handleToggleClick(row)}
-            loading={
-              toggleStatus.isPending && toggleStatus.variables === row.id
-            }
-            disabled={row.is_system}
-          />
-          <IconBtn
-            title={row.is_system ? "System role cannot be deleted" : "Delete"}
-            onClick={() => handleDeleteClick(row)}
-            disabled={row.is_system}
-            danger
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </IconBtn>
+          {canView && (
+            <IconBtn title="View" onClick={() => handleView(row.id)}>
+              <FiEye className="h-4 w-4" />
+            </IconBtn>
+          )}
+
+          {canManage && (
+            <>
+              <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+                <FiEdit2 className="h-4 w-4" />
+              </IconBtn>
+
+              <ActionToggle
+                active={row.status}
+                onClick={() => handleToggleClick(row)}
+                loading={
+                  toggleStatus.isPending && toggleStatus.variables === row.id
+                }
+                disabled={row.is_system}
+              />
+
+              <IconBtn
+                title={
+                  row.is_system ? "System role cannot be deleted" : "Delete"
+                }
+                onClick={() => handleDeleteClick(row)}
+                disabled={row.is_system}
+                danger
+              >
+                <FiTrash2 className="h-4 w-4" />
+              </IconBtn>
+            </>
+          )}
+
+          {!canView && !canManage && (
+            <span className="text-xs text-ink-400">—</span>
+          )}
         </div>
       ),
     },
@@ -213,6 +241,24 @@ const RoleList = () => {
           variant: "warn",
         };
 
+  // ==================== PAGE ACCESS GUARD ====================
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view roles. Please contact your
+          administrator.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -224,17 +270,18 @@ const RoleList = () => {
             Manage admin panel roles and permissions
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
-        >
-          <FiPlus className="h-4 w-4" />
-          Add Role
-        </button>
+        {canManage && (
+          <button
+            onClick={handleAdd}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
+          >
+            <FiPlus className="h-4 w-4" />
+            Add Role
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-surface p-4 lg:flex-row lg:items-center">
-        {/* Search Bar - FIX: Width adjust ki */}
         <div className="flex w-full lg:w-auto lg:flex-1 items-center gap-2 rounded-lg border border-form-border bg-form-bg px-3">
           <FiSearch className="h-4 w-4 text-ink-400" />
           <input
@@ -250,7 +297,6 @@ const RoleList = () => {
           />
         </div>
 
-        {/* Status Select */}
         <FilterSelect
           value={statusFilter}
           onChange={(v) => {
@@ -263,7 +309,6 @@ const RoleList = () => {
           width="w-36"
         />
 
-        {/* Type Select - FIX: Width badhai (w-40) taaki cross icon ke baad fit ho */}
         <FilterSelect
           value={systemFilter}
           onChange={(v) => {
@@ -276,7 +321,6 @@ const RoleList = () => {
           width="w-40"
         />
 
-        {/* Provider Select - FIX: Width badhai (w-48) */}
         <FilterSelect
           value={providerFilter}
           onChange={(v) => {
@@ -318,26 +362,29 @@ const RoleList = () => {
         />
       )}
 
-      <RoleForm
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditData(null);
-        }}
-        initialData={editData}
-      />
-      <RoleView open={!!viewId} onClose={() => setViewId(null)} id={viewId} />
+      {canManage && (
+        <RoleForm
+          open={formOpen}
+          onClose={() => {
+            setFormOpen(false);
+            setEditData(null);
+          }}
+          initialData={editData}
+        />
+      )}
 
-      <ConfirmModal
-        open={confirm.open}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        confirmText={confirmConfig.confirmText}
-        variant={confirmConfig.variant}
-        onConfirm={handleConfirm}
-        onCancel={handleCancel}
-        loading={toggleStatus.isPending || deleteMutation.isPending}
-      />
+      {canManage && (
+        <ConfirmModal
+          open={confirm.open}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          confirmText={confirmConfig.confirmText}
+          variant={confirmConfig.variant}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+          loading={toggleStatus.isPending || deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 };

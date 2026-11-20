@@ -1,3 +1,5 @@
+// src/features/patent/pages/specializations/SpecializationList.jsx
+
 import { useState } from "react";
 import {
   FiPlus,
@@ -6,6 +8,7 @@ import {
   FiEdit2,
   FiTrash2,
   FiEye,
+  FiLock,
 } from "react-icons/fi";
 import {
   useSpecializations,
@@ -18,6 +21,7 @@ import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect, ActionToggle } from "../../common/form";
+import { usePermission } from "../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   { value: "1", label: "Active" },
@@ -25,6 +29,13 @@ const STATUS_OPTIONS = [
 ];
 
 const SpecializationList = () => {
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("specializations", "view");
+  const canManage = can("specializations", "manage");
+
+  // ==================== STATE ====================
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
   const [page, setPage] = useState(1);
@@ -47,30 +58,40 @@ const SpecializationList = () => {
     ...(statusFilter?.value && { status: statusFilter.value }),
   };
 
-  const { data, isLoading, isFetching, refetch } = useSpecializations(params);
+  const { data, isLoading, isFetching, refetch } = useSpecializations(params, {
+    enabled: canView,
+  });
   const toggleStatus = useToggleSpecializationStatus();
   const deleteMutation = useDeleteSpecialization();
 
   const list = data?.list || [];
   const meta = data?.meta || {};
 
+  // ==================== HANDLERS ====================
   const handleAdd = () => {
+    if (!canManage) return;
     setEditData(null);
     setFormOpen(true);
   };
 
   const handleEdit = (item) => {
+    if (!canManage) return;
     setEditData(item);
     setFormOpen(true);
   };
 
-  const handleView = (id) => setViewId(id);
+  const handleView = (id) => {
+    if (!canView) return;
+    setViewId(id);
+  };
 
   const handleToggleClick = (item) => {
+    if (!canManage) return;
     setConfirm({ open: true, type: "toggle", item });
   };
 
   const handleDeleteClick = (item) => {
+    if (!canManage) return;
     setConfirm({ open: true, type: "delete", item });
   };
 
@@ -91,6 +112,27 @@ const SpecializationList = () => {
   const lastPage = meta.last_page || 1;
   const total = meta.total || 0;
   const metaPerPage = meta.per_page || perPage;
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading) {
+    return <Loader text="Checking permissions..." />;
+  }
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view specializations. Please contact
+          your administrator.
+        </p>
+      </div>
+    );
+  }
 
   const columns = [
     {
@@ -131,22 +173,41 @@ const SpecializationList = () => {
       header: "Actions",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row.id)}>
-            <FiEye className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-            <FiEdit2 className="h-4 w-4" />
-          </IconBtn>
-          <ActionToggle
-            active={row.status}
-            onClick={() => handleToggleClick(row)}
-            loading={
-              toggleStatus.isPending && toggleStatus.variables === row.id
-            }
-          />
-          <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
-            <FiTrash2 className="h-4 w-4" />
-          </IconBtn>
+          {/* View permission */}
+          {canView && (
+            <IconBtn title="View" onClick={() => handleView(row.id)}>
+              <FiEye className="h-4 w-4" />
+            </IconBtn>
+          )}
+
+          {/* Manage permission */}
+          {canManage && (
+            <>
+              <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+                <FiEdit2 className="h-4 w-4" />
+              </IconBtn>
+
+              <ActionToggle
+                active={row.status}
+                onClick={() => handleToggleClick(row)}
+                loading={
+                  toggleStatus.isPending && toggleStatus.variables === row.id
+                }
+              />
+
+              <IconBtn
+                title="Delete"
+                onClick={() => handleDeleteClick(row)}
+                danger
+              >
+                <FiTrash2 className="h-4 w-4" />
+              </IconBtn>
+            </>
+          )}
+
+          {!canView && !canManage && (
+            <span className="text-xs text-ink-400">—</span>
+          )}
         </div>
       ),
     },
@@ -182,13 +243,15 @@ const SpecializationList = () => {
             Manage medical specializations
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
-        >
-          <FiPlus className="h-4 w-4" />
-          Add Specialization
-        </button>
+        {canManage && (
+          <button
+            onClick={handleAdd}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700"
+          >
+            <FiPlus className="h-4 w-4" />
+            Add Specialization
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-surface p-4 sm:flex-row sm:items-center">
@@ -250,30 +313,37 @@ const SpecializationList = () => {
         />
       )}
 
-      <SpecializationForm
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditData(null);
-        }}
-        initialData={editData}
-      />
-      <SpecializationView
-        open={!!viewId}
-        onClose={() => setViewId(null)}
-        id={viewId}
-      />
+      {canManage && (
+        <SpecializationForm
+          open={formOpen}
+          onClose={() => {
+            setFormOpen(false);
+            setEditData(null);
+          }}
+          initialData={editData}
+        />
+      )}
 
-      <ConfirmModal
-        open={confirm.open}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        confirmText={confirmConfig.confirmText}
-        variant={confirmConfig.variant}
-        onConfirm={handleConfirm}
-        onCancel={handleCancel}
-        loading={toggleStatus.isPending || deleteMutation.isPending}
-      />
+      {canView && (
+        <SpecializationView
+          open={!!viewId}
+          onClose={() => setViewId(null)}
+          id={viewId}
+        />
+      )}
+
+      {canManage && (
+        <ConfirmModal
+          open={confirm.open}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          confirmText={confirmConfig.confirmText}
+          variant={confirmConfig.variant}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+          loading={toggleStatus.isPending || deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 };

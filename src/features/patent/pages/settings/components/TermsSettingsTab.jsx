@@ -10,6 +10,7 @@ import {
   useUpdateContentPage,
   useCreateContentPage,
 } from "../../../queries/contentPages";
+import { usePermission } from "../../../hooks/usePermission";
 
 const quillModules = {
   toolbar: [
@@ -28,13 +29,21 @@ const quillModules = {
   ],
 };
 
+const readOnlyModules = {
+  toolbar: false,
+};
+
 const TermsSettingsTab = () => {
-  // isLoading true hoga jab tak API fetch nahi hoti
-  const { data: response, isLoading } = useContentPage("terms_and_conditions");
+  const { can, isLoading: permLoading } = usePermission();
 
-  // Safe data extraction
+  // ✅ FIX: Settings page ke andar hai, isliye settings.manage check hoga
+  const canManage = can("settings", "manage");
+
+  const { data: response, isLoading } = useContentPage("terms_and_conditions", {
+    enabled: can("settings", "view"),
+  });
+
   const apiData = response?.data || response;
-
   const updateMutation = useUpdateContentPage();
   const createMutation = useCreateContentPage();
 
@@ -42,7 +51,6 @@ const TermsSettingsTab = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isQuillReady, setIsQuillReady] = useState(false);
 
-  // Data aate hi content set karo aur Quill ko ready karo
   useEffect(() => {
     if (apiData) {
       setContent(apiData.content || "");
@@ -51,12 +59,12 @@ const TermsSettingsTab = () => {
   }, [apiData]);
 
   const hasChanged = useMemo(() => {
+    if (!canManage) return false;
     const initialContent = apiData?.content || "";
     return content !== initialContent;
-  }, [content, apiData]);
+  }, [content, apiData, canManage]);
 
-  // 🔥 FIX: Jab tak API loading hai ya Quill ready nahi hai, tab tak loader dikhao
-  if (isLoading || !isQuillReady) {
+  if (permLoading || isLoading || !isQuillReady) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-ink-100 bg-surface">
         <Loader />
@@ -65,6 +73,7 @@ const TermsSettingsTab = () => {
   }
 
   const handleSave = () => {
+    if (!canManage) return;
     setIsSaving(true);
     const formData = new FormData();
     formData.append("key", "terms_and_conditions");
@@ -96,21 +105,21 @@ const TermsSettingsTab = () => {
             </div>
 
             <div
-              className="quill-wrapper overflow-hidden rounded-lg border border-form-border bg-form-bg"
+              className={`quill-wrapper overflow-hidden rounded-lg border border-form-border bg-form-bg ${!canManage ? "opacity-80 pointer-events-none" : ""}`}
               style={{ "--quill-min-height": "300px" }}
             >
-              {/* value={content} use karo */}
               <ReactQuill
                 theme="snow"
                 value={content}
-                onChange={(val) => setContent(val)}
-                modules={quillModules}
+                onChange={(val) => canManage && setContent(val)}
+                modules={canManage ? quillModules : readOnlyModules}
+                readOnly={!canManage}
                 placeholder="Write your terms and conditions here..."
               />
             </div>
           </div>
 
-          {(hasChanged || isSaving) && (
+          {canManage && (hasChanged || isSaving) && (
             <div className="mt-3 flex justify-end">
               <button
                 type="button"
@@ -139,7 +148,7 @@ const TermsSettingsTab = () => {
         </div>
       </div>
 
-      {hasChanged && !isSaving && (
+      {canManage && hasChanged && !isSaving && (
         <div className="pointer-events-none sticky bottom-4 z-10 flex justify-end">
           <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-ink-200 bg-surface px-3 py-2 shadow-md">
             <span className="flex h-5 min-w-[20px] items-center justify-center rounded bg-warn-100 px-1 text-[11px] font-bold tabular-nums text-warn-800">

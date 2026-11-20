@@ -1,5 +1,7 @@
+// // src/features/patent/pages/providerAvailability/AvailabilityView.jsx
+
 // import { useParams, useNavigate } from "react-router-dom";
-// import { useMemo, useState } from "react";
+// import { useMemo, useState, useEffect } from "react";
 // import {
 //   FiArrowLeft,
 //   FiEdit2,
@@ -9,43 +11,24 @@
 //   FiAlertCircle,
 //   FiChevronDown,
 //   FiChevronUp,
+//   FiGift,
+//   FiRefreshCw,
 // } from "react-icons/fi";
-// import { useProviderAvailability } from "../../queries/providerAvailabilities";
+// import {
+//   useProviderAvailability,
+//   usePreviewAvailability,
+// } from "../../queries/providerAvailabilities";
 // import Loader from "../../common/Loader";
+// import { FiLock } from "react-icons/fi";
+// import { usePermission } from "../../hooks/usePermission";
 
 // // ==================== TIME HELPERS ====================
-// const timeToMinutes = (time) => {
-//   if (!time) return 0;
-//   const [h, m] = time.split(":").map(Number);
-//   return h * 60 + m;
-// };
-
-// const minutesToTime = (min) => {
-//   const h = Math.floor(min / 60);
-//   const m = min % 60;
-//   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-// };
-
 // const formatTime12 = (time) => {
 //   if (!time) return "";
 //   const [h, m] = time.split(":").map(Number);
 //   const period = h >= 12 ? "PM" : "AM";
 //   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
 //   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
-// };
-
-// const generateSlots = (startTime, endTime, duration) => {
-//   if (!startTime || !endTime || !duration) return [];
-//   const startMin = timeToMinutes(startTime);
-//   const endMin = timeToMinutes(endTime);
-//   const slots = [];
-//   for (let t = startMin; t + duration <= endMin; t += duration) {
-//     slots.push({
-//       start: minutesToTime(t),
-//       end: minutesToTime(t + duration),
-//     });
-//   }
-//   return slots;
 // };
 
 // // ==================== DATE HELPERS ====================
@@ -59,37 +42,9 @@
 //   7: "Sunday",
 // };
 
-// // Convert JS getDay() (0=Sun, 1=Mon) to ISO (1=Mon, 7=Sun)
 // const getISODay = (date) => {
 //   const jsDay = date.getDay();
 //   return jsDay === 0 ? 7 : jsDay;
-// };
-
-// // Generate all dates between date_from and date_to that match days_of_week
-// const generateDates = (dateFrom, dateTo, daysOfWeek) => {
-//   if (!dateFrom || !dateTo || !daysOfWeek?.length) return [];
-
-//   const dates = [];
-//   const start = new Date(dateFrom + "T00:00:00");
-//   const end = new Date(dateTo + "T00:00:00");
-
-//   const current = new Date(start);
-//   while (current <= end) {
-//     const isoDay = getISODay(current);
-//     if (daysOfWeek.includes(isoDay)) {
-//       const y = current.getFullYear();
-//       const m = String(current.getMonth() + 1).padStart(2, "0");
-//       const d = String(current.getDate()).padStart(2, "0");
-//       dates.push({
-//         dateStr: `${y}-${m}-${d}`,
-//         dayOfWeek: isoDay,
-//         dayName: DAY_NAMES[isoDay],
-//         jsDate: new Date(current),
-//       });
-//     }
-//     current.setDate(current.getDate() + 1);
-//   }
-//   return dates;
 // };
 
 // const formatDateFull = (d) =>
@@ -104,22 +59,118 @@
 // const AvailabilityView = () => {
 //   const { id } = useParams();
 //   const navigate = useNavigate();
-//   const { data, isLoading } = useProviderAvailability(id);
+
+//   const { can, isLoading: permLoading } = usePermission();
+
+//   const canView = can("availability", "view");
+//   const canManage = can("availability", "manage");
+
+//   const { data, isLoading } = useProviderAvailability(id, {
+//     enabled: canView,
+//   });
+
+//   const previewMutation = usePreviewAvailability();
+//   const [previewData, setPreviewData] = useState(null);
+//   const [isGenerating, setIsGenerating] = useState(false);
 
 //   const [expandedDates, setExpandedDates] = useState({});
 //   const [showAll, setShowAll] = useState(false);
 
-//   // Compute all slots (per-day template)
-//   const dailySlots = useMemo(() => {
-//     if (!data) return [];
-//     return generateSlots(data.start_time, data.end_time, data.slot_duration);
-//   }, [data]);
+//   const [globalTab, setGlobalTab] = useState("all");
 
-//   // Compute all applicable dates
+//   useEffect(() => {
+//     if (!canView || !data) return;
+//     if (!data) return;
+
+//     const payload = {
+//       admin_id: data.provider?.id,
+//       appointment_type_id: data.appointment_type?.id,
+//       date_from: data.date_from,
+//       date_to: data.date_to,
+//       days_of_week: data.days_of_week,
+//       start_time: data.start_time,
+//       end_time: data.end_time,
+//       slot_duration: data.slot_duration,
+//       capacity: data.capacity,
+//     };
+
+//     setIsGenerating(true);
+//     previewMutation.mutate(payload, {
+//       onSuccess: (res) => {
+//         setPreviewData(res.data);
+//         setIsGenerating(false);
+//       },
+//       onError: () => {
+//         setIsGenerating(false);
+//       },
+//     });
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [data?.id]);
+
 //   const allDates = useMemo(() => {
 //     if (!data) return [];
-//     return generateDates(data.date_from, data.date_to, data.days_of_week);
+//     const dates = [];
+//     const start = new Date(data.date_from + "T00:00:00");
+//     const end = new Date(data.date_to + "T00:00:00");
+//     const current = new Date(start);
+
+//     while (current <= end) {
+//       const isoDay = getISODay(current);
+//       if (data.days_of_week?.includes(isoDay)) {
+//         const y = current.getFullYear();
+//         const m = String(current.getMonth() + 1).padStart(2, "0");
+//         const d = String(current.getDate()).padStart(2, "0");
+//         dates.push({
+//           dateStr: `${y}-${m}-${d}`,
+//           dayOfWeek: isoDay,
+//           dayName: DAY_NAMES[isoDay],
+//           jsDate: new Date(current),
+//         });
+//       }
+//       current.setDate(current.getDate() + 1);
+//     }
+//     return dates;
 //   }, [data]);
+
+//   // Default Expand Logic: Jab allDates calculate ho jaye, toh sabko true mark karo
+//   useEffect(() => {
+//     if (allDates.length > 0) {
+//       const initialExpand = {};
+//       allDates.forEach((d) => (initialExpand[d.dateStr] = true));
+//       setExpandedDates(initialExpand);
+//     }
+//   }, [allDates]);
+
+//   if (permLoading) {
+//     return <Loader text="Checking permissions..." />;
+//   }
+
+//   if (!canView) {
+//     return (
+//       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+//         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+//           <FiLock className="h-7 w-7" />
+//         </div>
+
+//         <h2 className="mt-4 text-lg font-semibold text-ink-900">
+//           Access Denied
+//         </h2>
+
+//         <p className="mt-1 max-w-md text-sm text-ink-500">
+//           You do not have permission to view provider availability. Please
+//           contact your administrator.
+//         </p>
+
+//         <button
+//           onClick={() => navigate(-1)}
+//           className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-ink-50"
+//         >
+//           <FiArrowLeft className="h-4 w-4" />
+//           Go Back
+//         </button>
+//       </div>
+//     );
+//   }
 
 //   if (isLoading) return <Loader text="Loading availability..." />;
 
@@ -132,8 +183,6 @@
 //   }
 
 //   const days = data.days || [];
-
-//   // Which dates to display
 //   const visibleDates = showAll ? allDates : allDates.slice(0, 7);
 //   const hiddenCount = allDates.length - visibleDates.length;
 
@@ -144,13 +193,17 @@
 //     }));
 //   };
 
-//   const expandAll = () => {
-//     const next = {};
-//     allDates.forEach((d) => (next[d.dateStr] = true));
-//     setExpandedDates(next);
+//   const getSlotsForDate = (dateStr) => {
+//     if (!previewData?.dates) return [];
+//     const dateObj = previewData.dates.find((d) => d.date === dateStr);
+//     return dateObj?.slots || [];
 //   };
 
-//   const collapseAll = () => setExpandedDates({});
+//   const totalFreeSlots =
+//     previewData?.dates?.reduce(
+//       (acc, d) => acc + d.slots.filter((s) => s.is_free).length,
+//       0,
+//     ) || 0;
 
 //   return (
 //     <div className="space-y-5">
@@ -163,27 +216,29 @@
 //           <FiArrowLeft className="h-4 w-4" />
 //           Back to List
 //         </button>
-//         <div className="flex gap-2">
-//           <button
-//             onClick={() =>
-//               navigate(`/provider-availabilities/${id}/exceptions`)
-//             }
-//             className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-warn-200 bg-warn-50 px-4 py-2 text-sm font-semibold text-warn-800 hover:bg-warn-100"
-//           >
-//             <FiAlertCircle className="h-4 w-4" />
-//             Manage Exceptions
-//           </button>
-//           <button
-//             onClick={() => navigate(`/provider-availabilities/${id}/edit`)}
-//             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
-//           >
-//             <FiEdit2 className="h-4 w-4" />
-//             Edit
-//           </button>
-//         </div>
+//         {canManage && (
+//           <div className="flex gap-2">
+//             <button
+//               onClick={() =>
+//                 navigate(`/provider-availabilities/${id}/exceptions`)
+//               }
+//               className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-warn-200 bg-warn-50 px-4 py-2 text-sm font-semibold text-warn-800 hover:bg-warn-100"
+//             >
+//               <FiAlertCircle className="h-4 w-4" />
+//               Manage Exceptions
+//             </button>
+//             <button
+//               onClick={() => navigate(`/provider-availabilities/${id}/edit`)}
+//               className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+//             >
+//               <FiEdit2 className="h-4 w-4" />
+//               Edit
+//             </button>
+//           </div>
+//         )}
 //       </div>
 
-//       {/* Hero card — schedule + slot config */}
+//       {/* Hero card */}
 //       <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
 //         <div className="border-b border-ink-100 bg-ink-50/40 px-5 py-4 sm:px-6">
 //           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -208,7 +263,6 @@
 //         </div>
 
 //         <div className="grid grid-cols-1 divide-y divide-ink-100 lg:grid-cols-2 lg:divide-x lg:divide-y-0">
-//           {/* Left — Schedule */}
 //           <div className="p-5 sm:p-6">
 //             <div className="mb-4 flex items-center gap-2">
 //               <FiCalendar className="h-4 w-4 text-ink-500" />
@@ -222,12 +276,10 @@
 //                 label="Appointment Type"
 //                 value={data.appointment_type?.name || "—"}
 //               />
-
 //               <div className="grid grid-cols-2 gap-4">
 //                 <Row label="Available From" value={data.date_from || "—"} />
 //                 <Row label="Available Until" value={data.date_to || "—"} />
 //               </div>
-
 //               <div>
 //                 <p className="mb-1.5 text-xs font-medium text-ink-500">
 //                   Available Days
@@ -247,7 +299,6 @@
 //                   )}
 //                 </div>
 //               </div>
-
 //               <div className="grid grid-cols-2 gap-4">
 //                 <Row label="Start Time" value={data.start_time || "—"} />
 //                 <Row label="End Time" value={data.end_time || "—"} />
@@ -255,7 +306,6 @@
 //             </div>
 //           </div>
 
-//           {/* Right — Slot Config */}
 //           <div className="p-5 sm:p-6">
 //             <div className="mb-4 flex items-center gap-2">
 //               <FiClock className="h-4 w-4 text-ink-500" />
@@ -284,29 +334,10 @@
 //                 </div>
 //                 <div className="rounded-lg border border-brand-200 bg-brand-50/50 p-3">
 //                   <p className="text-[10px] font-medium text-brand-600">
-//                     Per Day
+//                     Free Slots
 //                   </p>
 //                   <p className="mt-0.5 text-base font-bold text-brand-700">
-//                     {dailySlots.length} slots
-//                   </p>
-//                 </div>
-//               </div>
-
-//               <div className="grid grid-cols-2 gap-3">
-//                 <div className="rounded-lg border border-ink-100 bg-ink-50/30 p-3">
-//                   <p className="text-[10px] font-medium text-ink-500">
-//                     Total Days
-//                   </p>
-//                   <p className="mt-0.5 text-base font-bold text-ink-900">
-//                     {allDates.length}
-//                   </p>
-//                 </div>
-//                 <div className="rounded-lg border border-accent-200 bg-accent-50/50 p-3">
-//                   <p className="text-[10px] font-medium text-accent-700">
-//                     Total Slots
-//                   </p>
-//                   <p className="mt-0.5 text-base font-bold text-accent-800">
-//                     {allDates.length * dailySlots.length}
+//                     {totalFreeSlots}
 //                   </p>
 //                 </div>
 //               </div>
@@ -328,7 +359,6 @@
 //           </div>
 //         </div>
 
-//         {/* Audit footer */}
 //         <div className="border-t border-ink-100 bg-ink-50/30 px-5 py-3 sm:px-6">
 //           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] text-ink-500">
 //             {data.created_by && (
@@ -351,21 +381,14 @@
 //                 </strong>
 //               </span>
 //             )}
-//             {data.updated_at && (
-//               <span>
-//                 Last updated{" "}
-//                 <strong className="text-ink-700">
-//                   {new Date(data.updated_at).toLocaleString()}
-//                 </strong>
-//               </span>
-//             )}
 //           </div>
 //         </div>
 //       </div>
 
 //       {/* Date-wise Slots */}
 //       <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
-//         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-100 bg-ink-50/40 px-5 py-4 sm:px-6">
+//         {/* Section Header (Global Tabs) */}
+//         <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-4 border-b border-ink-100 bg-ink-50/40 px-5 py-4 sm:px-6">
 //           <div>
 //             <h2 className="font-jakarta text-base font-bold text-ink-900">
 //               Date-wise Slots
@@ -374,26 +397,50 @@
 //               All available dates and their generated slots
 //             </p>
 //           </div>
-//           <div className="flex gap-2">
+
+//           <div className="flex items-center gap-1 rounded-lg border border-ink-200 bg-surface p-1">
 //             <button
-//               type="button"
-//               onClick={expandAll}
-//               className="cursor-pointer rounded-md border border-ink-200 bg-surface px-2.5 py-1 text-[11px] font-medium text-ink-600 hover:bg-ink-50"
+//               onClick={() => setGlobalTab("all")}
+//               className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+//                 globalTab === "all"
+//                   ? "bg-ink-100 text-ink-900"
+//                   : "text-ink-500 hover:bg-ink-50"
+//               }`}
 //             >
-//               Expand All
+//               All Slots
 //             </button>
 //             <button
-//               type="button"
-//               onClick={collapseAll}
-//               className="cursor-pointer rounded-md border border-ink-200 bg-surface px-2.5 py-1 text-[11px] font-medium text-ink-600 hover:bg-ink-50"
+//               onClick={() => setGlobalTab("normal")}
+//               className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+//                 globalTab === "normal"
+//                   ? "bg-ink-100 text-ink-900"
+//                   : "text-ink-500 hover:bg-ink-50"
+//               }`}
 //             >
-//               Collapse All
+//               Normal Only
+//             </button>
+//             <button
+//               onClick={() => setGlobalTab("free")}
+//               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+//                 globalTab === "free"
+//                   ? "bg-brand-50 text-brand-700"
+//                   : "text-ink-500 hover:bg-ink-50"
+//               }`}
+//             >
+//               <FiGift className="h-3.5 w-3.5" /> Free Only
 //             </button>
 //           </div>
 //         </div>
 
 //         <div className="p-5 sm:p-6">
-//           {allDates.length === 0 ? (
+//           {isGenerating ? (
+//             <div className="flex items-center justify-center py-10">
+//               <FiRefreshCw className="h-6 w-6 animate-spin text-brand-600" />
+//               <span className="ml-2 text-sm text-ink-500">
+//                 Loading slots...
+//               </span>
+//             </div>
+//           ) : allDates.length === 0 ? (
 //             <p className="text-sm text-ink-500">
 //               No dates in the selected range match the available days.
 //             </p>
@@ -401,14 +448,31 @@
 //             <>
 //               <div className="space-y-2">
 //                 {visibleDates.map((dateItem) => {
-//                   const isExpanded = expandedDates[dateItem.dateStr];
+//                   // Default state: expandedDates[dateStr] asli value (agar undefined hai toh default true?)
+//                   // Par humne useEffect se by default true set kar diya hai, toh undefined na hone chahiye.
+//                   const isExpanded = expandedDates[dateItem.dateStr] !== false; // Default true
+
+//                   const allSlots = getSlotsForDate(dateItem.dateStr);
+//                   const freeSlots = allSlots.filter((s) => s.is_free);
+//                   const normalSlots = allSlots.filter((s) => !s.is_free);
+
+//                   // Apply Global Tab Filter
+//                   let slotsToDisplay = [];
+//                   if (globalTab === "all") slotsToDisplay = allSlots;
+//                   else if (globalTab === "free") slotsToDisplay = freeSlots;
+//                   else if (globalTab === "normal") slotsToDisplay = normalSlots;
+
+//                   // Agar 'Free Only' hai aur free slots nahi hain, toh hide
+//                   if (globalTab !== "all" && slotsToDisplay.length === 0) {
+//                     return null;
+//                   }
 
 //                   return (
 //                     <div
 //                       key={dateItem.dateStr}
 //                       className="overflow-hidden rounded-lg border border-ink-100 bg-surface transition hover:border-ink-200"
 //                     >
-//                       {/* Date header — clickable */}
+//                       {/* Date Header with Arrow */}
 //                       <button
 //                         type="button"
 //                         onClick={() => toggleExpand(dateItem.dateStr)}
@@ -427,9 +491,18 @@
 //                             <p className="text-sm font-semibold text-ink-900">
 //                               {formatDateFull(dateItem.jsDate)}
 //                             </p>
-//                             <p className="text-[11px] text-ink-500">
-//                               {dailySlots.length} slots
-//                             </p>
+//                             <div className="flex items-center gap-2 text-[11px] text-ink-500">
+//                               <span>{slotsToDisplay.length} slots</span>
+//                               {globalTab === "all" && freeSlots.length > 0 && (
+//                                 <>
+//                                   <span>•</span>
+//                                   <span className="flex items-center gap-1 font-medium text-brand-600">
+//                                     <FiGift className="h-3 w-3" />{" "}
+//                                     {freeSlots.length} Free
+//                                   </span>
+//                                 </>
+//                               )}
+//                             </div>
 //                           </div>
 //                         </div>
 //                         <div className="flex items-center gap-2">
@@ -444,28 +517,47 @@
 //                         </div>
 //                       </button>
 
-//                       {/* Slots — expanded */}
+//                       {/* Slots List */}
 //                       {isExpanded && (
 //                         <div className="border-t border-ink-100 bg-ink-50/20 px-4 py-3">
 //                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-//                             {dailySlots.map((slot, idx) => (
-//                               <div
-//                                 key={idx}
-//                                 className="flex items-center justify-between rounded-md border border-brand-200 bg-surface px-3 py-2"
-//                               >
-//                                 <div>
-//                                   <p className="text-[11px] font-semibold text-ink-800">
-//                                     {formatTime12(slot.start)}
-//                                   </p>
-//                                   <p className="text-[10px] text-ink-500">
-//                                     to {formatTime12(slot.end)}
-//                                   </p>
+//                             {slotsToDisplay.map((slot, idx) => {
+//                               const isFree = slot.is_free;
+
+//                               return (
+//                                 <div
+//                                   key={idx}
+//                                   className={`flex items-center justify-between rounded-md border px-3 py-2 ${
+//                                     isFree
+//                                       ? "border-brand-300 bg-brand-50 shadow-sm"
+//                                       : "border-ink-200 bg-surface"
+//                                   }`}
+//                                 >
+//                                   <div>
+//                                     <p
+//                                       className={`text-[11px] font-semibold ${isFree ? "text-brand-800" : "text-ink-800"}`}
+//                                     >
+//                                       {formatTime12(slot.start_time)}
+//                                     </p>
+//                                     <p
+//                                       className={`text-[10px] ${isFree ? "text-brand-600" : "text-ink-500"}`}
+//                                     >
+//                                       to {formatTime12(slot.end_time)}
+//                                     </p>
+//                                   </div>
+//                                   {isFree ? (
+//                                     <span className="flex items-center gap-1 rounded bg-brand-600 px-1.5 py-0.5 text-[9px] font-semibold text-surface">
+//                                       <FiGift className="h-2.5 w-2.5" />
+//                                       FREE
+//                                     </span>
+//                                   ) : (
+//                                     <span className="rounded bg-ink-100 px-1.5 py-0.5 text-[9px] font-medium text-ink-600">
+//                                       #{idx + 1}
+//                                     </span>
+//                                   )}
 //                                 </div>
-//                                 <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9px] font-medium text-brand-700">
-//                                   #{idx + 1}
-//                                 </span>
-//                               </div>
-//                             ))}
+//                               );
+//                             })}
 //                           </div>
 //                         </div>
 //                       )}
@@ -474,7 +566,6 @@
 //                 })}
 //               </div>
 
-//               {/* Show more / less */}
 //               {hiddenCount > 0 && (
 //                 <div className="mt-4 flex justify-center">
 //                   <button
@@ -530,12 +621,20 @@ import {
   FiChevronUp,
   FiGift,
   FiRefreshCw,
+  FiLock,
 } from "react-icons/fi";
 import {
   useProviderAvailability,
   usePreviewAvailability,
 } from "../../queries/providerAvailabilities";
+import {
+  useAvailabilityExceptions,
+  toLocalDateString,
+  toShortTime,
+  timeToMinutes,
+} from "../../queries/availabilityExceptions";
 import Loader from "../../common/Loader";
+import { usePermission } from "../../hooks/usePermission";
 
 // ==================== TIME HELPERS ====================
 const formatTime12 = (time) => {
@@ -574,7 +673,15 @@ const formatDateFull = (d) =>
 const AvailabilityView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data, isLoading } = useProviderAvailability(id);
+
+  const { can, isLoading: permLoading } = usePermission();
+
+  const canView = can("availability", "view");
+  const canManage = can("availability", "manage");
+
+  const { data, isLoading } = useProviderAvailability(id, {
+    enabled: canView,
+  });
 
   const previewMutation = usePreviewAvailability();
   const [previewData, setPreviewData] = useState(null);
@@ -585,8 +692,25 @@ const AvailabilityView = () => {
 
   const [globalTab, setGlobalTab] = useState("all");
 
+  // ==================== EXCEPTIONS ====================
+  const { data: exceptionsData } = useAvailabilityExceptions({
+    availability_id: id,
+    per_page: 100,
+  });
+
+  const exceptionsByDate = useMemo(() => {
+    const map = {};
+    (exceptionsData?.list || []).forEach((ex) => {
+      const d = toLocalDateString(ex.exception_date);
+      if (!d) return;
+      if (!map[d]) map[d] = [];
+      map[d].push(ex);
+    });
+    return map;
+  }, [exceptionsData]);
+
   useEffect(() => {
-    if (!data) return;
+    if (!canView || !data) return;
 
     const payload = {
       admin_id: data.provider?.id,
@@ -638,7 +762,7 @@ const AvailabilityView = () => {
     return dates;
   }, [data]);
 
-  // Default Expand Logic: Jab allDates calculate ho jaye, toh sabko true mark karo
+  // Default expand: sab dates expanded
   useEffect(() => {
     if (allDates.length > 0) {
       const initialExpand = {};
@@ -646,6 +770,37 @@ const AvailabilityView = () => {
       setExpandedDates(initialExpand);
     }
   }, [allDates]);
+
+  if (permLoading) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view provider availability. Please
+          contact your administrator.
+        </p>
+
+        <button
+          onClick={() => navigate(-1)}
+          className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-ink-50"
+        >
+          <FiArrowLeft className="h-4 w-4" />
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading) return <Loader text="Loading availability..." />;
 
@@ -668,17 +823,54 @@ const AvailabilityView = () => {
     }));
   };
 
+  // Preview slots + exceptions merge
   const getSlotsForDate = (dateStr) => {
     if (!previewData?.dates) return [];
     const dateObj = previewData.dates.find((d) => d.date === dateStr);
-    return dateObj?.slots || [];
+    const baseSlots = dateObj?.slots || [];
+
+    const dateEx = exceptionsByDate[dateStr] || [];
+    if (dateEx.length === 0) {
+      return baseSlots.map((slot) => ({
+        ...slot,
+        is_blocked: false,
+        block_reason: null,
+      }));
+    }
+
+    const fullDayEx = dateEx.find((ex) => !ex.start_time && !ex.end_time);
+
+    return baseSlots.map((slot) => {
+      const sStart = timeToMinutes(toShortTime(slot.start_time));
+      const sEnd = timeToMinutes(toShortTime(slot.end_time));
+
+      const rangeEx = dateEx.find((ex) => {
+        if (!ex.start_time || !ex.end_time) return false;
+        const exStart = timeToMinutes(toShortTime(ex.start_time));
+        const exEnd = timeToMinutes(toShortTime(ex.end_time));
+        return sStart >= exStart && sEnd <= exEnd;
+      });
+
+      const matched = fullDayEx || rangeEx;
+
+      return {
+        ...slot,
+        is_blocked: !!matched,
+        block_reason: matched?.reason || null,
+      };
+    });
   };
 
   const totalFreeSlots =
-    previewData?.dates?.reduce(
-      (acc, d) => acc + d.slots.filter((s) => s.is_free).length,
-      0,
-    ) || 0;
+    previewData?.dates?.reduce((acc, d) => {
+      const slots = getSlotsForDate(d.date);
+      return acc + slots.filter((s) => s.is_free && !s.is_blocked).length;
+    }, 0) || 0;
+
+  const tabBtnCls = (active, activeCls) =>
+    `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+      active ? activeCls : "text-ink-500 hover:bg-ink-50"
+    }`;
 
   return (
     <div className="space-y-5">
@@ -691,24 +883,26 @@ const AvailabilityView = () => {
           <FiArrowLeft className="h-4 w-4" />
           Back to List
         </button>
-        <div className="flex gap-2">
-          <button
-            onClick={() =>
-              navigate(`/provider-availabilities/${id}/exceptions`)
-            }
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-warn-200 bg-warn-50 px-4 py-2 text-sm font-semibold text-warn-800 hover:bg-warn-100"
-          >
-            <FiAlertCircle className="h-4 w-4" />
-            Manage Exceptions
-          </button>
-          <button
-            onClick={() => navigate(`/provider-availabilities/${id}/edit`)}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
-          >
-            <FiEdit2 className="h-4 w-4" />
-            Edit
-          </button>
-        </div>
+        {canManage && (
+          <div className="flex gap-2">
+            <button
+              onClick={() =>
+                navigate(`/provider-availabilities/${id}/exceptions`)
+              }
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-warn-200 bg-warn-50 px-4 py-2 text-sm font-semibold text-warn-800 hover:bg-warn-100"
+            >
+              <FiAlertCircle className="h-4 w-4" />
+              Manage Exceptions
+            </button>
+            <button
+              onClick={() => navigate(`/provider-availabilities/${id}/edit`)}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+            >
+              <FiEdit2 className="h-4 w-4" />
+              Edit
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Hero card */}
@@ -861,7 +1055,7 @@ const AvailabilityView = () => {
       {/* Date-wise Slots */}
       <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
         {/* Section Header (Global Tabs) */}
-        <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-4 border-b border-ink-100 bg-ink-50/40 px-5 py-4 sm:px-6">
+        <div className="flex flex-col flex-wrap items-start justify-between gap-4 border-b border-ink-100 bg-ink-50/40 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
           <div>
             <h2 className="font-jakarta text-base font-bold text-ink-900">
               Date-wise Slots
@@ -871,36 +1065,42 @@ const AvailabilityView = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-ink-200 bg-surface p-1">
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-ink-200 bg-surface p-1">
             <button
               onClick={() => setGlobalTab("all")}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                globalTab === "all"
-                  ? "bg-ink-100 text-ink-900"
-                  : "text-ink-500 hover:bg-ink-50"
-              }`}
+              className={tabBtnCls(
+                globalTab === "all",
+                "bg-ink-100 text-ink-900",
+              )}
             >
               All Slots
             </button>
             <button
               onClick={() => setGlobalTab("normal")}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                globalTab === "normal"
-                  ? "bg-ink-100 text-ink-900"
-                  : "text-ink-500 hover:bg-ink-50"
-              }`}
+              className={tabBtnCls(
+                globalTab === "normal",
+                "bg-ink-100 text-ink-900",
+              )}
             >
               Normal Only
             </button>
             <button
               onClick={() => setGlobalTab("free")}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                globalTab === "free"
-                  ? "bg-brand-50 text-brand-700"
-                  : "text-ink-500 hover:bg-ink-50"
-              }`}
+              className={tabBtnCls(
+                globalTab === "free",
+                "bg-brand-50 text-brand-700",
+              )}
             >
               <FiGift className="h-3.5 w-3.5" /> Free Only
+            </button>
+            <button
+              onClick={() => setGlobalTab("blocked")}
+              className={tabBtnCls(
+                globalTab === "blocked",
+                "bg-danger-50 text-danger-700",
+              )}
+            >
+              <FiLock className="h-3.5 w-3.5" /> Blocked
             </button>
           </div>
         </div>
@@ -921,24 +1121,33 @@ const AvailabilityView = () => {
             <>
               <div className="space-y-2">
                 {visibleDates.map((dateItem) => {
-                  // Default state: expandedDates[dateStr] asli value (agar undefined hai toh default true?)
-                  // Par humne useEffect se by default true set kar diya hai, toh undefined na hone chahiye.
                   const isExpanded = expandedDates[dateItem.dateStr] !== false; // Default true
 
                   const allSlots = getSlotsForDate(dateItem.dateStr);
-                  const freeSlots = allSlots.filter((s) => s.is_free);
-                  const normalSlots = allSlots.filter((s) => !s.is_free);
+                  const blockedSlots = allSlots.filter((s) => s.is_blocked);
+                  const freeSlots = allSlots.filter(
+                    (s) => s.is_free && !s.is_blocked,
+                  );
+                  const normalSlots = allSlots.filter(
+                    (s) => !s.is_free && !s.is_blocked,
+                  );
 
                   // Apply Global Tab Filter
                   let slotsToDisplay = [];
                   if (globalTab === "all") slotsToDisplay = allSlots;
                   else if (globalTab === "free") slotsToDisplay = freeSlots;
                   else if (globalTab === "normal") slotsToDisplay = normalSlots;
+                  else if (globalTab === "blocked")
+                    slotsToDisplay = blockedSlots;
 
-                  // Agar 'Free Only' hai aur free slots nahi hain, toh hide
+                  // Filter lagne par us date me kuch nahi bacha to hide
                   if (globalTab !== "all" && slotsToDisplay.length === 0) {
                     return null;
                   }
+
+                  const isFullyBlocked =
+                    allSlots.length > 0 &&
+                    blockedSlots.length === allSlots.length;
 
                   return (
                     <div
@@ -952,7 +1161,13 @@ const AvailabilityView = () => {
                         className="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-ink-50/40"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-md bg-brand-50 text-brand-700">
+                          <div
+                            className={`flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-md ${
+                              isFullyBlocked
+                                ? "bg-danger-50 text-danger-700"
+                                : "bg-brand-50 text-brand-700"
+                            }`}
+                          >
                             <span className="text-[9px] font-semibold uppercase leading-none">
                               {dateItem.dayName.slice(0, 3)}
                             </span>
@@ -964,7 +1179,7 @@ const AvailabilityView = () => {
                             <p className="text-sm font-semibold text-ink-900">
                               {formatDateFull(dateItem.jsDate)}
                             </p>
-                            <div className="flex items-center gap-2 text-[11px] text-ink-500">
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
                               <span>{slotsToDisplay.length} slots</span>
                               {globalTab === "all" && freeSlots.length > 0 && (
                                 <>
@@ -975,13 +1190,29 @@ const AvailabilityView = () => {
                                   </span>
                                 </>
                               )}
+                              {globalTab === "all" &&
+                                blockedSlots.length > 0 && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="flex items-center gap-1 font-medium text-danger-600">
+                                      <FiLock className="h-3 w-3" />{" "}
+                                      {blockedSlots.length} Blocked
+                                    </span>
+                                  </>
+                                )}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-brand-700">
-                            Available
-                          </span>
+                          {isFullyBlocked ? (
+                            <span className="rounded-full bg-danger-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-danger-700">
+                              Blocked
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-brand-700">
+                              Available
+                            </span>
+                          )}
                           {isExpanded ? (
                             <FiChevronUp className="h-4 w-4 text-ink-400" />
                           ) : (
@@ -995,30 +1226,63 @@ const AvailabilityView = () => {
                         <div className="border-t border-ink-100 bg-ink-50/20 px-4 py-3">
                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                             {slotsToDisplay.map((slot, idx) => {
-                              const isFree = slot.is_free;
+                              const isBlocked = slot.is_blocked;
+                              const isFree = slot.is_free && !isBlocked;
 
                               return (
                                 <div
                                   key={idx}
+                                  title={
+                                    isBlocked
+                                      ? slot.block_reason || "Blocked"
+                                      : undefined
+                                  }
                                   className={`flex items-center justify-between rounded-md border px-3 py-2 ${
-                                    isFree
-                                      ? "border-brand-300 bg-brand-50 shadow-sm"
-                                      : "border-ink-200 bg-surface"
+                                    isBlocked
+                                      ? "border-danger-200 bg-danger-50"
+                                      : isFree
+                                        ? "border-brand-300 bg-brand-50 shadow-sm"
+                                        : "border-ink-200 bg-surface"
                                   }`}
                                 >
                                   <div>
                                     <p
-                                      className={`text-[11px] font-semibold ${isFree ? "text-brand-800" : "text-ink-800"}`}
+                                      className={`text-[11px] font-semibold ${
+                                        isBlocked
+                                          ? "text-danger-700 line-through"
+                                          : isFree
+                                            ? "text-brand-800"
+                                            : "text-ink-800"
+                                      }`}
                                     >
                                       {formatTime12(slot.start_time)}
                                     </p>
                                     <p
-                                      className={`text-[10px] ${isFree ? "text-brand-600" : "text-ink-500"}`}
+                                      className={`text-[10px] ${
+                                        isBlocked
+                                          ? "text-danger-600"
+                                          : isFree
+                                            ? "text-brand-600"
+                                            : "text-ink-500"
+                                      }`}
                                     >
                                       to {formatTime12(slot.end_time)}
                                     </p>
                                   </div>
-                                  {isFree ? (
+
+                                  {isBlocked ? (
+                                    <div className="flex items-center gap-1.5">
+                                      {slot.is_free && (
+                                        <span className="flex items-center gap-1 text-[9px] font-semibold uppercase text-danger-600">
+                                          <FiGift className="h-2.5 w-2.5" />
+                                          Free
+                                        </span>
+                                      )}
+                                      <div className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-danger-500 sm:h-4 sm:w-4">
+                                        <FiLock className="h-2 w-2 text-surface sm:h-2.5 sm:w-2.5" />
+                                      </div>
+                                    </div>
+                                  ) : isFree ? (
                                     <span className="flex items-center gap-1 rounded bg-brand-600 px-1.5 py-0.5 text-[9px] font-semibold text-surface">
                                       <FiGift className="h-2.5 w-2.5" />
                                       FREE

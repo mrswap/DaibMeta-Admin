@@ -28,6 +28,7 @@ import {
   PhoneInputField,
   validatePhone,
 } from "../../../common/form";
+import { usePermission } from "../../../hooks/usePermission";
 
 const SEX_OPTIONS = [
   { value: "male", label: "Male" },
@@ -318,6 +319,9 @@ const PatientForm = ({ open, onClose, initialData, onSuccess }) => {
   const isEdit = !!initialData;
   const createMutation = useCreatePatient();
   const updateMutation = useUpdatePatient();
+  const { can } = usePermission();
+
+  const canManage = can("patients", "manage");
 
   const { data: relationTypes = [] } = useRelationTypes();
   const relationOptions = relationTypes.map((r) => ({
@@ -333,6 +337,8 @@ const PatientForm = ({ open, onClose, initialData, onSuccess }) => {
     value: p.id,
     label: `${p.name} — ${p.patient_id || p.id}`,
   }));
+
+  if (!canManage) return null;
 
   if (!open) return null;
 

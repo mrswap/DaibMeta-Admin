@@ -9,12 +9,14 @@ import {
   FiFilter,
   FiX,
   FiClock,
+  FiLock,
 } from "react-icons/fi";
 
 import { useHealthQuizHistory } from "../../../queries/healthQuiz";
 import Loader from "../../../common/Loader";
 import CustomeTable from "../../../common/table/CustomeTable";
 import { FilterSelect, DatePicker } from "../../../common/form";
+import { usePermission } from "../../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   { value: "completed", label: "Completed" },
@@ -30,6 +32,12 @@ const formatTime = (seconds) => {
 
 const HealthQuizHistoryList = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("health_quiz", "view");
+  // Future proofing: agar future me edit/delete aaye
+  const canManage = can("health_quiz", "manage");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
@@ -49,7 +57,13 @@ const HealthQuizHistoryList = () => {
     ...(toDate && { date_to: toDate }),
   };
 
-  const { data, isLoading, isFetching, refetch } = useHealthQuizHistory(params);
+  // API gated by view permission
+  const { data, isLoading, isFetching, refetch } = useHealthQuizHistory(
+    params,
+    {
+      enabled: canView,
+    },
+  );
 
   const list = data?.list || [];
   const meta = data?.meta || {};
@@ -68,12 +82,39 @@ const HealthQuizHistoryList = () => {
     setPage(1);
   };
 
+  const handleView = (id) => {
+    if (!canView) return;
+    navigate(`/health-quiz/history/${id}`);
+  };
+
   const hasActiveFilters = search || statusFilter || fromDate || toDate;
   const activeFilterCount =
     (search ? 1 : 0) +
     (statusFilter ? 1 : 0) +
     (fromDate ? 1 : 0) +
     (toDate ? 1 : 0);
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view health quiz history. Please contact
+          your administrator.
+        </p>
+      </div>
+    );
+  }
 
   // ==================== COLUMNS ====================
   const columns = [
@@ -157,13 +198,15 @@ const HealthQuizHistoryList = () => {
       align: "right",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={() => navigate(`/health-quiz/history/${row.id}`)}
-            className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-brand-50 hover:text-brand-600"
-            title="View Details"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
+          {canView && (
+            <button
+              onClick={() => handleView(row.id)}
+              className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-brand-50 hover:text-brand-600"
+              title="View Details"
+            >
+              <FiEye className="h-4 w-4" />
+            </button>
+          )}
         </div>
       ),
     },

@@ -7,6 +7,7 @@ import {
   FiCalendar,
   FiFileText,
   FiActivity,
+  FiLock,
 } from "react-icons/fi";
 import { useVisitHistory } from "../../../../queries/visits";
 import Loader from "../../../../common/Loader";
@@ -42,7 +43,7 @@ const formatDateTime = (d) => {
 };
 
 // ==================== MAIN ====================
-const HistoryTab = ({ visitId }) => {
+const HistoryTab = ({ visitId, canManage = false }) => {
   const { data: history, isLoading } = useVisitHistory(visitId);
 
   if (isLoading) return <Loader text="Loading history..." />;

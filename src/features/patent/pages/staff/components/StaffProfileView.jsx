@@ -1,703 +1,533 @@
-// // src/features/patent/pages/staff/StaffProfileView.jsx
+// src/features/patent/pages/staff/components/ProfessionalProfileTab.jsx
 
-// import { useState } from "react";
-// import { useParams, useNavigate } from "react-router-dom";
-// import {
-//   FiArrowLeft,
-//   FiUser,
-//   FiBriefcase,
-//   FiMail,
-//   FiPhone,
-//   FiShield,
-// } from "react-icons/fi";
-// import { useStaffMember } from "../../queries/staff";
-// import Loader from "../../common/Loader";
-// import ProfessionalProfileTab from "./components/ProfessionalProfileTab";
-
-// const StaffProfileView = () => {
-//   const { id } = useParams();
-//   const navigate = useNavigate();
-//   const [activeTab, setActiveTab] = useState("basic");
-
-//   const { data, isLoading } = useStaffMember(id);
-
-//   if (isLoading) return <Loader text="Loading staff profile..." />;
-//   if (!data)
-//     return (
-//       <div className="p-10 text-center text-ink-500">Staff not found.</div>
-//     );
-
-//   const isProvider = data?.role?.is_provider === true;
-
-//   return (
-//     <div className="space-y-6">
-//       {/* Header */}
-//       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-//         <div className="flex items-center gap-4">
-//           <button
-//             onClick={() => navigate("/staff")}
-//             className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 hover:bg-ink-50 transition-colors"
-//           >
-//             <FiArrowLeft className="h-5 w-5" />
-//           </button>
-//           <div>
-//             <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-//               {data.name}
-//             </h1>
-//             <p className="text-sm text-ink-500">
-//               Staff ID: #{data.id} • Role: {data.role?.label || "N/A"}
-//             </p>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Tabs */}
-//       <div className="flex border-b border-ink-200">
-//         <button
-//           onClick={() => setActiveTab("basic")}
-//           className={`flex items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-colors cursor-pointer ${
-//             activeTab === "basic"
-//               ? "border-brand-600 text-brand-700"
-//               : "border-transparent text-ink-500 hover:text-ink-800"
-//           }`}
-//         >
-//           <FiUser className="h-4 w-4" /> Basic Info
-//         </button>
-//         {isProvider && (
-//           <button
-//             onClick={() => setActiveTab("profile")}
-//             className={`flex items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-colors cursor-pointer ${
-//               activeTab === "profile"
-//                 ? "border-brand-600 text-brand-700"
-//                 : "border-transparent text-ink-500 hover:text-ink-800"
-//             }`}
-//           >
-//             <FiBriefcase className="h-4 w-4" /> Professional Profile
-//           </button>
-//         )}
-//       </div>
-
-//       {/* Content Area */}
-//       <div className="rounded-card border border-ink-100 bg-surface p-6">
-//         {activeTab === "basic" ? (
-//           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-//             {/* Left Side: Basic Details */}
-//             <div className="space-y-5">
-//               <div>
-//                 <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500 mb-3">
-//                   Contact Info
-//                 </h3>
-//                 <div className="space-y-3 rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-//                   <div className="flex items-center gap-3">
-//                     <FiMail className="text-ink-400" />
-//                     <div>
-//                       <p className="text-xs text-ink-500">Email</p>
-//                       <p className="text-sm font-medium text-ink-900">
-//                         {data.email}
-//                       </p>
-//                     </div>
-//                   </div>
-//                   <div className="flex items-center gap-3">
-//                     <FiPhone className="text-ink-400" />
-//                     <div>
-//                       <p className="text-xs text-ink-500">Phone</p>
-//                       <p className="text-sm font-medium text-ink-900">
-//                         {data.phone || "—"}
-//                       </p>
-//                     </div>
-//                   </div>
-//                 </div>
-//               </div>
-
-//               <div>
-//                 <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500 mb-3">
-//                   Account Details
-//                 </h3>
-//                 <div className="space-y-3 rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-//                   <div className="flex items-center justify-between">
-//                     <span className="text-sm text-ink-600">Status</span>
-//                     <span
-//                       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-//                         data.status
-//                           ? "bg-brand-50 text-brand-700"
-//                           : "bg-ink-100 text-ink-600"
-//                       }`}
-//                     >
-//                       {data.status ? "Active" : "Inactive"}
-//                     </span>
-//                   </div>
-//                   <div className="flex items-center justify-between">
-//                     <span className="text-sm text-ink-600">Role</span>
-//                     <span className="inline-flex rounded-full bg-accent-50 px-2.5 py-0.5 text-xs font-medium text-accent-800">
-//                       {data.role?.label || data.role?.name}
-//                     </span>
-//                   </div>
-//                   <div className="flex items-center justify-between">
-//                     <span className="text-sm text-ink-600">Super Admin</span>
-//                     <span className="text-sm font-medium text-ink-900">
-//                       {data.is_super_admin ? "Yes" : "No"}
-//                     </span>
-//                   </div>
-//                 </div>
-//               </div>
-//             </div>
-
-//             {/* Right Side: Specializations */}
-//             <div className="space-y-5">
-//               <div>
-//                 <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500 mb-3">
-//                   Specializations
-//                 </h3>
-//                 <div className="rounded-lg border border-ink-100 bg-ink-50/30 p-4 min-h-[100px]">
-//                   {data.specializations && data.specializations.length > 0 ? (
-//                     <div className="flex flex-wrap gap-2">
-//                       {data.specializations.map((s) => (
-//                         <span
-//                           key={s.id}
-//                           className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700"
-//                         >
-//                           {s.name}
-//                         </span>
-//                       ))}
-//                     </div>
-//                   ) : (
-//                     <p className="text-sm text-ink-500 italic">
-//                       No specializations assigned.
-//                     </p>
-//                   )}
-//                 </div>
-//               </div>
-
-//               <div>
-//                 <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500 mb-3">
-//                   Audit Information
-//                 </h3>
-//                 <div className="rounded-lg border border-ink-100 bg-ink-50/30 p-4 space-y-2">
-//                   <p className="text-xs text-ink-600">
-//                     Last Login:{" "}
-//                     <span className="font-medium text-ink-900">
-//                       {data.last_login_at
-//                         ? new Date(data.last_login_at).toLocaleString()
-//                         : "Never"}
-//                     </span>
-//                   </p>
-//                   <p className="text-xs text-ink-600">
-//                     Created At:{" "}
-//                     <span className="font-medium text-ink-900">
-//                       {new Date(data.created_at).toLocaleString()}
-//                     </span>
-//                   </p>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         ) : (
-//           <ProfessionalProfileTab providerId={data.id} />
-//         )}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default StaffProfileView;
-
-// src/features/patent/pages/staff/components/StaffProfileView.jsx
-
-// import { useState } from "react";
-// import { useParams, useNavigate } from "react-router-dom";
-// import {
-//   FiArrowLeft,
-//   FiUser,
-//   FiBriefcase,
-//   FiMail,
-//   FiPhone,
-// } from "react-icons/fi";
-// import { useStaffMember } from "../../../queries/staff";
-// import Loader from "../../../common/Loader";
-// import ProfessionalProfileTab from "./ProfessionalProfileTab";
-
-// const StaffProfileView = () => {
-//   const { id } = useParams();
-//   const navigate = useNavigate();
-//   const [activeTab, setActiveTab] = useState("basic");
-
-//   const { data, isLoading } = useStaffMember(id);
-
-//   if (isLoading) return <Loader text="Loading staff profile..." />;
-
-//   if (!data)
-//     return (
-//       <div className="space-y-4">
-//         <div className="flex items-center gap-4">
-//           <button
-//             onClick={() => navigate("/staff")}
-//             className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 transition-colors hover:bg-ink-50"
-//           >
-//             <FiArrowLeft className="h-5 w-5" />
-//           </button>
-//           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-//             Staff Not Found
-//           </h1>
-//         </div>
-//         <div className="rounded-card border border-ink-100 bg-surface p-10 text-center">
-//           <p className="text-sm text-ink-500">
-//             The staff member you are looking for does not exist or has been
-//             removed.
-//           </p>
-//           <button
-//             onClick={() => navigate("/staff")}
-//             className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
-//           >
-//             Back to Staff
-//           </button>
-//         </div>
-//       </div>
-//     );
-
-//   const isProvider = data?.role?.is_provider === true;
-
-//   return (
-//     <div className="space-y-6">
-//       {/* Header */}
-//       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-//         <div className="flex items-center gap-4">
-//           <button
-//             onClick={() => navigate("/staff")}
-//             className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 transition-colors hover:bg-ink-50"
-//           >
-//             <FiArrowLeft className="h-5 w-5" />
-//           </button>
-//           <div>
-//             <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-//               {data.name}
-//             </h1>
-//             <p className="mt-1 text-sm text-ink-500">
-//               Staff ID: #{data.id}
-//               {data.role?.label ? ` • Role: ${data.role.label}` : ""}
-//             </p>
-//           </div>
-//         </div>
-//         <button
-//           onClick={() => navigate("/staff")}
-//           className="inline-flex cursor-pointer items-center gap-2 self-start rounded-lg border border-ink-200 bg-surface px-4 py-2 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-50 sm:self-auto"
-//         >
-//           <FiArrowLeft className="h-4 w-4" />
-//           Back to List
-//         </button>
-//       </div>
-
-//       {/* Tabs */}
-//       <div className="flex border-b border-ink-200">
-//         <button
-//           onClick={() => setActiveTab("basic")}
-//           className={`flex cursor-pointer items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-colors ${
-//             activeTab === "basic"
-//               ? "border-brand-600 text-brand-700"
-//               : "border-transparent text-ink-500 hover:text-ink-800"
-//           }`}
-//         >
-//           <FiUser className="h-4 w-4" /> Basic Info
-//         </button>
-//         {isProvider && (
-//           <button
-//             onClick={() => setActiveTab("profile")}
-//             className={`flex cursor-pointer items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-colors ${
-//               activeTab === "profile"
-//                 ? "border-brand-600 text-brand-700"
-//                 : "border-transparent text-ink-500 hover:text-ink-800"
-//             }`}
-//           >
-//             <FiBriefcase className="h-4 w-4" /> Professional Profile
-//           </button>
-//         )}
-//       </div>
-
-//       {/* Content Area */}
-//       <div className="rounded-card border border-ink-100 bg-surface p-6">
-//         {activeTab === "basic" ? (
-//           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-//             {/* Left Side: Basic Details */}
-//             <div className="space-y-5">
-//               <div>
-//                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-//                   Contact Info
-//                 </h3>
-//                 <div className="space-y-3 rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-//                   <div className="flex items-center gap-3">
-//                     <FiMail className="text-ink-400" />
-//                     <div>
-//                       <p className="text-xs text-ink-500">Email</p>
-//                       <p className="text-sm font-medium text-ink-900">
-//                         {data.email}
-//                       </p>
-//                     </div>
-//                   </div>
-//                   <div className="flex items-center gap-3">
-//                     <FiPhone className="text-ink-400" />
-//                     <div>
-//                       <p className="text-xs text-ink-500">Phone</p>
-//                       <p className="text-sm font-medium text-ink-900">
-//                         {data.phone || "—"}
-//                       </p>
-//                     </div>
-//                   </div>
-//                 </div>
-//               </div>
-
-//               <div>
-//                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-//                   Account Details
-//                 </h3>
-//                 <div className="space-y-3 rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-//                   <div className="flex items-center justify-between">
-//                     <span className="text-sm text-ink-600">Status</span>
-//                     <span
-//                       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-//                         data.status
-//                           ? "bg-brand-50 text-brand-700"
-//                           : "bg-ink-100 text-ink-600"
-//                       }`}
-//                     >
-//                       {data.status ? "Active" : "Inactive"}
-//                     </span>
-//                   </div>
-//                   <div className="flex items-center justify-between">
-//                     <span className="text-sm text-ink-600">Role</span>
-//                     <span className="inline-flex rounded-full bg-accent-50 px-2.5 py-0.5 text-xs font-medium text-accent-800">
-//                       {data.role?.label || data.role?.name || "—"}
-//                     </span>
-//                   </div>
-//                   <div className="flex items-center justify-between">
-//                     <span className="text-sm text-ink-600">Super Admin</span>
-//                     <span className="text-sm font-medium text-ink-900">
-//                       {data.is_super_admin ? "Yes" : "No"}
-//                     </span>
-//                   </div>
-//                 </div>
-//               </div>
-//             </div>
-
-//             {/* Right Side: Specializations */}
-//             <div className="space-y-5">
-//               <div>
-//                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-//                   Specializations
-//                 </h3>
-//                 <div className="min-h-[100px] rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-//                   {data.specializations && data.specializations.length > 0 ? (
-//                     <div className="flex flex-wrap gap-2">
-//                       {data.specializations.map((s) => (
-//                         <span
-//                           key={s.id}
-//                           className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700"
-//                         >
-//                           {s.name}
-//                         </span>
-//                       ))}
-//                     </div>
-//                   ) : (
-//                     <p className="text-sm italic text-ink-500">
-//                       No specializations assigned.
-//                     </p>
-//                   )}
-//                 </div>
-//               </div>
-
-//               <div>
-//                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-//                   Audit Information
-//                 </h3>
-//                 <div className="space-y-2 rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-//                   <p className="text-xs text-ink-600">
-//                     Last Login:{" "}
-//                     <span className="font-medium text-ink-900">
-//                       {data.last_login_at
-//                         ? new Date(data.last_login_at).toLocaleString()
-//                         : "Never"}
-//                     </span>
-//                   </p>
-//                   <p className="text-xs text-ink-600">
-//                     Created At:{" "}
-//                     <span className="font-medium text-ink-900">
-//                       {data.created_at
-//                         ? new Date(data.created_at).toLocaleString()
-//                         : "—"}
-//                     </span>
-//                   </p>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         ) : (
-//           <ProfessionalProfileTab providerId={data.id} />
-//         )}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default StaffProfileView;
-
-// src/features/patent/pages/staff/StaffProfileView.jsx
-
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { Formik, Form } from "formik";
+import * as Yup from "yup";
 import {
-  FiArrowLeft,
-  FiUser,
-  FiBriefcase,
-  FiMail,
-  FiPhone,
+  FiPlus,
+  FiEdit2,
+  FiTrash2,
+  FiX,
   FiImage,
+  FiFileText,
 } from "react-icons/fi";
-import { useStaffMember } from "../../../queries/staff";
+import {
+  useProfileSections,
+  useCreateProfileSection,
+  useUpdateProfileSection,
+  useDeleteProfileSection,
+  useToggleProfileSectionStatus,
+} from "../../../queries/staff";
+import TextInput from "../../../common/form/TextInput";
+import TextareaField from "../../../common/form/TextareaField";
+import ToggleSwitch from "../../../common/form/ToggleSwitch";
+import ConfirmModal from "../../../common/ConfirmModal";
 import Loader from "../../../common/Loader";
-import ProfessionalProfileTab from "./ProfessionalProfileTab";
+import { usePermission } from "../../../hooks/usePermission";
 
-const StaffProfileView = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("basic");
+const MAX_SECTIONS = 5;
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+const ACCEPTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+];
 
-  const { data, isLoading } = useStaffMember(id);
+// Strip HTML tags for content preview
+const stripHtml = (html = "") =>
+  html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  if (isLoading) return <Loader text="Loading staff profile..." />;
+const ProfessionalProfileTab = ({ providerId, canManage: canManageProp }) => {
+  const { can } = usePermission();
 
-  if (!data)
+  // Prefer the prop passed from parent; fallback to internal check
+  const canManage =
+    typeof canManageProp === "boolean" ? canManageProp : can("cms", "manage");
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
+
+  const { data, isLoading, isError, refetch } = useProfileSections(providerId);
+
+  const createMutation = useCreateProfileSection();
+  const updateMutation = useUpdateProfileSection();
+  const deleteMutation = useDeleteProfileSection();
+  const toggleMutation = useToggleProfileSectionStatus();
+
+  const sections = useMemo(() => {
+    const list = data?.list || [];
+    return [...list].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  }, [data]);
+
+  const isMaxReached = sections.length >= MAX_SECTIONS;
+
+  const handleAdd = () => {
+    if (!canManage || isMaxReached) return;
+    setEditData(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = (section) => {
+    if (!canManage) return;
+    setEditData(section);
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (!canManage || !deleteId) return;
+    deleteMutation.mutate(
+      { providerId, sectionId: deleteId },
+      {
+        onSettled: () => setDeleteId(null),
+      },
+    );
+  };
+
+  const handleToggleStatus = (section) => {
+    if (!canManage) return;
+    toggleMutation.mutate({ providerId, sectionId: section.id });
+  };
+
+  const handleSave = (values, { setSubmitting }) => {
+    if (!canManage) {
+      setSubmitting(false);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("heading", values.heading.trim());
+    formData.append("content", values.content ?? "");
+    formData.append("status", values.status ? "1" : "0");
+
+    if (values.image instanceof File) {
+      formData.append("image", values.image);
+    }
+
+    if (editData) {
+      formData.append("_method", "PUT");
+      if (values.remove_image) {
+        formData.append("remove_image", "1");
+      }
+      updateMutation.mutate(
+        { providerId, sectionId: editData.id, formData },
+        {
+          onSettled: () => {
+            setSubmitting(false);
+            setIsFormOpen(false);
+            setEditData(null);
+          },
+        },
+      );
+    } else {
+      createMutation.mutate(
+        { providerId, formData },
+        {
+          onSettled: () => {
+            setSubmitting(false);
+            setIsFormOpen(false);
+            setEditData(null);
+          },
+        },
+      );
+    }
+  };
+
+  if (isLoading) {
+    return <Loader text="Loading profile sections..." />;
+  }
+
+  if (isError) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate("/staff")}
-            className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 transition-colors hover:bg-ink-50"
-          >
-            <FiArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-            Staff Not Found
-          </h1>
-        </div>
-        <div className="rounded-card border border-ink-100 bg-surface p-10 text-center">
-          <p className="text-sm text-ink-500">
-            The staff member you are looking for does not exist or has been
-            removed.
-          </p>
-          <button
-            onClick={() => navigate("/staff")}
-            className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
-          >
-            Back to Staff
-          </button>
-        </div>
+      <div className="rounded-lg border border-danger-200 bg-danger-50 p-6 text-center">
+        <p className="text-sm text-danger-900">
+          Failed to load profile sections.
+        </p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-3 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Retry
+        </button>
       </div>
     );
-
-  const isProvider = data?.role?.is_provider === true;
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate("/staff")}
-            className="cursor-pointer rounded-lg border border-ink-200 bg-surface p-2 text-ink-600 transition-colors hover:bg-ink-50"
-          >
-            <FiArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="font-jakarta text-2xl font-bold text-ink-900">
-              {data.name}
-            </h1>
-            <p className="mt-1 text-sm text-ink-500">
-              Staff ID: #{data.id}
-              {data.role?.label ? ` • Role: ${data.role.label}` : ""}
-            </p>
-          </div>
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-ink-500">
+            {canManage
+              ? "Manage professional profile sections"
+              : "View professional profile sections"}
+          </p>
+          <span className="inline-flex items-center rounded-full bg-accent-50 px-2.5 py-0.5 text-xs font-medium text-accent-800">
+            {sections.length} / {MAX_SECTIONS}
+          </span>
         </div>
-        <button
-          onClick={() => navigate("/staff")}
-          className="inline-flex cursor-pointer items-center gap-2 self-start rounded-lg border border-ink-200 bg-surface px-4 py-2 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-50 sm:self-auto"
-        >
-          <FiArrowLeft className="h-4 w-4" />
-          Back to List
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-ink-200">
-        <button
-          onClick={() => setActiveTab("basic")}
-          className={`flex cursor-pointer items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-colors ${
-            activeTab === "basic"
-              ? "border-brand-600 text-brand-700"
-              : "border-transparent text-ink-500 hover:text-ink-800"
-          }`}
-        >
-          <FiUser className="h-4 w-4" /> Basic Info
-        </button>
-        {isProvider && (
+        {canManage && (
           <button
-            onClick={() => setActiveTab("profile")}
-            className={`flex cursor-pointer items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-colors ${
-              activeTab === "profile"
-                ? "border-brand-600 text-brand-700"
-                : "border-transparent text-ink-500 hover:text-ink-800"
-            }`}
+            type="button"
+            onClick={handleAdd}
+            disabled={isMaxReached}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-surface hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <FiBriefcase className="h-4 w-4" /> Professional Profile
+            <FiPlus className="h-3.5 w-3.5" />
+            Add Section
           </button>
         )}
       </div>
 
-      {/* Content Area */}
-      <div className="rounded-card border border-ink-100 bg-surface p-6">
-        {activeTab === "basic" ? (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-[1fr_2fr]">
-            {/* Left Side: Image & Size Guide */}
-            <div className="space-y-4">
-              <div className="flex flex-col md:flex-row md:items-start gap-4 shrink-0">
-                <div className="h-[160px] w-[110px] shrink-0 overflow-hidden rounded-xl border border-ink-200 bg-white flex items-center justify-center">
-                  {data.image_url || data.image ? (
+      {canManage && isMaxReached && (
+        <p className="rounded border border-warn-200 bg-warn-50 p-2 text-xs text-warn-800">
+          A professional can have a maximum of {MAX_SECTIONS} profile sections.
+        </p>
+      )}
+
+      {sections.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-ink-200 bg-ink-50/40 p-8 text-center">
+          <FiFileText className="mx-auto h-8 w-8 text-ink-300" />
+          <p className="mt-2 text-sm font-medium text-ink-600">
+            No sections yet
+          </p>
+          <p className="mt-0.5 text-xs text-ink-500">
+            {canManage
+              ? 'Click "Add Section" to create your first profile section.'
+              : "No profile sections have been added yet."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {sections.map((section) => (
+            <div
+              key={section.id}
+              className="group flex items-start gap-3 rounded-xl border border-ink-100 bg-surface p-3 transition-all hover:border-brand-200 hover:shadow-sm"
+            >
+              {/* Image / Icon — small icon-like */}
+              <div className="shrink-0">
+                {section.image_url ? (
+                  <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-ink-100 bg-ink-50/30">
                     <img
-                      src={data.image_url || data.image}
-                      alt={data.name}
-                      className="h-full w-full object-contain"
+                      src={section.image_url}
+                      alt={section.heading}
+                      className="h-full w-full object-contain p-1"
                     />
-                  ) : (
-                    <FiImage className="h-8 w-8 text-ink-300" />
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-ink-100 bg-brand-50 text-brand-600">
+                    <FiImage className="h-5 w-5" />
+                  </div>
+                )}
+              </div>
 
-                <div className="text-xs text-ink-600 space-y-1.5 mt-1">
-                  <p>
-                    <span className="font-medium text-ink-900">Size:</span> 312
-                    x 450 px
+              {/* Text content */}
+              <div className="min-w-0 flex-1 pt-0.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="truncate font-semibold text-ink-900">
+                    {section.heading}
+                  </h4>
+                  <span
+                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      section.status
+                        ? "bg-brand-50 text-brand-700"
+                        : "bg-ink-100 text-ink-600"
+                    }`}
+                  >
+                    {section.status ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                {section.content ? (
+                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-500">
+                    {stripHtml(section.content)}
                   </p>
-                  <p className="pt-1">Max 2 MB. JPG / PNG / WebP.</p>
-                </div>
+                ) : (
+                  <p className="mt-1 text-xs italic text-ink-400">
+                    No content provided.
+                  </p>
+                )}
               </div>
+
+              {/* Actions — only if user can manage */}
+              {canManage && (
+                <div className="flex shrink-0 items-center gap-1">
+                  <ToggleSwitch
+                    isFormik={false}
+                    variant="pill"
+                    value={!!section.status}
+                    onChange={() => handleToggleStatus(section)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(section)}
+                    className="cursor-pointer rounded-lg p-1.5 text-ink-500 transition-colors hover:bg-brand-50 hover:text-brand-600"
+                    title="Edit"
+                  >
+                    <FiEdit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteId(section.id)}
+                    className="cursor-pointer rounded-lg p-1.5 text-ink-500 transition-colors hover:bg-danger-50 hover:text-danger-600"
+                    title="Delete"
+                  >
+                    <FiTrash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* Right Side: Details */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div className="space-y-5">
-                <div>
-                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-                    Contact Info
-                  </h3>
-                  <div className="space-y-3 rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-                    <div className="flex items-center gap-3">
-                      <FiMail className="text-ink-400" />
-                      <div>
-                        <p className="text-xs text-ink-500">Email</p>
-                        <p className="text-sm font-medium text-ink-900 break-all">
-                          {data.email}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <FiPhone className="text-ink-400" />
-                      <div>
-                        <p className="text-xs text-ink-500">Phone</p>
-                        <p className="text-sm font-medium text-ink-900">
-                          {data.phone || "—"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+      {/* Form Modal — only rendered if user can manage */}
+      {canManage && isFormOpen && (
+        <ProfileSectionFormModal
+          initialData={editData}
+          isSaving={createMutation.isPending || updateMutation.isPending}
+          onClose={() => {
+            setIsFormOpen(false);
+            setEditData(null);
+          }}
+          onSubmit={handleSave}
+        />
+      )}
 
-                <div>
-                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-                    Account Details
-                  </h3>
-                  <div className="space-y-3 rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-ink-600">Status</span>
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          data.status
-                            ? "bg-brand-50 text-brand-700"
-                            : "bg-ink-100 text-ink-600"
-                        }`}
-                      >
-                        {data.status ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-ink-600">Role</span>
-                      <span className="inline-flex rounded-full bg-accent-50 px-2.5 py-0.5 text-xs font-medium text-accent-800">
-                        {data.role?.label || data.role?.name || "—"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-ink-600">Super Admin</span>
-                      <span className="text-sm font-medium text-ink-900">
-                        {data.is_super_admin ? "Yes" : "No"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      {canManage && (
+        <ConfirmModal
+          open={!!deleteId}
+          title="Delete Section"
+          message="Are you sure you want to delete this profile section? This action cannot be undone."
+          confirmText="Delete"
+          variant="danger"
+          loading={deleteMutation.isPending}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteId(null)}
+        />
+      )}
+    </div>
+  );
+};
 
-              <div className="space-y-5">
+// ---------- Inner Modal ----------
+const ProfileSectionFormModal = ({
+  initialData,
+  isSaving,
+  onClose,
+  onSubmit,
+}) => {
+  const [imagePreview, setImagePreview] = useState(
+    initialData?.image_url || null,
+  );
+  const [removeExistingImage, setRemoveExistingImage] = useState(false);
+
+  const initialValues = {
+    heading: initialData?.heading || "",
+    content: initialData?.content || "",
+    status: initialData?.status ?? true,
+    image: null,
+    remove_image: false,
+  };
+
+  const validationSchema = Yup.object({
+    heading: Yup.string()
+      .trim()
+      .required("Heading is required")
+      .max(150, "Max 150 characters"),
+    content: Yup.string().max(500, "Max 500 characters"),
+    image: Yup.mixed()
+      .nullable()
+      .test(
+        "fileType",
+        "Only JPG, JPEG, PNG or WEBP images are allowed",
+        (file) => {
+          if (!file) return true;
+          return ACCEPTED_IMAGE_TYPES.includes(file.type);
+        },
+      )
+      .test("fileSize", "Image must be 5 MB or smaller", (file) => {
+        if (!file) return true;
+        return file.size <= MAX_IMAGE_SIZE;
+      }),
+    status: Yup.boolean(),
+  });
+
+  const handleImageChange = (e, setFieldValue) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setFieldValue("image", null);
+      setImagePreview(initialData?.image_url || null);
+      setRemoveExistingImage(false);
+      setFieldValue("remove_image", false);
+      return;
+    }
+    setFieldValue("image", file);
+    setImagePreview(URL.createObjectURL(file));
+    setRemoveExistingImage(false);
+    setFieldValue("remove_image", false);
+  };
+
+  const handleRemoveImage = (setFieldValue) => {
+    setFieldValue("image", null);
+    setImagePreview(null);
+    if (initialData?.image_url) {
+      setRemoveExistingImage(true);
+      setFieldValue("remove_image", true);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl border border-ink-200 bg-surface shadow-xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-ink-100 px-5 py-3">
+          <h3 className="font-jakarta font-bold text-ink-900">
+            {initialData ? "Edit Section" : "Add Section"}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            className="cursor-pointer text-ink-500 hover:text-ink-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FiX className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-5">
+          <Formik
+            key={initialData?.id || "new"}
+            initialValues={initialValues}
+            validationSchema={validationSchema}
+            onSubmit={onSubmit}
+            enableReinitialize
+          >
+            {({ isSubmitting, setFieldValue, values }) => (
+              <Form className="space-y-4">
+                <TextInput
+                  label="Heading"
+                  name="heading"
+                  required
+                  placeholder="Enter heading (e.g. Qualification, Experience)"
+                  maxLength={150}
+                />
+
+                {/* --- IMAGE SECTION START --- */}
                 <div>
-                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-                    Specializations
-                  </h3>
-                  <div className="min-h-[100px] rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-                    {data.specializations && data.specializations.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {data.specializations.map((s) => (
-                          <span
-                            key={s.id}
-                            className="inline-flex items-center rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700"
+                  <label className="mb-2 block text-sm font-medium text-ink-900">
+                    Icon / Image
+                  </label>
+
+                  <div className="flex flex-col md:flex-row md:items-start gap-6">
+                    {/* LEFT: Image Upload / Preview */}
+                    <div className="shrink-0">
+                      {imagePreview ? (
+                        <div className="relative inline-block">
+                          <div className="flex h-[120px] w-[120px] items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-white">
+                            <img
+                              src={imagePreview}
+                              alt="Preview"
+                              className="h-full w-full object-contain"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(setFieldValue)}
+                            className="absolute -right-2 -top-2 cursor-pointer rounded-full bg-danger-500 p-1 text-white shadow-sm hover:bg-danger-600 transition"
+                            title="Remove image"
                           >
-                            {s.name}
+                            <FiX size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            document
+                              .getElementById("profile-image-upload")
+                              ?.click()
+                          }
+                          className="flex h-[120px] w-[120px] flex-col items-center justify-center border border-dashed rounded-xl bg-ink-50/40 text-ink-500 hover:border-brand-300 hover:text-brand-700 transition"
+                        >
+                          <FiImage className="h-5 w-5 mb-1 text-ink-400" />
+                          <span className="text-xs text-center px-1 font-medium">
+                            Select Image
                           </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm italic text-ink-500">
-                        No specializations assigned.
-                      </p>
-                    )}
-                  </div>
-                </div>
+                        </button>
+                      )}
+                      <input
+                        id="profile-image-upload"
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={(e) => handleImageChange(e, setFieldValue)}
+                        className="hidden"
+                      />
+                      {values.image === null && removeExistingImage && (
+                        <p className="text-warn-800 text-xs mt-1 max-w-[120px]">
+                          Existing image will be removed on save.
+                        </p>
+                      )}
+                    </div>
 
-                <div>
-                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
-                    Audit Information
-                  </h3>
-                  <div className="space-y-2 rounded-lg border border-ink-100 bg-ink-50/30 p-4">
-                    <p className="text-xs text-ink-600">
-                      Last Login:{" "}
-                      <span className="font-medium text-ink-900">
-                        {data.last_login_at
-                          ? new Date(data.last_login_at).toLocaleString()
-                          : "Never"}
-                      </span>
-                    </p>
-                    <p className="text-xs text-ink-600">
-                      Created At:{" "}
-                      <span className="font-medium text-ink-900">
-                        {data.created_at
-                          ? new Date(data.created_at).toLocaleString()
-                          : "—"}
-                      </span>
-                    </p>
+                    {/* RIGHT: Simple Text Guide */}
+                    <div className="text-xs text-ink-600 space-y-1.5 mt-1">
+                      <p>
+                        <span className="font-medium text-ink-900">Size:</span>{" "}
+                        120 x 120 px
+                      </p>
+                      <p className="pt-1">Max 5 MB. JPG / PNG / WebP.</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <ProfessionalProfileTab providerId={data.id} />
-        )}
+                {/* --- IMAGE SECTION END --- */}
+
+                <TextareaField
+                  label="Content"
+                  name="content"
+                  placeholder="Enter content (e.g. MBBS, MD)"
+                  rows={4}
+                  maxLength={500}
+                />
+
+                <ToggleSwitch
+                  name="status"
+                  label="Active Status"
+                  description="Hide inactive sections from app"
+                />
+
+                <div className="flex justify-end gap-3 border-t border-ink-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    disabled={isSaving || isSubmitting}
+                    className="cursor-pointer rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving || isSubmitting}
+                    className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-btn-primary-bg px-4 py-2.5 text-sm font-medium text-btn-primary-text transition-colors duration-200 hover:bg-btn-primary-bg-hover disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {(isSaving || isSubmitting) && (
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    )}
+                    {initialData ? "Update" : "Create"}
+                  </button>
+                </div>
+              </Form>
+            )}
+          </Formik>
+        </div>
       </div>
     </div>
   );
 };
 
-export default StaffProfileView;
+export default ProfessionalProfileTab;

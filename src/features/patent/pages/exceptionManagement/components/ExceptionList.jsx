@@ -8,6 +8,7 @@ import {
   FiInfo,
   FiAlertCircle,
 } from "react-icons/fi";
+import { usePermission } from "../../../hooks/usePermission";
 import {
   formatTime12,
   formatDateFull,
@@ -20,11 +21,35 @@ const ExceptionList = ({
   isLoading = false,
   onExceptionClick,
 }) => {
+  const { can, isLoading: permLoading } = usePermission();
+
+  const canView = can("availability", "view");
+
+  if (!canView) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
+        <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100">
+            <FiLock className="h-5 w-5 text-ink-500" />
+          </div>
+
+          <p className="text-sm font-semibold text-ink-700">
+            Permission Required
+          </p>
+
+          <p className="mt-1 text-xs text-ink-500">
+            You don't have permission to view availability exceptions.
+          </p>
+        </div>
+      </div>
+    );
+  }
   // ==================== STATS ====================
+  // total = blocked SLOTS (full day ho to us din ke saare slots)
   const stats = useMemo(() => {
     const fullDay = exceptions.filter((e) => e.is_full_day).length;
-    const partial = exceptions.length - fullDay;
-    return { total: exceptions.length, fullDay, partial };
+    const total = exceptions.reduce((sum, e) => sum + (e.slot_count || 1), 0);
+    return { total, fullDay };
   }, [exceptions]);
 
   // ==================== LOADING ====================
@@ -121,7 +146,7 @@ const ExceptionList = ({
 
           return (
             <button
-              key={ex.id}
+              key={ex._key || ex.id}
               type="button"
               onClick={() => onExceptionClick(ex)}
               title="Click for details"
@@ -140,6 +165,7 @@ const ExceptionList = ({
                     <span className="inline-flex items-center gap-1 rounded-md bg-warn-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warn-800">
                       <FiAlertCircle className="h-2.5 w-2.5" />
                       Full Day
+                      {ex.slot_count > 1 && ` · ${ex.slot_count} slots`}
                     </span>
                   ) : (
                     <span className="text-[12px] font-semibold text-danger-700">

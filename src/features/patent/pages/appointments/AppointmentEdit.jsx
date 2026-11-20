@@ -20,10 +20,14 @@ import { useProviderAvailabilities } from "../../queries/providerAvailabilities"
 import SlotGrid from "./components/SlotGrid";
 import AvailableDatesCalendar from "./components/AvailableDatesCalendar";
 import Loader from "../../common/Loader";
+import { usePermission } from "../../hooks/usePermission";
 
 const AppointmentEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { can } = usePermission();
+
+  const canManage = can("appointment", "manage");
 
   const { data: appointment, isLoading } = useAppointment(id);
   const updateMutation = useUpdateAppointment();
@@ -177,6 +181,7 @@ const AppointmentEdit = () => {
   }, [formData, originalData]);
 
   const handleSubmit = () => {
+    if (!canManage) return;
     setError("");
 
     if (!formData.appointment_date) {
@@ -226,6 +231,25 @@ const AppointmentEdit = () => {
     return (
       <div className="rounded-xl border border-ink-100 bg-surface p-8 text-center">
         <p className="text-sm text-ink-500">Appointment not found.</p>
+      </div>
+    );
+  }
+
+  if (!canManage) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to edit appointments. Please contact your
+          administrator.
+        </p>
       </div>
     );
   }

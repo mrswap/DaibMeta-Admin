@@ -16,9 +16,18 @@ import {
   formatTime12,
   formatDateFull,
 } from "../../../queries/exceptionManagement";
+import { usePermission } from "../../../hooks/usePermission";
 
 const ExceptionDetailsModal = ({ open, onClose, exception }) => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  const canView = can("availability", "view");
+  const canManage = can("availability", "manage");
+
+  if (permLoading) return null;
+
+  if (!canView) return null;
 
   if (!open || !exception) return null;
 
@@ -225,7 +234,7 @@ const ExceptionDetailsModal = ({ open, onClose, exception }) => {
           >
             Close
           </button>
-          {availabilityId && (
+          {availabilityId && canManage && (
             <button
               type="button"
               onClick={handleManage}

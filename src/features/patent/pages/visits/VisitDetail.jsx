@@ -14,6 +14,7 @@ import {
   FiPlayCircle,
   FiCheckCircle,
   FiAlertCircle,
+  FiLock,
 } from "react-icons/fi";
 import { useVisit, getLifecycleActions } from "../../queries/visits";
 import Loader from "../../common/Loader";
@@ -24,6 +25,7 @@ import FollowUpTab from "./components/tabs/FollowUpTab";
 import DocumentsTab from "./components/tabs/DocumentsTab";
 import PaymentTab from "./components/tabs/PaymentTab";
 import VisitLifecycleModal from "./components/VisitLifecycleModal";
+import { usePermission } from "../../hooks/usePermission";
 
 // ==================== TABS ====================
 const TABS = [
@@ -67,11 +69,7 @@ const getInitials = (name = "") => {
 
 // ==================== STATUS STYLES ====================
 const STATUS_STYLES = {
-  waiting: {
-    bg: "bg-warn-100",
-    text: "text-warn-900",
-    dot: "bg-warn-500",
-  },
+  waiting: { bg: "bg-warn-100", text: "text-warn-900", dot: "bg-warn-500" },
   in_consultation: {
     bg: "bg-accent-100",
     text: "text-accent-800",
@@ -131,10 +129,48 @@ const getNextAction = (status) => {
 const VisitDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
 
-  const { data: visit, isLoading } = useVisit(id);
+  // ==================== PERMISSIONS ====================
+  // Visits Permissions
+  const canView = can("visits", "view");
+  const canManage = can("visits", "manage");
+
+  // Payments Permissions
+  const canViewPayments = can("payments", "view");
+  const canManagePayments = can("payments", "manage");
+
+  const { data: visit, isLoading } = useVisit(id, { enabled: canView });
   const [activeTab, setActiveTab] = useState("overview");
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view this visit. Please contact your
+          administrator.
+        </p>
+        <button
+          onClick={() => navigate("/visits")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Back to Visits
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading) return <Loader text="Loading visit..." />;
 
@@ -147,7 +183,9 @@ const VisitDetail = () => {
   }
 
   const status = visit.status;
-  const canEdit = !["completed", "cancelled", "no_show"].includes(status);
+  const canEdit =
+    canManage && !["completed", "cancelled", "no_show"].includes(status);
+
   const showConsultation =
     status === "in_consultation" || status === "completed";
   const showFollowUp = status === "completed";
@@ -155,12 +193,15 @@ const VisitDetail = () => {
   const schedule = visit.visit_schedule || {};
   const statusStyle = STATUS_STYLES[status] || STATUS_STYLES.waiting;
   const nextAction = getNextAction(status);
-  const allowedActions = getLifecycleActions(status);
 
-  // Filter tabs based on visit status
+  const allowedActions = canManage ? getLifecycleActions(status) : [];
+
+  // Filter tabs based on visit status & payments permission
   const visibleTabs = TABS.filter((t) => {
     if (t.key === "consultation" && !showConsultation) return false;
     if (t.key === "followup" && !showFollowUp) return false;
+    // Hide payment tab completely if user doesn't even have view permission
+    if (t.key === "payment" && !canViewPayments) return false;
     return true;
   });
 
@@ -178,10 +219,8 @@ const VisitDetail = () => {
 
       {/* Hero Card — Patient + Visit Info */}
       <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
-        {/* Top section — Patient + Status */}
         <div className="bg-gradient-to-br from-brand-50/60 via-surface to-accent-50/30 px-5 py-5 sm:px-6 sm:py-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            {/* Patient info */}
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-600 text-lg font-bold text-surface shadow-sm">
                 {getInitials(visit.patient?.name)}
@@ -201,7 +240,6 @@ const VisitDetail = () => {
               </div>
             </div>
 
-            {/* Status + Edit */}
             <div className="flex shrink-0 items-center gap-2">
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusStyle.bg} ${statusStyle.text}`}
@@ -211,6 +249,7 @@ const VisitDetail = () => {
                 />
                 {visit.status_label || status}
               </span>
+
               {canEdit && (
                 <button
                   type="button"
@@ -225,7 +264,6 @@ const VisitDetail = () => {
           </div>
         </div>
 
-        {/* Bottom section — Visit schedule strip */}
         <div className="grid grid-cols-1 gap-4 border-t border-ink-100 bg-surface px-5 py-4 sm:grid-cols-3 sm:px-6">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
@@ -275,8 +313,8 @@ const VisitDetail = () => {
         </div>
       </div>
 
-      {/* Next Action Banner */}
-      {nextAction && (
+      {/* Next Action Banner — Only if canManage */}
+      {canManage && nextAction && (
         <div
           className={`flex flex-col gap-3 rounded-xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between ${
             nextAction.variant === "brand"
@@ -361,27 +399,44 @@ const VisitDetail = () => {
           {activeTab === "overview" && <OverviewTab visit={visit} />}
 
           {activeTab === "consultation" && (
-            <ConsultationTab visitId={id} visitStatus={status} />
+            <ConsultationTab
+              visitId={id}
+              visitStatus={status}
+              canManage={canManage}
+            />
           )}
 
           {activeTab === "history" && <HistoryTab visitId={id} />}
 
-          {activeTab === "followup" && <FollowUpTab visitId={id} />}
+          {activeTab === "followup" && (
+            <FollowUpTab visitId={id} canManage={canManage} />
+          )}
 
-          {activeTab === "documents" && <DocumentsTab visitId={id} />}
+          {activeTab === "documents" && (
+            <DocumentsTab visitId={id} canManage={canManage} />
+          )}
 
-          {activeTab === "payment" && <PaymentTab visitId={id} />}
+          {/* ✅ PaymentTab gets its OWN permissions now */}
+          {activeTab === "payment" && (
+            <PaymentTab
+              visitId={id}
+              canView={canViewPayments}
+              canManage={canManagePayments}
+            />
+          )}
         </div>
       </div>
 
-      {/* Lifecycle modal */}
-      <VisitLifecycleModal
-        open={lifecycleOpen}
-        onClose={() => setLifecycleOpen(false)}
-        visitId={visit.id}
-        currentStatus={status}
-        allowedActions={allowedActions}
-      />
+      {/* Lifecycle modal — Only if canManage */}
+      {canManage && (
+        <VisitLifecycleModal
+          open={lifecycleOpen}
+          onClose={() => setLifecycleOpen(false)}
+          visitId={visit.id}
+          currentStatus={status}
+          allowedActions={allowedActions}
+        />
+      )}
     </div>
   );
 };

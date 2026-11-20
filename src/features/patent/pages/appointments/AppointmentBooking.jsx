@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiUser, FiCalendar, FiClock, FiCheck } from "react-icons/fi";
 import WizardStepper from "../providerAvailability/components/WizardStepper";
 import Step1Patient from "./components/Step1Patient";
 import Step2Provider from "./components/Step2Provider";
 import Step3DateSlots from "./components/Step3DateSlots";
 import Step4Confirm from "./components/Step4Confirm";
 import { useCreateAppointment } from "../../queries/appointments";
+import { FiUser, FiCalendar, FiClock, FiCheck, FiLock } from "react-icons/fi";
+import { usePermission } from "../../hooks/usePermission";
 
 const STEPS = [
   { label: "Patient", icon: FiUser },
@@ -18,6 +19,9 @@ const STEPS = [
 const AppointmentBooking = () => {
   const navigate = useNavigate();
   const createMutation = useCreateAppointment();
+  const { can } = usePermission();
+
+  const canManage = can("appointment", "manage");
 
   const [currentStep, setCurrentStep] = useState(1);
   const [maxReached, setMaxReached] = useState(1);
@@ -56,12 +60,33 @@ const AppointmentBooking = () => {
   const handleClose = () => navigate("/appointments");
 
   const handleSave = (payload) => {
+    if (!canManage) return;
+
     createMutation.mutate(payload, {
       onSuccess: (response) => {
         navigate(`/appointments/${response.data.id}`);
       },
     });
   };
+
+  if (!canManage) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to book appointments. Please contact your
+          administrator.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

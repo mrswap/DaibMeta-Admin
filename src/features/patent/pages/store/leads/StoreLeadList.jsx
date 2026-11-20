@@ -9,12 +9,14 @@ import {
   FiFilter,
   FiX,
   FiFileText,
+  FiLock,
 } from "react-icons/fi";
 
 import { useStoreLeads } from "../../../queries/storeLeads";
 import Loader from "../../../common/Loader";
 import CustomeTable from "../../../common/table/CustomeTable";
 import { FilterSelect, DatePicker } from "../../../common/form";
+import { usePermission } from "../../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New" },
@@ -26,6 +28,11 @@ const STATUS_OPTIONS = [
 
 const StoreLeadList = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("store", "view");
+  const canManage = can("store", "manage");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
@@ -45,7 +52,10 @@ const StoreLeadList = () => {
     ...(toDate && { to_date: toDate }),
   };
 
-  const { data, isLoading, isFetching, refetch } = useStoreLeads(params);
+  // API gated by view permission
+  const { data, isLoading, isFetching, refetch } = useStoreLeads(params, {
+    enabled: canView,
+  });
 
   const list = data?.list || [];
   const meta = data?.meta || {};
@@ -64,12 +74,39 @@ const StoreLeadList = () => {
     setPage(1);
   };
 
+  const handleView = (id) => {
+    if (!canView) return;
+    navigate(`/store/leads/${id}`);
+  };
+
   const hasActiveFilters = search || statusFilter || fromDate || toDate;
   const activeFilterCount =
     (search ? 1 : 0) +
     (statusFilter ? 1 : 0) +
     (fromDate ? 1 : 0) +
     (toDate ? 1 : 0);
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view store leads. Please contact your
+          administrator.
+        </p>
+      </div>
+    );
+  }
 
   // ==================== COLUMNS ====================
   const columns = [
@@ -135,17 +172,23 @@ const StoreLeadList = () => {
     {
       header: "Actions",
       align: "right",
-      render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={() => navigate(`/store/leads/${row.id}`)}
-            className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-brand-50 hover:text-brand-600"
-            title="View Details"
-          >
-            <FiEye className="h-4 w-4" />
-          </button>
-        </div>
-      ),
+      render: (_, row) => {
+        if (!canView) {
+          return <span className="text-xs text-ink-400">—</span>;
+        }
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={() => handleView(row.id)}
+              className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-brand-50 hover:text-brand-600"
+              title="View Details"
+            >
+              <FiEye className="h-4 w-4" />
+            </button>
+          </div>
+        );
+      },
     },
   ];
 

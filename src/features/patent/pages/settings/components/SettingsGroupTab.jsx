@@ -5,7 +5,7 @@ import { FiSave, FiAlertCircle } from "react-icons/fi";
 import { useUpdateSetting } from "../../../queries/settings";
 import SettingField from "./SettingField";
 
-const SettingsGroupTab = ({ group, settings = [] }) => {
+const SettingsGroupTab = ({ group, settings = [], canManage = false }) => {
   const updateMutation = useUpdateSetting();
 
   const [values, setValues] = useState({});
@@ -20,10 +20,12 @@ const SettingsGroupTab = ({ group, settings = [] }) => {
   }, [settings]);
 
   const handleChange = (id, newValue) => {
+    if (!canManage) return;
     setValues((prev) => ({ ...prev, [id]: newValue }));
   };
 
   const handleSave = (setting) => {
+    if (!canManage) return;
     setSavingId(setting.id);
     const payload = {
       group: setting.group,
@@ -42,10 +44,10 @@ const SettingsGroupTab = ({ group, settings = [] }) => {
     );
   };
 
-  const changedCount = useMemo(
-    () => settings.filter((s) => values[s.id] !== s.value).length,
-    [settings, values],
-  );
+  const changedCount = useMemo(() => {
+    if (!canManage) return 0;
+    return settings.filter((s) => values[s.id] !== s.value).length;
+  }, [settings, values, canManage]);
 
   if (!settings.length) {
     return (
@@ -92,10 +94,11 @@ const SettingsGroupTab = ({ group, settings = [] }) => {
                   setting={setting}
                   value={values[setting.id]}
                   onChange={(v) => handleChange(setting.id, v)}
+                  canManage={canManage}
                 />
 
-                {/* Save button — only when changed or saving */}
-                {(hasChanged || isSaving) && (
+                {/* Save button — only when changed or saving, AND canManage */}
+                {canManage && (hasChanged || isSaving) && (
                   <div className="mt-3 flex justify-end">
                     <button
                       type="button"
@@ -128,7 +131,7 @@ const SettingsGroupTab = ({ group, settings = [] }) => {
       </div>
 
       {/* Unsaved indicator */}
-      {changedCount > 0 && (
+      {canManage && changedCount > 0 && (
         <div className="pointer-events-none sticky bottom-4 z-10 flex justify-end">
           <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-ink-200 bg-surface px-3 py-2 shadow-md">
             <span className="flex h-5 min-w-[20px] items-center justify-center rounded bg-warn-100 px-1 text-[11px] font-bold tabular-nums text-warn-800">

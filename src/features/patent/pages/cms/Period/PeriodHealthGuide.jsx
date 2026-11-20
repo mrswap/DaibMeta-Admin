@@ -2,8 +2,9 @@
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { FiEdit2, FiArrowLeft } from "react-icons/fi";
+import { FiEdit2, FiArrowLeft, FiLock } from "react-icons/fi";
 import { PERIOD_CARDS_LIST } from "./periodData";
+import { usePermission } from "../../../hooks/usePermission";
 
 import imgKnowPeriod from "../../../../../assets/periodtracker/know-period.png";
 import imgPainRelief from "../../../../../assets/periodtracker/pain-relief.png";
@@ -25,6 +26,42 @@ const IMAGE_MAP = {
 
 const PeriodHealthGuide = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("cms", "view");
+  const canManage = can("cms", "manage");
+
+  const handleEdit = (id) => {
+    if (!canManage) return;
+    navigate(`/cms/period/${id}`);
+  };
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <span className="text-sm text-ink-500">Checking permissions...</span>
+      </div>
+    );
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view this health guide. Please contact
+          your administrator.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -41,6 +78,11 @@ const PeriodHealthGuide = () => {
             <h1 className="font-jakarta text-2xl font-bold text-ink-900">
               Period Health Guide
             </h1>
+            <p className="mt-0.5 text-sm text-ink-500">
+              {canManage
+                ? "Manage the content of these guide cards"
+                : "View the content of these guide cards (Read-only)"}
+            </p>
           </div>
         </div>
       </div>
@@ -77,14 +119,19 @@ const PeriodHealthGuide = () => {
                 <p className="mt-1 text-xs text-ink-500">{card.subtitle}</p>
               </div>
 
-              <div className="flex items-center justify-end border-t border-ink-100 bg-ink-50/40 px-5 py-3">
-                <button
-                  onClick={() => navigate(`/cms/period/${card.id}`)}
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
-                  title="Edit Details"
-                >
-                  <FiEdit2 className="h-4 w-4" /> Edit Content
-                </button>
+              {/* Footer - Edit Button only if canManage */}
+              <div className="flex items-center justify-end border-t border-ink-100 bg-ink-50/40 px-5 py-3 min-h-[52px]">
+                {canManage ? (
+                  <button
+                    onClick={() => handleEdit(card.id)}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+                    title="Edit Details"
+                  >
+                    <FiEdit2 className="h-4 w-4" /> Edit Content
+                  </button>
+                ) : (
+                  <span className="text-xs text-ink-400">—</span>
+                )}
               </div>
             </div>
           );

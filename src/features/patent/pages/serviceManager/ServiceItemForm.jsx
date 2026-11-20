@@ -4,7 +4,8 @@ import React from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiArrowLeft, FiPackage } from "react-icons/fi";
+import { FiArrowLeft, FiPackage, FiLock } from "react-icons/fi";
+import { usePermission } from "../../hooks/usePermission";
 import TextInput from "../../common/form/TextInput";
 import ToggleSwitch from "../../common/form/ToggleSwitch";
 import Loader from "../../common/Loader";
@@ -19,6 +20,10 @@ const ServiceItemForm = () => {
   const { id, itemId } = useParams();
   const navigate = useNavigate();
 
+  const { can, isLoading: permLoading } = usePermission();
+
+  const canManage = can("services", "manage");
+
   // API Hooks
   const { data: service, isLoading: isServiceLoading } = useService(id);
   const { data: existingTest, isLoading: isTestLoading } = useServiceTest(
@@ -28,6 +33,35 @@ const ServiceItemForm = () => {
 
   const createMutation = useCreateServiceTest();
   const updateMutation = useUpdateServiceTest();
+
+  if (permLoading && !canManage) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canManage) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to manage service tests.
+        </p>
+
+        <button
+          onClick={() => navigate(`/service-manager/${id}`)}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          Back to Rate Card
+        </button>
+      </div>
+    );
+  }
 
   // Loading state
   if (isServiceLoading || (itemId && isTestLoading)) {

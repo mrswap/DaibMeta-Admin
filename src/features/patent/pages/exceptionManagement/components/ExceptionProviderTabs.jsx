@@ -12,6 +12,7 @@ import {
   getProviderColor,
   hexToLightBg,
 } from "../../../queries/bookingCalendar";
+import { usePermission } from "../../../hooks/usePermission";
 
 const ExceptionProviderTabs = ({
   providers,
@@ -21,8 +22,39 @@ const ExceptionProviderTabs = ({
   const [search, setSearch] = useState("");
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-
   const scrollRef = useRef(null);
+
+  const { can, isLoading: permLoading } = usePermission();
+
+  const canView = can("availability", "view");
+  const canManage = can("availability", "manage");
+
+  if (permLoading) {
+    return (
+      <div className="rounded-xl border border-ink-100 bg-surface px-4 py-10 text-center">
+        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-ink-200 border-t-brand-600" />
+        <p className="mt-2 text-xs text-ink-500">Checking permissions...</p>
+      </div>
+    );
+  }
+
+  if (!canView) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
+        <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-ink-100">
+            <FiUser className="h-5 w-5 text-ink-500" />
+          </div>
+
+          <p className="text-sm font-semibold text-ink-700">Access Denied</p>
+
+          <p className="mt-1 text-xs text-ink-500">
+            You don't have permission to view availability providers.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const allProviders = Array.isArray(providers) ? providers : [];
 

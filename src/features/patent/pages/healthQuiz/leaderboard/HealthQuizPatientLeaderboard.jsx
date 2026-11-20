@@ -11,11 +11,13 @@ import {
   FiXCircle,
   FiAlertCircle,
   FiEye,
+  FiLock,
 } from "react-icons/fi";
 
 import { useHealthQuizPatientLeaderboard } from "../../../queries/healthQuiz";
 import Loader from "../../../common/Loader";
 import CustomeTable from "../../../common/table/CustomeTable";
+import { usePermission } from "../../../hooks/usePermission";
 
 const formatTime = (seconds) => {
   if (!seconds && seconds !== 0) return "—";
@@ -27,8 +29,47 @@ const formatTime = (seconds) => {
 const HealthQuizPatientLeaderboard = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
 
-  const { data, isLoading, isError } = useHealthQuizPatientLeaderboard(id);
+  // ==================== PERMISSIONS ====================
+  const canView = can("health_quiz", "view");
+
+  const { data, isLoading, isError } = useHealthQuizPatientLeaderboard(id, {
+    enabled: canView,
+  });
+
+  const handleView = (attemptId) => {
+    if (!canView) return;
+    navigate(`/health-quiz/history/${attemptId}`);
+  };
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view patient quiz performance. Please
+          contact your administrator.
+        </p>
+        <button
+          onClick={() => navigate("/health-quiz/leaderboard")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Back to Leaderboard
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading) return <Loader text="Loading patient details..." />;
 
@@ -121,8 +162,9 @@ const HealthQuizPatientLeaderboard = () => {
       align: "right",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
+          {/* Option A: View allowed */}
           <button
-            onClick={() => navigate(`/health-quiz/history/${row.id}`)}
+            onClick={() => handleView(row.id)}
             className="cursor-pointer rounded-md p-1.5 text-ink-500 transition-colors hover:bg-brand-50 hover:text-brand-600"
             title="View Attempt Details"
           >

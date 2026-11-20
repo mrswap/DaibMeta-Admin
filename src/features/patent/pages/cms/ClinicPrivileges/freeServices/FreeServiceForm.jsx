@@ -9,6 +9,7 @@ import {
   FiLoader,
   FiMail,
   FiPhone,
+  FiLock,
 } from "react-icons/fi";
 
 import {
@@ -20,11 +21,18 @@ import {
 import { useAppointmentTypes } from "../../../../queries/appointmentTypes";
 import { TextInput, ToggleSwitch } from "../../../../common/form";
 import Loader from "../../../../common/Loader";
+import { usePermission } from "../../../../hooks/usePermission";
 
 const FreeServiceForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = !!id;
+
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("cms", "view");
+  const canManage = can("cms", "manage");
 
   const createMutation = useCreateFreeService();
   const updateMutation = useUpdateFreeService();
@@ -32,8 +40,10 @@ const FreeServiceForm = () => {
   // Fetch existing service details for edit
   const { data: serviceData, isLoading: isServiceLoading } = useFreeService(
     isEdit ? id : null,
+    {
+      enabled: canView,
+    },
   );
-
   // Fetch all providers directly
   const { data: providersData, isLoading: isProvidersLoading } =
     useProviderList();
@@ -73,6 +83,10 @@ const FreeServiceForm = () => {
   });
 
   const handleSubmit = (values, { setSubmitting }) => {
+    if (!canManage) {
+      setSubmitting(false);
+      return;
+    }
     const payload = {
       title: values.title.trim(),
       button_text: values.button_text?.trim() || undefined,
@@ -93,6 +107,36 @@ const FreeServiceForm = () => {
         .catch(() => setSubmitting(false));
     }
   };
+
+  if (permLoading) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canManage) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to manage clinical privileges. Please
+          contact your administrator.
+        </p>
+
+        <button
+          onClick={() => navigate("/cms/clinical-privileges")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Back to Clinical Privileges
+        </button>
+      </div>
+    );
+  }
 
   if ((isEdit && isServiceLoading) || isAptLoading) {
     return <Loader text="Loading form details..." />;

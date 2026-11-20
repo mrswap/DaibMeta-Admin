@@ -7,11 +7,17 @@ import {
   getProviderColor,
 } from "../../queries/bookingCalendar";
 import { useAllExceptions, todayStr } from "../../queries/exceptionManagement";
+import {
+  toShortTime,
+  timeToMinutes,
+} from "../../queries/availabilityExceptions";
 import ExceptionMonthCalendar from "./components/ExceptionMonthCalendar";
 import ExceptionProviderTabs from "./components/ExceptionProviderTabs";
 import ExceptionList from "./components/ExceptionList";
 import ExceptionDetailsModal from "./components/ExceptionDetailsModal";
 import Loader from "../../common/Loader";
+import { usePermission } from "../../hooks/usePermission";
+import { useNavigate } from "react-router-dom";
 
 // ==================== HELPERS ====================
 const addMonths = (dateStr, delta) => {
@@ -47,8 +53,65 @@ const pickDateForMonth = (year, month) => {
   return `${year}-${String(month + 1).padStart(2, "0")}-01`;
 };
 
+const minutesToTime = (min) =>
+  `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+
+// Ek range exception (e.g. 10:00–10:45) ko slot-wise tukdo me todta hai
+// Full day exception ek hi item rehta hai, bas slot_count me total slots aate hain
+const splitExceptionIntoSlots = (ex, availability) => {
+  const slotDuration = Number(availability?.slot_duration) || 0;
+
+  // Full day
+  if (!ex.start_time && !ex.end_time) {
+    let slotCount = 1;
+    if (
+      slotDuration > 0 &&
+      availability?.start_time &&
+      availability?.end_time
+    ) {
+      const total =
+        (timeToMinutes(toShortTime(availability.end_time)) -
+          timeToMinutes(toShortTime(availability.start_time))) /
+        slotDuration;
+      slotCount = Math.max(1, Math.floor(total));
+    }
+    return [
+      { ...ex, _key: `${ex.id}-full`, _parentId: ex.id, slot_count: slotCount },
+    ];
+  }
+
+  const start = timeToMinutes(toShortTime(ex.start_time));
+  const end = timeToMinutes(toShortTime(ex.end_time));
+
+  // slot duration pata nahi ya range chhoti hai -> as-is
+  if (!slotDuration || end - start <= slotDuration) {
+    return [
+      { ...ex, _key: `${ex.id}-${start}`, _parentId: ex.id, slot_count: 1 },
+    ];
+  }
+
+  const parts = [];
+  for (let t = start; t < end; t += slotDuration) {
+    parts.push({
+      ...ex,
+      start_time: minutesToTime(t),
+      end_time: minutesToTime(Math.min(t + slotDuration, end)),
+      _key: `${ex.id}-${t}`,
+      _parentId: ex.id,
+      slot_count: 1,
+    });
+  }
+  return parts;
+};
+
 const ExceptionManagementList = () => {
   const today = useMemo(() => todayStr(), []);
+  const { can, isLoading: permLoading } = usePermission();
+
+  const canView = can("availability", "view");
+  const canManage = can("availability", "manage");
+
+  const navigate = useNavigate();
 
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedProviderId, setSelectedProviderId] = useState(null);
@@ -100,6 +163,15 @@ const ExceptionManagementList = () => {
     return availabilities.filter((av) => av.provider?.id === activeProviderId);
   }, [availabilities, activeProviderId]);
 
+  // availability_id -> availability (slot_duration, start/end time ke liye)
+  const availabilityById = useMemo(() => {
+    const map = {};
+    availabilities.forEach((av) => {
+      map[av.id] = av;
+    });
+    return map;
+  }, [availabilities]);
+
   // ==================== LOAD ALL EXCEPTIONS (FAN-OUT) ====================
   const {
     data: exceptionsData,
@@ -111,7 +183,32 @@ const ExceptionManagementList = () => {
     date_to: dateRange.date_to,
   });
 
-  const allExceptions = exceptionsData?.list || [];
+  // ==================== SPLIT RANGE EXCEPTIONS INTO SLOTS ====================
+  const allExceptions = useMemo(() => {
+    const raw = exceptionsData?.list || [];
+    const seen = new Set();
+    const result = [];
+
+    raw.forEach((ex) => {
+      const av = availabilityById[ex.availability_id];
+      splitExceptionIntoSlots(ex, av).forEach((item) => {
+        // Overlapping exceptions se duplicate slot na aaye
+        const dedupeKey = `${item.availability_id}|${item.exception_date}|${
+          item.start_time || "full"
+        }|${item.end_time || "full"}`;
+        if (seen.has(dedupeKey)) return;
+        seen.add(dedupeKey);
+        result.push(item);
+      });
+    });
+
+    return result;
+  }, [exceptionsData, availabilityById]);
+
+  const totalBlockedSlots = useMemo(
+    () => allExceptions.reduce((sum, e) => sum + (e.slot_count || 1), 0),
+    [allExceptions],
+  );
 
   // ==================== AUTO-ADJUST selectedDate WHEN MONTH CHANGES ====================
   useEffect(() => {
@@ -155,6 +252,33 @@ const ExceptionManagementList = () => {
     setDetailsModal({ open: false, exception: null });
   };
 
+  if (permLoading && !canView) return <Loader text="Checking permissions..." />;
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view availability exceptions.
+        </p>
+
+        <button
+          onClick={() => navigate("/provider-availabilities")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          Back to Availabilities
+        </button>
+      </div>
+    );
+  }
+
   if (loadingAvailabilities) return <Loader text="Loading exceptions..." />;
 
   return (
@@ -173,7 +297,7 @@ const ExceptionManagementList = () => {
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-lg border border-danger-200 bg-danger-50 px-2.5 py-1 text-[11px] font-semibold text-danger-700">
             <FiLock className="h-3 w-3" />
-            {allExceptions.length} total blocked
+            {totalBlockedSlots} total blocked
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-ink-50 px-2.5 py-1 text-[11px] font-semibold text-ink-700">
             <FiCalendar className="h-3 w-3" />

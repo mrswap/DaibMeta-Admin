@@ -11,6 +11,7 @@ import {
   FiEye,
   FiFilter,
   FiX,
+  FiLock,
 } from "react-icons/fi";
 import {
   useVisits,
@@ -23,6 +24,7 @@ import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect, DatePicker } from "../../common/form";
+import { usePermission } from "../../hooks/usePermission";
 
 const STATUS_OPTIONS = VISIT_STATUSES.map((s) => ({
   value: s.value,
@@ -63,6 +65,11 @@ const formatDate = (d) => {
 
 const VisitList = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("visits", "view");
+  const canManage = can("visits", "manage");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
@@ -90,17 +97,32 @@ const VisitList = () => {
     ...(dateToFilter && { date_to: dateToFilter }),
   };
 
-  const { data, isLoading, isFetching, refetch } = useVisits(params);
+  // API gated by view permission
+  const { data, isLoading, isFetching, refetch } = useVisits(params, {
+    enabled: canView,
+  });
   const deleteMutation = useDeleteVisit();
 
   const list = data?.list || [];
   const meta = data?.meta || {};
 
-  const handleAdd = () => navigate("/visits/new");
-  const handleEdit = (row) => navigate(`/visits/${row.id}/edit`);
-  const handleView = (row) => navigate(`/visits/${row.id}`);
+  const handleAdd = () => {
+    if (!canManage) return;
+    navigate("/visits/new");
+  };
+
+  const handleEdit = (row) => {
+    if (!canManage) return;
+    navigate(`/visits/${row.id}/edit`);
+  };
+
+  const handleView = (row) => {
+    if (!canView) return;
+    navigate(`/visits/${row.id}`);
+  };
 
   const handleDeleteClick = (item) => {
+    if (!canManage) return;
     // Cannot delete in_consultation or completed visits
     if (item.status === "in_consultation" || item.status === "completed") {
       return;
@@ -109,6 +131,7 @@ const VisitList = () => {
   };
 
   const handleConfirm = () => {
+    if (!canManage) return;
     const { item } = confirm;
     if (!item) return;
     deleteMutation.mutate(item.id, {
@@ -146,6 +169,28 @@ const VisitList = () => {
   const lastPage = meta.last_page || 1;
   const total = meta.total || 0;
   const metaPerPage = meta.per_page || perPage;
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view visits. Please contact your
+          administrator.
+        </p>
+      </div>
+    );
+  }
 
   // ==================== COLUMNS ====================
   const columns = [
@@ -228,22 +273,32 @@ const VisitList = () => {
       render: (_, row) => {
         const canDelete =
           row.status !== "in_consultation" && row.status !== "completed";
+
         return (
           <div className="flex items-center justify-end gap-1">
-            <IconBtn title="View" onClick={() => handleView(row)}>
-              <FiEye className="h-4 w-4" />
-            </IconBtn>
-            <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-              <FiEdit2 className="h-4 w-4" />
-            </IconBtn>
-            <IconBtn
-              title={canDelete ? "Delete" : "Cannot delete this visit"}
-              onClick={() => handleDeleteClick(row)}
-              disabled={!canDelete}
-              danger
-            >
-              <FiTrash2 className="h-4 w-4" />
-            </IconBtn>
+            {/* View (Eye) always visible if canView */}
+            {canView && (
+              <IconBtn title="View" onClick={() => handleView(row)}>
+                <FiEye className="h-4 w-4" />
+              </IconBtn>
+            )}
+
+            {/* Edit & Delete only if canManage */}
+            {canManage && (
+              <>
+                <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+                  <FiEdit2 className="h-4 w-4" />
+                </IconBtn>
+                <IconBtn
+                  title={canDelete ? "Delete" : "Cannot delete this visit"}
+                  onClick={() => handleDeleteClick(row)}
+                  disabled={!canDelete}
+                  danger
+                >
+                  <FiTrash2 className="h-4 w-4" />
+                </IconBtn>
+              </>
+            )}
           </div>
         );
       },
@@ -264,13 +319,15 @@ const VisitList = () => {
               : "Manage patient visits and check-ins"}
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700 sm:w-auto"
-        >
-          <FiPlus className="h-4 w-4" />
-          New Visit
-        </button>
+        {canManage && (
+          <button
+            onClick={handleAdd}
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700 sm:w-auto"
+          >
+            <FiPlus className="h-4 w-4" />
+            New Visit
+          </button>
+        )}
       </div>
 
       {/* Search + Filters */}
@@ -440,17 +497,19 @@ const VisitList = () => {
         />
       )}
 
-      {/* Delete Confirmation */}
-      <ConfirmModal
-        open={confirm.open}
-        title="Delete Visit"
-        message="Are you sure you want to delete this visit? This action cannot be undone."
-        confirmText="Delete"
-        variant="danger"
-        onConfirm={handleConfirm}
-        onCancel={() => setConfirm({ open: false, item: null })}
-        loading={deleteMutation.isPending}
-      />
+      {/* Delete Confirmation - Only if canManage */}
+      {canManage && (
+        <ConfirmModal
+          open={confirm.open}
+          title="Delete Visit"
+          message="Are you sure you want to delete this visit? This action cannot be undone."
+          confirmText="Delete"
+          variant="danger"
+          onConfirm={handleConfirm}
+          onCancel={() => setConfirm({ open: false, item: null })}
+          loading={deleteMutation.isPending}
+        />
+      )}
     </div>
   );
 };

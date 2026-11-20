@@ -23,6 +23,8 @@ import Loader from "../../common/Loader";
 import ConfirmModal from "../../common/ConfirmModal";
 import CustomeTable from "../../common/table/CustomeTable";
 import { FilterSelect, ActionToggle, DatePicker } from "../../common/form";
+import { FiLock } from "react-icons/fi";
+import { usePermission } from "../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   { value: "1", label: "Active" },
@@ -67,6 +69,10 @@ const splitDays = (daysOfWeek = []) => {
 
 const AvailabilityList = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  const canView = can("availability", "view");
+  const canManage = can("availability", "manage");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
@@ -161,6 +167,29 @@ const AvailabilityList = () => {
 
   const hasActiveFilters = activeFilterCount > 0;
 
+  if (permLoading) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view provider availability. Please
+          contact your administrator.
+        </p>
+      </div>
+    );
+  }
+
   const columns = [
     {
       header: "#",
@@ -230,28 +259,46 @@ const AvailabilityList = () => {
       header: "Actions",
       render: (_, row) => (
         <div className="flex items-center justify-end gap-1">
-          <IconBtn title="View" onClick={() => handleView(row)}>
-            <FiEye className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn title="Edit" onClick={() => handleEdit(row)}>
-            <FiEdit2 className="h-4 w-4" />
-          </IconBtn>
-          <IconBtn
-            title="Manage Exceptions"
-            onClick={() => handleManageExceptions(row)}
-          >
-            <FiAlertCircle className="h-4 w-4" />
-          </IconBtn>
-          <ActionToggle
-            active={row.status}
-            onClick={() => handleToggleClick(row)}
-            loading={
-              toggleStatus.isPending && toggleStatus.variables === row.id
-            }
-          />
-          <IconBtn title="Delete" onClick={() => handleDeleteClick(row)} danger>
-            <FiTrash2 className="h-4 w-4" />
-          </IconBtn>
+          {canView && (
+            <IconBtn title="View" onClick={() => handleView(row)}>
+              <FiEye className="h-4 w-4" />
+            </IconBtn>
+          )}
+
+          {canManage && (
+            <>
+              <IconBtn title="Edit" onClick={() => handleEdit(row)}>
+                <FiEdit2 className="h-4 w-4" />
+              </IconBtn>
+
+              <IconBtn
+                title="Manage Exceptions"
+                onClick={() => handleManageExceptions(row)}
+              >
+                <FiAlertCircle className="h-4 w-4" />
+              </IconBtn>
+
+              <ActionToggle
+                active={row.status}
+                onClick={() => handleToggleClick(row)}
+                loading={
+                  toggleStatus.isPending && toggleStatus.variables === row.id
+                }
+              />
+
+              <IconBtn
+                title="Delete"
+                onClick={() => handleDeleteClick(row)}
+                danger
+              >
+                <FiTrash2 className="h-4 w-4" />
+              </IconBtn>
+            </>
+          )}
+
+          {!canView && !canManage && (
+            <span className="text-xs text-ink-400">—</span>
+          )}
         </div>
       ),
     },
@@ -291,13 +338,15 @@ const AvailabilityList = () => {
               : "Manage provider schedules and dynamic slot generation"}
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700 sm:w-auto"
-        >
-          <FiPlus className="h-4 w-4" />
-          Set Availability
-        </button>
+        {canManage && (
+          <button
+            onClick={handleAdd}
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface hover:bg-brand-700 sm:w-auto"
+          >
+            <FiPlus className="h-4 w-4" />
+            Set Availability
+          </button>
+        )}
       </div>
 
       {/* Search + Filters */}

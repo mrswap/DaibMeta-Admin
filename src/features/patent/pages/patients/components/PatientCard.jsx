@@ -1,3 +1,5 @@
+// src/features/patent/pages/patients/components/PatientCard.jsx
+
 import {
   FiUser,
   FiEdit2,
@@ -32,7 +34,14 @@ const getAvatarColor = (name = "") => {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 };
 
-const PatientCard = ({ patient, onView, onEdit, onToggle, onDelete }) => {
+const PatientCard = ({
+  patient,
+  onView,
+  onEdit,
+  onToggle,
+  onDelete,
+  canManage,
+}) => {
   const isFamily = !!patient.linked_primary_patient_id;
   const initials = getInitials(patient.name);
   const avatarColor = getAvatarColor(patient.name);
@@ -110,25 +119,35 @@ const PatientCard = ({ patient, onView, onEdit, onToggle, onDelete }) => {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between border-t border-ink-100 bg-ink-50/30 px-2 py-1.5">
+      <div className="flex items-center justify-between border-t border-ink-100 bg-ink-50/30 px-2 py-1.5 min-h-[38px]">
         <div className="flex gap-0.5">
+          {/* View button always visible */}
           <IconBtn title="View" onClick={() => onView(patient)}>
             <FiEye className="h-3.5 w-3.5" />
           </IconBtn>
-          <IconBtn title="Edit" onClick={() => onEdit(patient)}>
-            <FiEdit2 className="h-3.5 w-3.5" />
-          </IconBtn>
+
+          {/* Edit button only if canManage */}
+          {canManage && (
+            <IconBtn title="Edit" onClick={() => onEdit(patient)}>
+              <FiEdit2 className="h-3.5 w-3.5" />
+            </IconBtn>
+          )}
         </div>
 
-        <div className="flex gap-0.5">
-          <ActionToggle
-            active={patient.status}
-            onClick={() => onToggle(patient)}
-          />
-          <IconBtn title="Delete" onClick={() => onDelete(patient)} danger>
-            <FiTrash2 className="h-3.5 w-3.5" />
-          </IconBtn>
-        </div>
+        {/* Delete & Toggle only if canManage */}
+        {canManage ? (
+          <div className="flex gap-0.5">
+            <ActionToggle
+              active={patient.status}
+              onClick={() => onToggle(patient)}
+            />
+            <IconBtn title="Delete" onClick={() => onDelete(patient)} danger>
+              <FiTrash2 className="h-3.5 w-3.5" />
+            </IconBtn>
+          </div>
+        ) : (
+          <span className="text-xs text-ink-400 pr-1">—</span>
+        )}
       </div>
     </div>
   );

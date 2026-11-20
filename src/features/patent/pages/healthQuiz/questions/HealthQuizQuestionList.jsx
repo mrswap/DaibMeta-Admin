@@ -9,6 +9,7 @@ import {
   FiEdit2,
   FiTrash2,
   FiHelpCircle,
+  FiLock,
 } from "react-icons/fi";
 
 import {
@@ -20,6 +21,7 @@ import Loader from "../../../common/Loader";
 import ConfirmModal from "../../../common/ConfirmModal";
 import CustomeTable from "../../../common/table/CustomeTable";
 import { FilterSelect, ActionToggle } from "../../../common/form";
+import { usePermission } from "../../../hooks/usePermission";
 
 const STATUS_OPTIONS = [
   { value: "1", label: "Active" },
@@ -28,6 +30,11 @@ const STATUS_OPTIONS = [
 
 const HealthQuizQuestionList = () => {
   const navigate = useNavigate();
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("health_quiz", "view");
+  const canManage = can("health_quiz", "manage");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
@@ -48,8 +55,11 @@ const HealthQuizQuestionList = () => {
     ...(statusFilter?.value && { status: statusFilter.value }),
   };
 
-  const { data, isLoading, isFetching, refetch } =
-    useHealthQuizQuestions(params);
+  // API gated by view permission
+  const { data, isLoading, isFetching, refetch } = useHealthQuizQuestions(
+    params,
+    { enabled: canView },
+  );
 
   const list = data?.list || [];
   const meta = data?.meta || {};
@@ -66,18 +76,40 @@ const HealthQuizQuestionList = () => {
   };
 
   const handleDeleteConfirm = () => {
-    if (!deleteTarget) return;
+    if (!canManage || !deleteTarget) return;
     deleteMutation.mutate(deleteTarget.id, {
       onSettled: () => setDeleteTarget(null),
     });
   };
 
   const handleToggleConfirm = () => {
-    if (!toggleTarget) return;
+    if (!canManage || !toggleTarget) return;
     toggleMutation.mutate(toggleTarget.id, {
       onSettled: () => setToggleTarget(null),
     });
   };
+
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading && !canView) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to view health quiz questions. Please
+          contact your administrator.
+        </p>
+      </div>
+    );
+  }
 
   // ==================== COLUMNS ====================
   const columns = [
@@ -126,26 +158,32 @@ const HealthQuizQuestionList = () => {
     {
       header: "Actions",
       align: "right",
-      render: (_, row) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconBtn
-            title="Edit"
-            onClick={() => navigate(`/health-quiz/questions/${row.id}/edit`)}
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </IconBtn>
-          <ActionToggle
-            active={row.status}
-            onClick={() => setToggleTarget(row)}
-            loading={
-              toggleMutation.isPending && toggleMutation.variables === row.id
-            }
-          />
-          <IconBtn title="Delete" onClick={() => setDeleteTarget(row)} danger>
-            <FiTrash2 className="h-4 w-4" />
-          </IconBtn>
-        </div>
-      ),
+      render: (_, row) => {
+        // Option A: Hide icons if no manage permission
+        if (!canManage) {
+          return <span className="text-xs text-ink-400">—</span>;
+        }
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <IconBtn
+              title="Edit"
+              onClick={() => navigate(`/health-quiz/questions/${row.id}/edit`)}
+            >
+              <FiEdit2 className="h-4 w-4" />
+            </IconBtn>
+            <ActionToggle
+              active={row.status}
+              onClick={() => setToggleTarget(row)}
+              loading={
+                toggleMutation.isPending && toggleMutation.variables === row.id
+              }
+            />
+            <IconBtn title="Delete" onClick={() => setDeleteTarget(row)} danger>
+              <FiTrash2 className="h-4 w-4" />
+            </IconBtn>
+          </div>
+        );
+      },
     },
   ];
 
@@ -161,13 +199,15 @@ const HealthQuizQuestionList = () => {
             Manage multiple-choice questions for the health quiz
           </p>
         </div>
-        <button
-          onClick={() => navigate("/health-quiz/questions/new")}
-          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface shadow-sm transition hover:bg-brand-700 sm:w-auto"
-        >
-          <FiPlus className="h-4 w-4" />
-          Add Question
-        </button>
+        {canManage && (
+          <button
+            onClick={() => navigate("/health-quiz/questions/new")}
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-surface shadow-sm transition hover:bg-brand-700 sm:w-auto"
+          >
+            <FiPlus className="h-4 w-4" />
+            Add Question
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -220,7 +260,9 @@ const HealthQuizQuestionList = () => {
           <p className="mt-1 max-w-sm text-sm text-ink-500">
             {search || statusFilter
               ? "We couldn't find any questions matching your filters."
-              : "Get started by adding a new quiz question."}
+              : canManage
+                ? "Get started by adding a new quiz question."
+                : "No questions have been added yet."}
           </p>
         </div>
       ) : (
@@ -239,33 +281,36 @@ const HealthQuizQuestionList = () => {
         </div>
       )}
 
-      {/* Delete Modal */}
-      <ConfirmModal
-        open={!!deleteTarget}
-        title="Delete Question"
-        message={`Are you sure you want to delete this question? This action cannot be undone.`}
-        confirmText="Delete"
-        variant="danger"
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteTarget(null)}
-        loading={deleteMutation.isPending}
-      />
+      {/* Modals - Only if user can manage */}
+      {canManage && (
+        <>
+          <ConfirmModal
+            open={!!deleteTarget}
+            title="Delete Question"
+            message={`Are you sure you want to delete this question? This action cannot be undone.`}
+            confirmText="Delete"
+            variant="danger"
+            onConfirm={handleDeleteConfirm}
+            onCancel={() => setDeleteTarget(null)}
+            loading={deleteMutation.isPending}
+          />
 
-      {/* Toggle Status Modal */}
-      <ConfirmModal
-        open={!!toggleTarget}
-        title={
-          toggleTarget?.status ? "Deactivate Question" : "Activate Question"
-        }
-        message={`Are you sure you want to ${
-          toggleTarget?.status ? "deactivate" : "activate"
-        } this question?`}
-        confirmText={toggleTarget?.status ? "Deactivate" : "Activate"}
-        variant="warn"
-        onConfirm={handleToggleConfirm}
-        onCancel={() => setToggleTarget(null)}
-        loading={toggleMutation.isPending}
-      />
+          <ConfirmModal
+            open={!!toggleTarget}
+            title={
+              toggleTarget?.status ? "Deactivate Question" : "Activate Question"
+            }
+            message={`Are you sure you want to ${
+              toggleTarget?.status ? "deactivate" : "activate"
+            } this question?`}
+            confirmText={toggleTarget?.status ? "Deactivate" : "Activate"}
+            variant="warn"
+            onConfirm={handleToggleConfirm}
+            onCancel={() => setToggleTarget(null)}
+            loading={toggleMutation.isPending}
+          />
+        </>
+      )}
     </div>
   );
 };

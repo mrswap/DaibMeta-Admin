@@ -3,7 +3,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
-import { FiArrowLeft, FiHelpCircle } from "react-icons/fi";
+import { FiArrowLeft, FiHelpCircle, FiLock } from "react-icons/fi";
 
 import {
   useHealthQuizQuestion,
@@ -17,6 +17,7 @@ import {
   ToggleSwitch,
 } from "../../../common/form";
 import Loader from "../../../common/Loader";
+import { usePermission } from "../../../hooks/usePermission";
 
 const CORRECT_ANSWER_OPTIONS = [
   { value: "A", label: "Option A" },
@@ -30,12 +31,20 @@ const HealthQuizQuestionForm = () => {
   const navigate = useNavigate();
   const isEdit = !!id;
 
+  const { can, isLoading: permLoading } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("health_quiz", "view");
+  const canManage = can("health_quiz", "manage");
+
   const createMutation = useCreateHealthQuizQuestion();
   const updateMutation = useUpdateHealthQuizQuestion();
 
   // Fetch existing question for edit
   const { data: questionData, isLoading: isQuestionLoading } =
-    useHealthQuizQuestion(isEdit ? id : null);
+    useHealthQuizQuestion(isEdit ? id : null, {
+      enabled: canView,
+    });
 
   // Initial Values
   const initialValues = {
@@ -87,6 +96,10 @@ const HealthQuizQuestionForm = () => {
   });
 
   const handleSubmit = (values, { setSubmitting }) => {
+    if (!canManage) {
+      setSubmitting(false);
+      return;
+    }
     const payload = {
       question: values.question.trim(),
       option_a: values.option_a.trim(),
@@ -114,8 +127,65 @@ const HealthQuizQuestionForm = () => {
     }
   };
 
+  // ==================== PAGE ACCESS GUARD ====================
+  if (permLoading) {
+    return <Loader text="Checking permissions..." />;
+  }
+
+  if (!canView || !canManage) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to manage health quiz questions. Please
+          contact your administrator.
+        </p>
+
+        <button
+          onClick={() => navigate("/health-quiz/questions")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Back to Questions
+        </button>
+      </div>
+    );
+  }
+
   if (isEdit && isQuestionLoading) {
     return <Loader text="Loading question details..." />;
+  }
+
+  if (!canManage) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-7 w-7" />
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-ink-900">
+          Access Denied
+        </h2>
+
+        <p className="mt-1 max-w-md text-sm text-ink-500">
+          You do not have permission to manage health quiz questions. Please
+          contact your administrator.
+        </p>
+
+        <button
+          onClick={() => navigate("/health-quiz/questions")}
+          className="mt-4 cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700"
+        >
+          Back to Questions
+        </button>
+      </div>
+    );
   }
 
   const isPending = createMutation.isPending || updateMutation.isPending;
