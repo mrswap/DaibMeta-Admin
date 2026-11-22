@@ -1,6 +1,4 @@
-// // src/features/patent/pages/bookingCalendar/components/BookedSlotDetailsModal.jsx
-
-// import { useState, useEffect, useMemo } from "react";
+// import { useState, useEffect, useMemo, useRef } from "react";
 // import { useNavigate } from "react-router-dom";
 // import { useQueryClient } from "@tanstack/react-query";
 // import {
@@ -18,10 +16,18 @@
 //   FiUserPlus,
 //   FiEdit2,
 //   FiTrash2,
+//   FiUsers,
+//   FiArrowLeft,
+//   FiRefreshCw,
+//   FiChevronDown,
 // } from "react-icons/fi";
 // import { useCreateVisit } from "../../../queries/visits";
 // import { useCreatePatient, usePatients } from "../../../queries/patients";
-// import { useDeleteAppointment } from "../../../queries/appointments";
+// import {
+//   useDeleteAppointment,
+//   useUpdateAppointmentStatus,
+//   getAllowedTransitions,
+// } from "../../../queries/appointments";
 // import ConfirmModal from "../../../common/ConfirmModal";
 // import {
 //   FilterSelect,
@@ -74,8 +80,131 @@
 //   { value: "paid", label: "Paid" },
 // ];
 
+// // ==================== STATUS DROPDOWN ====================
+// const humanize = (s = "") =>
+//   String(s)
+//     .replace(/[_-]+/g, " ")
+//     .replace(/\b\w/g, (c) => c.toUpperCase());
+
+// // getAllowedTransitions string ya object dono return kare, dono handle hoga
+// const normalizeTransition = (t) => {
+//   if (typeof t === "string") return { value: t, label: humanize(t) };
+//   const value = t.value ?? t.status ?? t.key;
+//   return { value, label: t.label ?? humanize(value) };
+// };
+
+// const isDangerStatus = (v = "") =>
+//   /(cancel|no_show|noshow|reject|declin)/i.test(String(v));
+
+// const InlineStatusChange = ({
+//   appointmentId,
+//   allowedTransitions = [],
+//   disabled = false,
+// }) => {
+//   const queryClient = useQueryClient();
+//   const updateStatus = useUpdateAppointmentStatus();
+//   const wrapRef = useRef(null);
+
+//   const [open, setOpen] = useState(false);
+//   const [error, setError] = useState(null);
+
+//   const options = allowedTransitions
+//     .map(normalizeTransition)
+//     .filter((o) => o.value);
+//   const loading = updateStatus.isPending;
+
+//   // bahar click ya Esc pe band
+//   useEffect(() => {
+//     if (!open) return;
+//     const onDown = (e) => {
+//       if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+//         setOpen(false);
+//       }
+//     };
+//     const onKey = (e) => e.key === "Escape" && setOpen(false);
+//     document.addEventListener("mousedown", onDown);
+//     document.addEventListener("keydown", onKey);
+//     return () => {
+//       document.removeEventListener("mousedown", onDown);
+//       document.removeEventListener("keydown", onKey);
+//     };
+//   }, [open]);
+
+//   const handleSelect = async (value) => {
+//     setError(null);
+//     try {
+//       // ⚠️ Payload apne mutation ke hisaab se adjust karo
+//       await updateStatus.mutateAsync({ id: appointmentId, status: value });
+//       queryClient.invalidateQueries({ queryKey: ["bookingCalendar"] });
+//       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+//       setOpen(false);
+//     } catch (err) {
+//       setError(
+//         err?.response?.data?.message ||
+//           err?.message ||
+//           "Failed to update status.",
+//       );
+//     }
+//   };
+
+//   return (
+//     <div ref={wrapRef} className="relative">
+//       <button
+//         type="button"
+//         onClick={() => setOpen((v) => !v)}
+//         disabled={disabled || loading}
+//         aria-haspopup="listbox"
+//         aria-expanded={open}
+//         className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-surface px-2.5 py-1 text-[11px] font-semibold text-brand-700 transition hover:border-brand-400 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
+//       >
+//         {loading ? (
+//           <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-brand-300 border-t-brand-700" />
+//         ) : (
+//           <FiRefreshCw className="h-3 w-3" />
+//         )}
+//         {loading ? "Updating..." : "Change Status"}
+//         <FiChevronDown
+//           className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
+//         />
+//       </button>
+
+//       {open && (
+//         <ul
+//           role="listbox"
+//           className="absolute right-0 top-full z-20 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-ink-200 bg-surface py-1 shadow-lg"
+//         >
+//           {options.map((o) => (
+//             <li key={o.value}>
+//               <button
+//                 type="button"
+//                 role="option"
+//                 onClick={() => handleSelect(o.value)}
+//                 className={`flex w-full cursor-pointer items-center px-3 py-1.5 text-left text-xs font-medium transition hover:bg-ink-50 ${
+//                   isDangerStatus(o.value) ? "text-danger-600" : "text-ink-700"
+//                 }`}
+//               >
+//                 {o.label}
+//               </button>
+//             </li>
+//           ))}
+//         </ul>
+//       )}
+
+//       {error && <p className="mt-1 text-[11px] text-danger-600">{error}</p>}
+//     </div>
+//   );
+// };
+
 // // ==================== COMPONENT ====================
-// const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
+// const BookedSlotDetailsModal = ({
+//   open,
+//   onClose,
+//   slot,
+//   provider,
+//   date,
+//   onBack, // optional: Back button tabhi dikhega jab ye pass ho
+//   initialAppointmentId, // optional: kaunsa appointment pehle select ho
+// }) => {
 //   const navigate = useNavigate();
 //   const queryClient = useQueryClient();
 //   const createVisit = useCreateVisit();
@@ -85,14 +214,13 @@
 
 //   const canManageAppointment = can("appointment", "manage");
 //   const canDeleteAppointment = can("appointment", "delete");
-//   const canManagePatient = can("patient", "manage");
-//   const canViewPatient = can("patient", "view");
+//   const canManagePatient = can("patients", "manage");
+//   const canViewPatient = can("patients", "view");
 //   const canManageVisit = can("visits", "manage");
 //   const canViewVisit = can("visits", "view");
 
 //   const changeTabs = useMemo(() => {
 //     const arr = [];
-
 //     if (canManagePatient) {
 //       arr.push({
 //         value: "new",
@@ -100,7 +228,6 @@
 //         icon: FiUserPlus,
 //       });
 //     }
-
 //     if (canViewPatient) {
 //       arr.push({
 //         value: "existing",
@@ -108,12 +235,11 @@
 //         icon: FiLink,
 //       });
 //     }
-
 //     return arr;
 //   }, [canManagePatient, canViewPatient]);
 
 //   const [changeMode, setChangeMode] = useState(false);
-//   const [changeTab, setChangeTab] = useState("new");
+//   const [activeChangeTab, setActiveChangeTab] = useState("new");
 
 //   const [newName, setNewName] = useState("");
 //   const [newMobile, setNewMobile] = useState("");
@@ -132,6 +258,51 @@
 
 //   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
+//   // ==================== MULTIPLE APPOINTMENTS ====================
+//   const appointments = useMemo(() => {
+//     if (!slot) return [];
+
+//     const list = Array.isArray(slot.appointments) ? slot.appointments : [];
+
+//     if (list.length > 0) return list;
+
+//     if (slot.appointment) return [slot.appointment];
+//     return [];
+//   }, [slot]);
+
+//   const [activeAppointmentId, setActiveAppointmentId] = useState(null);
+
+//   useEffect(() => {
+//     if (!open) return;
+//     if (permLoading) return;
+//     if (appointments.length > 0) {
+//       const preferred = initialAppointmentId
+//         ? appointments.find(
+//             (a) => String(a.id) === String(initialAppointmentId),
+//           )
+//         : null;
+//       setActiveAppointmentId((preferred || appointments[0]).id);
+//     } else {
+//       setActiveAppointmentId(null);
+//     }
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [
+//     open,
+//     slot?.start_time,
+//     permLoading,
+//     appointments.length,
+//     initialAppointmentId,
+//   ]);
+
+//   const currentAppointment = useMemo(() => {
+//     if (!appointments.length) return {};
+//     if (activeAppointmentId) {
+//       const found = appointments.find((a) => a.id === activeAppointmentId);
+//       if (found) return found;
+//     }
+//     return appointments[0];
+//   }, [appointments, activeAppointmentId]);
+
 //   // ==================== LOAD PATIENTS ====================
 //   const { data: patientsData } = usePatients({ per_page: 200 });
 
@@ -147,8 +318,8 @@
 //   }, [patientsData]);
 
 //   // ==================== APPOINTMENT / SLOT DATA ====================
-//   const appointment = slot?.appointment || {};
-//   const existingVisit = slot?.visit || null;
+//   const appointment = currentAppointment || {};
+//   const existingVisit = appointment?.visit || slot?.visit || null;
 //   const hasExistingVisit = !!existingVisit;
 
 //   const currentPatientId =
@@ -161,11 +332,23 @@
 
 //   const isPending = createVisit.isPending || createPatient.isPending;
 
-//   // ==================== FIND CURRENT PATIENT IN OPTIONS ====================
 //   const currentPatientOption = useMemo(() => {
 //     if (!hasCurrentPatient || !patientOptions.length) return null;
 //     return patientOptions.find((o) => o.value === currentPatientId) || null;
 //   }, [hasCurrentPatient, currentPatientId, patientOptions]);
+
+//   // ==================== STATUS TRANSITIONS ====================
+//   const allowedTransitions = useMemo(() => {
+//     if (!appointment?.status) return [];
+//     try {
+//       return getAllowedTransitions(appointment.status) || [];
+//     } catch {
+//       return [];
+//     }
+//   }, [appointment?.status]);
+
+//   const canChangeStatus =
+//     !!appointment?.id && canManageAppointment && allowedTransitions.length > 0;
 
 //   // ==================== DISPLAY PATIENT ====================
 //   const displayPatient = useMemo(() => {
@@ -210,22 +393,33 @@
 
 //   // ==================== RESET ====================
 //   useEffect(() => {
-//     if (open) {
-//       setChangeMode(false);
-//       setChangeTab("new");
-//       setNewName(appointment.name || "");
-//       setNewMobile(appointment.mobile || "");
-//       setNewAge("");
-//       setNewSex(null);
-//       setSelectedPatient(null);
-//       setChangeErrors({});
-//       setPaymentStatus(PAYMENT_OPTIONS[0]);
-//       setSubmitError(null);
-//       setPendingPatient(null);
-//       setDeleteConfirmOpen(false);
+//     if (!open) return;
+//     if (permLoading) return;
+
+//     setChangeMode(false);
+//     setActiveChangeTab(changeTabs[0]?.value || "new");
+
+//     setNewName(appointment.name || "");
+//     setNewMobile(appointment.mobile || "");
+//     setNewAge("");
+//     setNewSex(null);
+//     setSelectedPatient(null);
+//     setChangeErrors({});
+//     setPaymentStatus(PAYMENT_OPTIONS[0]);
+//     setSubmitError(null);
+//     setPendingPatient(null);
+//     setDeleteConfirmOpen(false);
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [open, slot?.start_time, permLoading, activeAppointmentId]);
+
+//   useEffect(() => {
+//     if (!open || permLoading) return;
+//     const validTabs = changeTabs.map((t) => t.value);
+//     if (!validTabs.includes(activeChangeTab)) {
+//       setActiveChangeTab(validTabs[0] || "new");
 //     }
 //     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [open, slot?.start_time]);
+//   }, [open, permLoading, changeTabs.length, activeChangeTab]);
 
 //   if (!open || !slot || !provider) return null;
 
@@ -239,12 +433,17 @@
 //   const handleStartChange = () => {
 //     if (isPending) return;
 //     setChangeMode(true);
-//     if (hasCurrentPatient) {
-//       setChangeTab("existing");
+
+//     const validTabs = changeTabs.map((t) => t.value);
+//     if (hasCurrentPatient && validTabs.includes("existing")) {
+//       setActiveChangeTab("existing");
 //       setSelectedPatient(currentPatientOption);
+//     } else if (validTabs.includes("new")) {
+//       setActiveChangeTab("new");
 //     } else {
-//       setChangeTab("new");
+//       setActiveChangeTab(validTabs[0] || "new");
 //     }
+
 //     setNewName(appointment.name || "");
 //     setNewMobile(appointment.mobile || "");
 //     setNewAge("");
@@ -260,7 +459,7 @@
 
 //   const handleTabSwitch = (tab) => {
 //     if (isPending) return;
-//     setChangeTab(tab);
+//     setActiveChangeTab(tab);
 //     setChangeErrors({});
 
 //     if (tab === "existing" && hasCurrentPatient && !selectedPatient) {
@@ -268,11 +467,10 @@
 //     }
 //   };
 
-//   // ==================== VALIDATE ====================
 //   const validateChange = () => {
 //     const e = {};
 
-//     if (changeTab === "existing") {
+//     if (activeChangeTab === "existing") {
 //       if (!selectedPatient) e.selectedPatient = "Please select a patient";
 //     } else {
 //       if (!newName.trim()) e.newName = "Name is required";
@@ -296,11 +494,10 @@
 //     return Object.keys(e).length === 0;
 //   };
 
-//   // ==================== APPLY CHANGE ====================
 //   const handleApplyChange = () => {
 //     if (!validateChange()) return;
 
-//     if (changeTab === "existing") {
+//     if (activeChangeTab === "existing") {
 //       if (selectedPatient.value === currentPatientId && !pendingPatient) {
 //         setChangeMode(false);
 //         return;
@@ -327,7 +524,6 @@
 //     setPendingPatient(null);
 //   };
 
-//   // ==================== CREATE VISIT ====================
 //   const handleCreateVisit = async () => {
 //     if (!canManageVisit) {
 //       setSubmitError("You don't have permission to create visit.");
@@ -413,7 +609,6 @@
 //     }
 //   };
 
-//   // ==================== DELETE APPOINTMENT ====================
 //   const handleConfirmDelete = () => {
 //     if (!appointment.id) {
 //       setDeleteConfirmOpen(false);
@@ -445,10 +640,24 @@
 //           onClick={isPending ? undefined : handleFinalClose}
 //         />
 
-//         <div className="relative z-10 flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xl">
-//           {/* ==================== HEADER ==================== */}
+//         <div className="relative z-10 flex max-h-[95vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xl">
+//           {/* HEADER */}
 //           <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
 //             <div className="flex items-center gap-2">
+//               {onBack && (
+//                 <button
+//                   type="button"
+//                   onClick={() => {
+//                     if (isPending) return;
+//                     onBack();
+//                   }}
+//                   disabled={isPending}
+//                   className="mr-1 inline-flex cursor-pointer items-center gap-1 rounded-lg border border-ink-200 bg-surface px-2 py-1 text-[11px] font-semibold text-ink-700 transition hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
+//                 >
+//                   <FiArrowLeft className="h-3 w-3" />
+//                   Back
+//                 </button>
+//               )}
 //               <div
 //                 className={`flex h-8 w-8 items-center justify-center rounded-full ${
 //                   hasExistingVisit
@@ -460,11 +669,11 @@
 //               </div>
 //               <div>
 //                 <h2 className="font-jakarta text-base font-bold text-ink-900">
-//                   {hasExistingVisit ? "Visit Exists" : "Booked Slot"}
+//                   Booked Slot
 //                 </h2>
 //                 <p className="text-[11px] text-ink-500">
-//                   {hasExistingVisit
-//                     ? `Visit #${existingVisit.id} already created`
+//                   {appointments.length > 1
+//                     ? `${appointments.length} appointments in this slot`
 //                     : "This slot is already booked"}
 //                 </p>
 //               </div>
@@ -479,7 +688,7 @@
 //             </button>
 //           </div>
 
-//           {/* ==================== STATUS BANNER ==================== */}
+//           {/* STATUS BANNER */}
 //           <div
 //             className={`border-b border-ink-100 px-5 py-3 ${
 //               hasExistingVisit ? "bg-brand-50/40" : "bg-accent-50/40"
@@ -498,30 +707,34 @@
 //                     hasExistingVisit ? "bg-brand-600" : "bg-accent-500"
 //                   }`}
 //                 />
-//                 {appointment.status_label || appointment.status || "Booked"}
+//                 Booked
 //               </span>
-//               {appointment.id && (
-//                 <code className="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-[10px] text-ink-600">
-//                   Appt #{appointment.id}
-//                 </code>
-//               )}
+//               {/* CURRENT STATUS + CHANGE STATUS */}
+//               <div className="flex items-center gap-2">
+//                 <span className="text-[11px] text-ink-500">
+//                   Status:{" "}
+//                   <span className="font-semibold text-ink-800">
+//                     {appointment.status_label ||
+//                       humanize(appointment.status) ||
+//                       "—"}
+//                   </span>
+//                 </span>
+//                 {canChangeStatus && (
+//                   <InlineStatusChange
+//                     key={appointment.id}
+//                     appointmentId={appointment.id}
+//                     allowedTransitions={allowedTransitions}
+//                     disabled={isPending}
+//                   />
+//                 )}
+//               </div>
 //             </div>
 //           </div>
 
-//           {/* ==================== SCROLLABLE BODY ==================== */}
+//           {/* SCROLLABLE BODY */}
 //           <div className="flex-1 overflow-y-auto">
 //             <div className="space-y-3 px-5 py-4">
-//               {hasExistingVisit && (
-//                 <div className="flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2.5">
-//                   <FiCheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
-//                   <p className="text-[11px] leading-relaxed text-brand-800">
-//                     Visit already created. Click <strong>View Visit</strong> to
-//                     open.
-//                   </p>
-//                 </div>
-//               )}
-
-//               {/* ============ PROVIDER + DATE + TIME ============ */}
+//               {/* PROVIDER + DATE + TIME */}
 //               <div className="rounded-lg border border-ink-100 bg-ink-50/40 px-3 py-2.5 space-y-1.5">
 //                 <div className="flex items-center gap-2 text-[11px]">
 //                   <FiUser className="h-3 w-3 shrink-0 text-ink-400" />
@@ -544,7 +757,64 @@
 //                 </div>
 //               </div>
 
-//               {/* ============ PATIENT SECTION ============ */}
+//               {/* MULTIPLE APPOINTMENTS SELECTOR */}
+//               {appointments.length > 1 && (
+//                 <div>
+//                   <p className="mb-1.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-ink-500">
+//                     <FiUsers className="h-2.5 w-2.5" />
+//                     Select Appointment ({appointments.length})
+//                   </p>
+//                   <div className="flex gap-1.5 overflow-x-auto pb-1.5 [scrollbar-width:thin]">
+//                     {appointments.map((a, idx) => {
+//                       const isActive = a.id === activeAppointmentId;
+//                       const hasVisitForA = !!a.visit;
+//                       return (
+//                         <button
+//                           key={a.id || idx}
+//                           type="button"
+//                           onClick={() => {
+//                             if (isPending) return;
+//                             setActiveAppointmentId(a.id);
+//                             setChangeMode(false);
+//                             setPendingPatient(null);
+//                             setChangeErrors({});
+//                             setSubmitError(null);
+//                           }}
+//                           disabled={isPending}
+//                           className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+//                             isActive
+//                               ? "border-brand-500 bg-brand-50 text-brand-800 ring-1 ring-brand-500"
+//                               : "border-ink-200 bg-surface text-ink-700 hover:border-ink-300 hover:bg-ink-50"
+//                           }`}
+//                         >
+//                           <span
+//                             className={`inline-block h-1.5 w-1.5 rounded-full ${
+//                               hasVisitForA ? "bg-brand-600" : "bg-accent-500"
+//                             }`}
+//                           />
+//                           {a.name || `#${a.id}`}
+//                           {hasVisitForA && (
+//                             <FiExternalLink className="h-2.5 w-2.5 text-brand-600" />
+//                           )}
+//                         </button>
+//                       );
+//                     })}
+//                   </div>
+//                 </div>
+//               )}
+
+//               {hasExistingVisit && (
+//                 <div className="flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2.5">
+//                   <FiCheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
+//                   <p className="text-[11px] leading-relaxed text-brand-800">
+//                     Visit already created for{" "}
+//                     <strong>{appointment.name || "this patient"}</strong>. Click{" "}
+//                     <strong>View Visit</strong> to open.
+//                   </p>
+//                 </div>
+//               )}
+
+//               {/* PATIENT SECTION */}
 //               <div>
 //                 <div className="mb-1.5 flex items-center justify-between">
 //                   <p className="text-[10px] font-medium uppercase tracking-wide text-ink-500">
@@ -622,37 +892,39 @@
 //                   </div>
 //                 )}
 
-//                 {/* ============ CHANGE MODE ============ */}
+//                 {/* CHANGE MODE */}
 //                 {changeMode && !hasExistingVisit && (
 //                   <div className="overflow-hidden rounded-lg border border-accent-200 bg-accent-50/40">
-//                     <div className="flex border-b border-accent-200 bg-surface/60">
-//                       {changeTab.map((tab) => {
-//                         const Icon = tab.icon;
-//                         const isActive = changeTab === tab.value;
-//                         return (
-//                           <button
-//                             key={tab.value}
-//                             type="button"
-//                             onClick={() => handleTabSwitch(tab.value)}
-//                             disabled={isPending}
-//                             className={`relative flex flex-1 cursor-pointer items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
-//                               isActive
-//                                 ? "text-brand-700"
-//                                 : "text-ink-500 hover:text-ink-700"
-//                             }`}
-//                           >
-//                             <Icon className="h-3.5 w-3.5" />
-//                             {tab.label}
-//                             {isActive && (
-//                               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-600" />
-//                             )}
-//                           </button>
-//                         );
-//                       })}
-//                     </div>
+//                     {changeTabs.length > 0 && (
+//                       <div className="flex border-b border-accent-200 bg-surface/60">
+//                         {changeTabs.map((tab) => {
+//                           const Icon = tab.icon;
+//                           const isActive = activeChangeTab === tab.value;
+//                           return (
+//                             <button
+//                               key={tab.value}
+//                               type="button"
+//                               onClick={() => handleTabSwitch(tab.value)}
+//                               disabled={isPending}
+//                               className={`relative flex flex-1 cursor-pointer items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+//                                 isActive
+//                                   ? "text-brand-700"
+//                                   : "text-ink-500 hover:text-ink-700"
+//                               }`}
+//                             >
+//                               <Icon className="h-3.5 w-3.5" />
+//                               {tab.label}
+//                               {isActive && (
+//                                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-600" />
+//                               )}
+//                             </button>
+//                           );
+//                         })}
+//                       </div>
+//                     )}
 
 //                     <div className="space-y-3 p-3">
-//                       {changeTab === "new" && (
+//                       {activeChangeTab === "new" && (
 //                         <>
 //                           <div>
 //                             <label className="mb-1 block text-xs font-medium text-form-label">
@@ -772,7 +1044,7 @@
 //                         </>
 //                       )}
 
-//                       {changeTab === "existing" && (
+//                       {activeChangeTab === "existing" && (
 //                         <div>
 //                           <label className="mb-1 block text-xs font-medium text-form-label">
 //                             Search Patient{" "}
@@ -824,7 +1096,7 @@
 //                 )}
 //               </div>
 
-//               {/* ============ PAYMENT STATUS ============ */}
+//               {/* PAYMENT STATUS */}
 //               {!hasExistingVisit && (
 //                 <div>
 //                   <label className="mb-1.5 block text-xs font-medium text-form-label">
@@ -843,7 +1115,7 @@
 //                 </div>
 //               )}
 
-//               {/* ============ ERROR ============ */}
+//               {/* ERROR */}
 //               {submitError && (
 //                 <div className="flex items-start gap-2 rounded-lg border border-danger-200 bg-danger-50/60 px-3 py-2.5">
 //                   <FiAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger-600" />
@@ -853,9 +1125,8 @@
 //             </div>
 //           </div>
 
-//           {/* ==================== FOOTER ==================== */}
+//           {/* FOOTER */}
 //           <div className="flex items-center justify-between gap-2 border-t border-ink-100 bg-ink-50/30 px-5 py-4">
-//             {/* LEFT: Delete icon (only if no visit + appointment exists + not in change mode) */}
 //             <div className="flex items-center">
 //               {!hasExistingVisit &&
 //                 appointment.id &&
@@ -873,7 +1144,6 @@
 //                 )}
 //             </div>
 
-//             {/* RIGHT: Close / View Visit / Create Visit */}
 //             <div className="flex flex-wrap items-center justify-end gap-2">
 //               <button
 //                 type="button"
@@ -920,7 +1190,6 @@
 //         </div>
 //       </div>
 
-//       {/* ==================== DELETE CONFIRM MODAL ==================== */}
 //       <ConfirmModal
 //         open={deleteConfirmOpen}
 //         title="Delete Appointment"
@@ -938,9 +1207,7 @@
 
 // export default BookedSlotDetailsModal;
 
-// src/features/patent/pages/bookingCalendar/components/BookedSlotDetailsModal.jsx
-
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -958,10 +1225,18 @@ import {
   FiUserPlus,
   FiEdit2,
   FiTrash2,
+  FiUsers,
+  FiArrowLeft,
+  FiRefreshCw,
+  FiChevronDown,
 } from "react-icons/fi";
 import { useCreateVisit } from "../../../queries/visits";
 import { useCreatePatient, usePatients } from "../../../queries/patients";
-import { useDeleteAppointment } from "../../../queries/appointments";
+import {
+  useDeleteAppointment,
+  useUpdateAppointmentStatus,
+  getAllowedTransitions,
+} from "../../../queries/appointments";
 import ConfirmModal from "../../../common/ConfirmModal";
 import {
   FilterSelect,
@@ -1014,8 +1289,191 @@ const PAYMENT_OPTIONS = [
   { value: "paid", label: "Paid" },
 ];
 
+// Walk-in appointment me payment status by default Paid, baaki me Unpaid
+const getDefaultPayment = (source) =>
+  PAYMENT_OPTIONS.find(
+    (o) => o.value === (source === "walk_in" ? "paid" : "unpaid"),
+  ) || PAYMENT_OPTIONS[0];
+
+// Backend constants: patient_app / reception / walk_in
+const BOOKING_SOURCE_LABELS = {
+  patient_app: "Patient App",
+  reception: "Reception",
+  walk_in: "Walk-in",
+};
+
+const SOURCE_BADGE_STYLES = {
+  patient_app: "bg-brand-50 text-brand-700 ring-brand-200",
+  reception: "bg-ink-100 text-ink-700 ring-ink-200",
+  walk_in: "bg-warn-50 text-warn-800 ring-warn-200",
+};
+
+// Slots list ka query key (BookingCalendar me bhi yahi invalidate hota hai)
+const SLOTS_KEY = ["providerAvailabilities", "slots"];
+
+// ==================== PATIENT MATCH ====================
+// Slots API appointment me patient_id null aa sakta hai (even jab patient linked ho),
+// isliye: pehle id se match, nahi mile to mobile (last 10 digits) + name se match.
+const normalizeMobile = (m) =>
+  String(m || "")
+    .replace(/\D/g, "")
+    .slice(-10);
+
+const findPatientForAppointment = (patients = [], appt) => {
+  if (!appt) return null;
+
+  const id = appt.patient_id || appt.patient?.id;
+  if (id) {
+    const byId = patients.find((p) => String(p.id) === String(id));
+    if (byId) return byId;
+  }
+
+  const mob = normalizeMobile(appt.mobile);
+  if (mob.length < 10) return null;
+
+  const candidates = patients.filter((p) => normalizeMobile(p.mobile) === mob);
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length > 1) {
+    const n = (appt.name || "").trim().toLowerCase();
+    return (
+      candidates.find((p) => (p.name || "").trim().toLowerCase() === n) || null
+    );
+  }
+  return null;
+};
+
+const isValidAge = (age) => {
+  if (age === "" || age === null || age === undefined) return false;
+  const n = Number(age);
+  return !isNaN(n) && n >= 0 && n <= 150;
+};
+
+// ==================== STATUS DROPDOWN ====================
+const humanize = (s = "") =>
+  String(s)
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+// getAllowedTransitions string ya object dono return kare, dono handle hoga
+const normalizeTransition = (t) => {
+  if (typeof t === "string") return { value: t, label: humanize(t) };
+  const value = t.value ?? t.status ?? t.key;
+  return { value, label: t.label ?? humanize(value) };
+};
+
+const isDangerStatus = (v = "") =>
+  /(cancel|no_show|noshow|reject|declin)/i.test(String(v));
+
+const InlineStatusChange = ({
+  appointmentId,
+  allowedTransitions = [],
+  disabled = false,
+}) => {
+  const queryClient = useQueryClient();
+  const updateStatus = useUpdateAppointmentStatus();
+  const wrapRef = useRef(null);
+
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState(null);
+
+  const options = allowedTransitions
+    .map(normalizeTransition)
+    .filter((o) => o.value);
+  const loading = updateStatus.isPending;
+
+  // bahar click ya Esc pe band
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const handleSelect = async (value) => {
+    setError(null);
+    try {
+      // ⚠️ Payload apne mutation ke hisaab se adjust karo
+      await updateStatus.mutateAsync({ id: appointmentId, status: value });
+      queryClient.invalidateQueries({ queryKey: SLOTS_KEY });
+      queryClient.invalidateQueries({ queryKey: ["bookingCalendar"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      setOpen(false);
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to update status.",
+      );
+    }
+  };
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={disabled || loading}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-200 bg-surface px-2.5 py-1 text-[11px] font-semibold text-brand-700 transition hover:border-brand-400 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {loading ? (
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-brand-300 border-t-brand-700" />
+        ) : (
+          <FiRefreshCw className="h-3 w-3" />
+        )}
+        {loading ? "Updating..." : "Change Status"}
+        <FiChevronDown
+          className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <ul
+          role="listbox"
+          className="absolute right-0 top-full z-20 mt-1 min-w-[180px] overflow-hidden rounded-lg border border-ink-200 bg-surface py-1 shadow-lg"
+        >
+          {options.map((o) => (
+            <li key={o.value}>
+              <button
+                type="button"
+                role="option"
+                onClick={() => handleSelect(o.value)}
+                className={`flex w-full cursor-pointer items-center px-3 py-1.5 text-left text-xs font-medium transition hover:bg-ink-50 ${
+                  isDangerStatus(o.value) ? "text-danger-600" : "text-ink-700"
+                }`}
+              >
+                {o.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error && <p className="mt-1 text-[11px] text-danger-600">{error}</p>}
+    </div>
+  );
+};
+
 // ==================== COMPONENT ====================
-const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
+const BookedSlotDetailsModal = ({
+  open,
+  onClose,
+  slot,
+  provider,
+  date,
+  onBack, // optional: Back button tabhi dikhega jab ye pass ho
+  initialAppointmentId, // optional: kaunsa appointment pehle select ho
+}) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const createVisit = useCreateVisit();
@@ -1023,17 +1481,15 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
   const deleteAppointment = useDeleteAppointment();
   const { can, isLoading: permLoading } = usePermission();
 
-  // ✅ FIX: plural "patients" — exactly matches backend permission names
   const canManageAppointment = can("appointment", "manage");
   const canDeleteAppointment = can("appointment", "delete");
-  const canManagePatient = can("patients", "manage"); // ✅ plural
-  const canViewPatient = can("patients", "view"); // ✅ plural
+  const canManagePatient = can("patients", "manage");
+  const canViewPatient = can("patients", "view");
   const canManageVisit = can("visits", "manage");
   const canViewVisit = can("visits", "view");
 
   const changeTabs = useMemo(() => {
     const arr = [];
-
     if (canManagePatient) {
       arr.push({
         value: "new",
@@ -1041,7 +1497,6 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
         icon: FiUserPlus,
       });
     }
-
     if (canViewPatient) {
       arr.push({
         value: "existing",
@@ -1049,7 +1504,6 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
         icon: FiLink,
       });
     }
-
     return arr;
   }, [canManagePatient, canViewPatient]);
 
@@ -1060,6 +1514,10 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
   const [newMobile, setNewMobile] = useState("");
   const [newAge, setNewAge] = useState("");
   const [newSex, setNewSex] = useState(null);
+
+  // ✅ Unlinked (patient_id null) appointment par Create Visit ke liye age/sex
+  const [visitAge, setVisitAge] = useState("");
+  const [visitSex, setVisitSex] = useState(null);
 
   const [selectedPatient, setSelectedPatient] = useState(null);
 
@@ -1073,40 +1531,122 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
+  // ==================== MULTIPLE APPOINTMENTS ====================
+  const appointments = useMemo(() => {
+    if (!slot) return [];
+
+    const list = Array.isArray(slot.appointments) ? slot.appointments : [];
+
+    if (list.length > 0) return list;
+
+    if (slot.appointment) return [slot.appointment];
+    return [];
+  }, [slot]);
+
+  const [activeAppointmentId, setActiveAppointmentId] = useState(null);
+
+  useEffect(() => {
+    if (!open) return;
+    if (permLoading) return;
+    if (appointments.length > 0) {
+      const preferred = initialAppointmentId
+        ? appointments.find(
+            (a) => String(a.id) === String(initialAppointmentId),
+          )
+        : null;
+      setActiveAppointmentId((preferred || appointments[0]).id);
+    } else {
+      setActiveAppointmentId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    open,
+    slot?.start_time,
+    permLoading,
+    appointments.length,
+    initialAppointmentId,
+  ]);
+
+  const currentAppointment = useMemo(() => {
+    if (!appointments.length) return {};
+    if (activeAppointmentId) {
+      const found = appointments.find((a) => a.id === activeAppointmentId);
+      if (found) return found;
+    }
+    return appointments[0];
+  }, [appointments, activeAppointmentId]);
+
   // ==================== LOAD PATIENTS ====================
   const { data: patientsData } = usePatients({ per_page: 200 });
+  const patientsList = useMemo(() => patientsData?.list || [], [patientsData]);
 
   const patientOptions = useMemo(() => {
-    const list = patientsData?.list || [];
-    return list.map((p) => ({
+    return patientsList.map((p) => ({
       value: p.id,
       label: `${p.name} — ${p.patient_id || `#${p.id}`}${
         p.mobile ? ` · ${p.mobile}` : ""
       }`,
       raw: p,
     }));
-  }, [patientsData]);
+  }, [patientsList]);
 
   // ==================== APPOINTMENT / SLOT DATA ====================
-  const appointment = slot?.appointment || {};
-  const existingVisit = slot?.visit || null;
+  const appointment = currentAppointment || {};
+  const existingVisit = appointment?.visit || slot?.visit || null;
   const hasExistingVisit = !!existingVisit;
 
+  // ✅ patient_id se match, nahi to mobile + name se match
+  const matchedPatient = useMemo(
+    () => findPatientForAppointment(patientsList, appointment),
+    [patientsList, appointment],
+  );
+
+  const appointmentHasPatientId = !!(
+    appointment.patient_id || appointment.patient?.id
+  );
   const currentPatientId =
-    appointment.patient_id || appointment.patient?.id || null;
+    appointment.patient_id ||
+    appointment.patient?.id ||
+    matchedPatient?.id ||
+    null;
   const hasCurrentPatient = !!currentPatientId;
   const hasAppointmentPatientData = !!appointment.name && !!appointment.mobile;
 
   const canCreateVisit =
     !hasExistingVisit && (hasCurrentPatient || hasAppointmentPatientData);
 
+  // ✅ Patient abhi bana nahi (sirf name+mobile se booking hui thi) → age/sex chahiye
+  const needsPatientDetails =
+    !hasExistingVisit && !hasCurrentPatient && !pendingPatient;
+  const isPatientDetailsComplete = !needsPatientDetails
+    ? true
+    : isValidAge(visitAge) && !!visitSex;
+
   const isPending = createVisit.isPending || createPatient.isPending;
 
-  // ==================== FIND CURRENT PATIENT IN OPTIONS ====================
   const currentPatientOption = useMemo(() => {
     if (!hasCurrentPatient || !patientOptions.length) return null;
-    return patientOptions.find((o) => o.value === currentPatientId) || null;
+    return (
+      patientOptions.find(
+        (o) => String(o.value) === String(currentPatientId),
+      ) || null
+    );
   }, [hasCurrentPatient, currentPatientId, patientOptions]);
+
+  const bookingSource = appointment.booking_source || null;
+
+  // ==================== STATUS TRANSITIONS ====================
+  const allowedTransitions = useMemo(() => {
+    if (!appointment?.status) return [];
+    try {
+      return getAllowedTransitions(appointment.status) || [];
+    } catch {
+      return [];
+    }
+  }, [appointment?.status]);
+
+  const canChangeStatus =
+    !!appointment?.id && canManageAppointment && allowedTransitions.length > 0;
 
   // ==================== DISPLAY PATIENT ====================
   const displayPatient = useMemo(() => {
@@ -1117,6 +1657,8 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
           name: pendingPatient.patient.name,
           mobile: pendingPatient.patient.mobile,
           patient_id: pendingPatient.patient.patient_id,
+          age: pendingPatient.patient.age,
+          sex: pendingPatient.patient.sex,
           isOverride: true,
           isLinked: true,
         };
@@ -1127,6 +1669,8 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
           name: pendingPatient.name,
           mobile: pendingPatient.mobile,
           patient_id: null,
+          age: pendingPatient.age,
+          sex: pendingPatient.sex,
           isNew: true,
         };
       }
@@ -1134,9 +1678,19 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
     if (hasCurrentPatient) {
       return {
         id: currentPatientId,
-        name: appointment.patient?.name || appointment.name || "—",
-        mobile: appointment.patient?.mobile || appointment.mobile,
-        patient_id: appointment.patient?.patient_id || null,
+        name:
+          appointment.patient?.name ||
+          matchedPatient?.name ||
+          appointment.name ||
+          "—",
+        mobile:
+          appointment.patient?.mobile ||
+          matchedPatient?.mobile ||
+          appointment.mobile,
+        patient_id:
+          appointment.patient?.patient_id || matchedPatient?.patient_id || null,
+        age: appointment.patient?.age ?? matchedPatient?.age ?? null,
+        sex: appointment.patient?.sex ?? matchedPatient?.sex ?? null,
         isLinked: true,
       };
     }
@@ -1145,9 +1699,17 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
       name: appointment.name || "—",
       mobile: appointment.mobile || "",
       patient_id: null,
-      isWalkIn: true,
+      age: null,
+      sex: null,
+      isWalkIn: true, // yahan matlab: patient record abhi linked nahi hai
     };
-  }, [pendingPatient, hasCurrentPatient, currentPatientId, appointment]);
+  }, [
+    pendingPatient,
+    hasCurrentPatient,
+    currentPatientId,
+    appointment,
+    matchedPatient,
+  ]);
 
   // ==================== RESET ====================
   useEffect(() => {
@@ -1155,23 +1717,23 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
     if (permLoading) return;
 
     setChangeMode(false);
-    // ✅ FIX: default change tab valid ho tab hi set karo
     setActiveChangeTab(changeTabs[0]?.value || "new");
 
     setNewName(appointment.name || "");
     setNewMobile(appointment.mobile || "");
     setNewAge("");
     setNewSex(null);
+    setVisitAge("");
+    setVisitSex(null);
     setSelectedPatient(null);
     setChangeErrors({});
-    setPaymentStatus(PAYMENT_OPTIONS[0]);
+    setPaymentStatus(getDefaultPayment(appointment.booking_source));
     setSubmitError(null);
     setPendingPatient(null);
     setDeleteConfirmOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, slot?.start_time, permLoading]);
+  }, [open, slot?.start_time, permLoading, activeAppointmentId]);
 
-  // ✅ Safety-net: agar activeChangeTab invalid ho jaaye
   useEffect(() => {
     if (!open || permLoading) return;
     const validTabs = changeTabs.map((t) => t.value);
@@ -1194,7 +1756,6 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
     if (isPending) return;
     setChangeMode(true);
 
-    // ✅ current tab valid hai ya nahi check karo
     const validTabs = changeTabs.map((t) => t.value);
     if (hasCurrentPatient && validTabs.includes("existing")) {
       setActiveChangeTab("existing");
@@ -1228,7 +1789,6 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
     }
   };
 
-  // ==================== VALIDATE ====================
   const validateChange = () => {
     const e = {};
 
@@ -1256,12 +1816,14 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
     return Object.keys(e).length === 0;
   };
 
-  // ==================== APPLY CHANGE ====================
   const handleApplyChange = () => {
     if (!validateChange()) return;
 
     if (activeChangeTab === "existing") {
-      if (selectedPatient.value === currentPatientId && !pendingPatient) {
+      if (
+        String(selectedPatient.value) === String(currentPatientId) &&
+        !pendingPatient
+      ) {
         setChangeMode(false);
         return;
       }
@@ -1287,7 +1849,6 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
     setPendingPatient(null);
   };
 
-  // ==================== CREATE VISIT ====================
   const handleCreateVisit = async () => {
     if (!canManageVisit) {
       setSubmitError("You don't have permission to create visit.");
@@ -1300,13 +1861,21 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
       return;
     }
 
+    if (needsPatientDetails && !isPatientDetailsComplete) {
+      setSubmitError("Please enter age and sex to create the patient.");
+      return;
+    }
+
     try {
       let finalPatientId = currentPatientId;
-      let patientChanged = false;
+      // mobile se match hua patient appointment me linked nahi tha → link kar do
+      let patientChanged =
+        !pendingPatient && hasCurrentPatient && !appointmentHasPatientId;
 
       if (pendingPatient?.type === "link") {
         finalPatientId = pendingPatient.patient.id;
-        if (finalPatientId !== currentPatientId) patientChanged = true;
+        if (String(finalPatientId) !== String(currentPatientId))
+          patientChanged = true;
       } else if (pendingPatient?.type === "create") {
         const patientRes = await createPatient.mutateAsync({
           name: pendingPatient.name,
@@ -1326,8 +1895,29 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
         }
 
         patientChanged = true;
+      } else if (!hasCurrentPatient) {
+        // ✅ Appointment me sirf name+mobile tha → age/sex ke saath patient banao
+        const patientRes = await createPatient.mutateAsync({
+          name: (appointment.name || "").trim(),
+          mobile: (appointment.mobile || "").trim(),
+          age: Number(visitAge),
+          sex: visitSex?.value || visitSex || "other",
+          pin: "0000",
+          status: true,
+        });
+
+        const patientData =
+          patientRes?.data?.data || patientRes?.data || patientRes;
+        finalPatientId = patientData?.id;
+
+        if (!finalPatientId) {
+          throw new Error("Patient creation failed — no ID returned.");
+        }
+
+        patientChanged = true;
       }
 
+      // appointment ko patient se link karo
       if (patientChanged && appointment.id && canManageAppointment) {
         await api
           .put(`/admin/appointments/${appointment.id}`, {
@@ -1349,6 +1939,7 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
 
       const visitRes = await createVisit.mutateAsync(payload);
 
+      queryClient.invalidateQueries({ queryKey: SLOTS_KEY });
       queryClient.invalidateQueries({ queryKey: ["bookingCalendar"] });
       queryClient.invalidateQueries({ queryKey: ["visits"] });
       queryClient.invalidateQueries({ queryKey: ["patients"] });
@@ -1373,7 +1964,6 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
     }
   };
 
-  // ==================== DELETE APPOINTMENT ====================
   const handleConfirmDelete = () => {
     if (!appointment.id) {
       setDeleteConfirmOpen(false);
@@ -1382,8 +1972,10 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
     deleteAppointment.mutate(appointment.id, {
       onSettled: () => {
         setDeleteConfirmOpen(false);
+        queryClient.invalidateQueries({ queryKey: SLOTS_KEY });
         queryClient.invalidateQueries({ queryKey: ["bookingCalendar"] });
         queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        queryClient.invalidateQueries({ queryKey: ["visits"] });
         onClose();
       },
     });
@@ -1405,10 +1997,24 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
           onClick={isPending ? undefined : handleFinalClose}
         />
 
-        <div className="relative z-10 flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xl">
-          {/* ==================== HEADER ==================== */}
+        <div className="relative z-10 flex max-h-[95vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xl">
+          {/* HEADER */}
           <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
             <div className="flex items-center gap-2">
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isPending) return;
+                    onBack();
+                  }}
+                  disabled={isPending}
+                  className="mr-1 inline-flex cursor-pointer items-center gap-1 rounded-lg border border-ink-200 bg-surface px-2 py-1 text-[11px] font-semibold text-ink-700 transition hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <FiArrowLeft className="h-3 w-3" />
+                  Back
+                </button>
+              )}
               <div
                 className={`flex h-8 w-8 items-center justify-center rounded-full ${
                   hasExistingVisit
@@ -1420,11 +2026,11 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
               </div>
               <div>
                 <h2 className="font-jakarta text-base font-bold text-ink-900">
-                  {hasExistingVisit ? "Visit Exists" : "Booked Slot"}
+                  Booked Slot
                 </h2>
                 <p className="text-[11px] text-ink-500">
-                  {hasExistingVisit
-                    ? `Visit #${existingVisit.id} already created`
+                  {appointments.length > 1
+                    ? `${appointments.length} appointments in this slot`
                     : "This slot is already booked"}
                 </p>
               </div>
@@ -1439,50 +2045,67 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
             </button>
           </div>
 
-          {/* ==================== STATUS BANNER ==================== */}
+          {/* STATUS BANNER */}
           <div
             className={`border-b border-ink-100 px-5 py-3 ${
               hasExistingVisit ? "bg-brand-50/40" : "bg-accent-50/40"
             }`}
           >
             <div className="flex items-center justify-between gap-2">
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
-                  hasExistingVisit
-                    ? "bg-brand-100 text-brand-800"
-                    : "bg-accent-100 text-accent-800"
-                }`}
-              >
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span
-                  className={`inline-block h-1.5 w-1.5 rounded-full ${
-                    hasExistingVisit ? "bg-brand-600" : "bg-accent-500"
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                    hasExistingVisit
+                      ? "bg-brand-100 text-brand-800"
+                      : "bg-accent-100 text-accent-800"
                   }`}
-                />
-                {appointment.status_label || appointment.status || "Booked"}
-              </span>
-              {appointment.id && (
-                <code className="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-[10px] text-ink-600">
-                  Appt #{appointment.id}
-                </code>
-              )}
+                >
+                  <span
+                    className={`inline-block h-1.5 w-1.5 rounded-full ${
+                      hasExistingVisit ? "bg-brand-600" : "bg-accent-500"
+                    }`}
+                  />
+                  Booked
+                </span>
+                {bookingSource && (
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ${
+                      SOURCE_BADGE_STYLES[bookingSource] ||
+                      "bg-ink-100 text-ink-700 ring-ink-200"
+                    }`}
+                  >
+                    {BOOKING_SOURCE_LABELS[bookingSource] ||
+                      humanize(bookingSource)}
+                  </span>
+                )}
+              </div>
+              {/* CURRENT STATUS + CHANGE STATUS */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-ink-500">
+                  Status:{" "}
+                  <span className="font-semibold text-ink-800">
+                    {appointment.status_label ||
+                      humanize(appointment.status) ||
+                      "—"}
+                  </span>
+                </span>
+                {canChangeStatus && (
+                  <InlineStatusChange
+                    key={appointment.id}
+                    appointmentId={appointment.id}
+                    allowedTransitions={allowedTransitions}
+                    disabled={isPending}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
-          {/* ==================== SCROLLABLE BODY ==================== */}
+          {/* SCROLLABLE BODY */}
           <div className="flex-1 overflow-y-auto">
             <div className="space-y-3 px-5 py-4">
-              {hasExistingVisit && (
-                <div className="flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2.5">
-                  <FiCheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
-                  <p className="text-[11px] leading-relaxed text-brand-800">
-                    Visit already created. Click <strong>View Visit</strong> to
-                    open.
-                  </p>
-                </div>
-              )}
-
-              {/* ============ PROVIDER + DATE + TIME ============ */}
-              <div className="rounded-lg border border-ink-100 bg-ink-50/40 px-3 py-2.5 space-y-1.5">
+              {/* PROVIDER + DATE + TIME */}
+              <div className="space-y-1.5 rounded-lg border border-ink-100 bg-ink-50/40 px-3 py-2.5">
                 <div className="flex items-center gap-2 text-[11px]">
                   <FiUser className="h-3 w-3 shrink-0 text-ink-400" />
                   <span className="font-semibold text-ink-800">
@@ -1504,7 +2127,64 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
                 </div>
               </div>
 
-              {/* ============ PATIENT SECTION ============ */}
+              {/* MULTIPLE APPOINTMENTS SELECTOR */}
+              {appointments.length > 1 && (
+                <div>
+                  <p className="mb-1.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-ink-500">
+                    <FiUsers className="h-2.5 w-2.5" />
+                    Select Appointment ({appointments.length})
+                  </p>
+                  <div className="flex gap-1.5 overflow-x-auto pb-1.5 [scrollbar-width:thin]">
+                    {appointments.map((a, idx) => {
+                      const isActive = a.id === activeAppointmentId;
+                      const hasVisitForA = !!a.visit;
+                      return (
+                        <button
+                          key={a.id || idx}
+                          type="button"
+                          onClick={() => {
+                            if (isPending) return;
+                            setActiveAppointmentId(a.id);
+                            setChangeMode(false);
+                            setPendingPatient(null);
+                            setChangeErrors({});
+                            setSubmitError(null);
+                          }}
+                          disabled={isPending}
+                          className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                            isActive
+                              ? "border-brand-500 bg-brand-50 text-brand-800 ring-1 ring-brand-500"
+                              : "border-ink-200 bg-surface text-ink-700 hover:border-ink-300 hover:bg-ink-50"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-1.5 w-1.5 rounded-full ${
+                              hasVisitForA ? "bg-brand-600" : "bg-accent-500"
+                            }`}
+                          />
+                          {a.name || `#${a.id}`}
+                          {hasVisitForA && (
+                            <FiExternalLink className="h-2.5 w-2.5 text-brand-600" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {hasExistingVisit && (
+                <div className="flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2.5">
+                  <FiCheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
+                  <p className="text-[11px] leading-relaxed text-brand-800">
+                    Visit already created for{" "}
+                    <strong>{displayPatient.name || "this patient"}</strong>.
+                    Click <strong>View Visit</strong> to open.
+                  </p>
+                </div>
+              )}
+
+              {/* PATIENT SECTION */}
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <p className="text-[10px] font-medium uppercase tracking-wide text-ink-500">
@@ -1541,18 +2221,10 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
                         </div>
                       )}
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {displayPatient.isLinked &&
-                          !displayPatient.isOverride && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-brand-700 ring-1 ring-brand-200">
-                              Linked ·{" "}
-                              {displayPatient.patient_id ||
-                                `#${displayPatient.id}`}
-                            </span>
-                          )}
                         {displayPatient.isWalkIn && (
                           <span className="inline-flex items-center gap-1 rounded-md bg-warn-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-warn-800 ring-1 ring-warn-200">
                             <FiAlertTriangle className="h-2.5 w-2.5" />
-                            Walk-in · No Patient ID
+                            Patient not available
                           </span>
                         )}
                         {displayPatient.isOverride && (
@@ -1582,10 +2254,56 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
                   </div>
                 )}
 
-                {/* ============ CHANGE MODE ============ */}
+                {/* ✅ AGE + SEX — patient record abhi nahi bana (create visit se pehle zaruri) */}
+                {needsPatientDetails && !changeMode && (
+                  <div className="mt-2 space-y-2 rounded-lg border border-warn-200 bg-warn-50/40 p-3">
+                    <p className="text-[11px] font-semibold text-warn-800">
+                      Patient not available
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-form-label">
+                          Age <span className="text-form-required">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          value={visitAge}
+                          onChange={(e) => setVisitAge(e.target.value)}
+                          placeholder="Age"
+                          disabled={isPending}
+                          className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-form-label">
+                          Sex <span className="text-form-required">*</span>
+                        </label>
+                        <select
+                          value={visitSex?.value || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setVisitSex(
+                              SEX_OPTIONS.find((o) => o.value === val) || null,
+                            );
+                          }}
+                          disabled={isPending}
+                          className="h-10 w-full cursor-pointer rounded-lg border border-ink-200 bg-surface px-3 text-sm text-ink-800 outline-none transition hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <option value="">Select</option>
+                          {SEX_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* CHANGE MODE */}
                 {changeMode && !hasExistingVisit && (
                   <div className="overflow-hidden rounded-lg border border-accent-200 bg-accent-50/40">
-                    {/* ✅ FIX: changeTabs empty ho toh tab bar render mat karo */}
                     {changeTabs.length > 0 && (
                       <div className="flex border-b border-accent-200 bg-surface/60">
                         {changeTabs.map((tab) => {
@@ -1685,7 +2403,6 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
                                     }));
                                 }}
                                 placeholder="Age"
-                                maxLength={3}
                                 disabled={isPending}
                                 className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                               />
@@ -1787,7 +2504,7 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
                 )}
               </div>
 
-              {/* ============ PAYMENT STATUS ============ */}
+              {/* PAYMENT STATUS */}
               {!hasExistingVisit && (
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-form-label">
@@ -1806,7 +2523,7 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
                 </div>
               )}
 
-              {/* ============ ERROR ============ */}
+              {/* ERROR */}
               {submitError && (
                 <div className="flex items-start gap-2 rounded-lg border border-danger-200 bg-danger-50/60 px-3 py-2.5">
                   <FiAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger-600" />
@@ -1816,9 +2533,8 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
             </div>
           </div>
 
-          {/* ==================== FOOTER ==================== */}
+          {/* FOOTER */}
           <div className="flex items-center justify-between gap-2 border-t border-ink-100 bg-ink-50/30 px-5 py-4">
-            {/* LEFT: Delete icon */}
             <div className="flex items-center">
               {!hasExistingVisit &&
                 appointment.id &&
@@ -1836,7 +2552,6 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
                 )}
             </div>
 
-            {/* RIGHT: Close / View Visit / Create Visit */}
             <div className="flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
@@ -1862,7 +2577,14 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
                 <button
                   type="button"
                   onClick={handleCreateVisit}
-                  disabled={isPending || changeMode}
+                  disabled={
+                    isPending || changeMode || !isPatientDetailsComplete
+                  }
+                  title={
+                    !isPatientDetailsComplete
+                      ? "Age aur Sex bharna zaruri hai"
+                      : undefined
+                  }
                   className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isPending ? (
@@ -1883,7 +2605,6 @@ const BookedSlotDetailsModal = ({ open, onClose, slot, provider, date }) => {
         </div>
       </div>
 
-      {/* ==================== DELETE CONFIRM MODAL ==================== */}
       <ConfirmModal
         open={deleteConfirmOpen}
         title="Delete Appointment"

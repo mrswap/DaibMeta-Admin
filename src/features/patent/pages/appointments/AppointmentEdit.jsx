@@ -4,7 +4,6 @@ import {
   FiArrowLeft,
   FiCheck,
   FiUser,
-  FiCalendar,
   FiClock,
   FiFileText,
   FiAlertCircle,
@@ -15,9 +14,11 @@ import {
   useAppointment,
   useUpdateAppointment,
 } from "../../queries/appointments";
-import { useSlotsForDate } from "../../queries/availabilityExceptions";
-import { useProviderAvailabilities } from "../../queries/providerAvailabilities";
-import SlotGrid from "./components/SlotGrid";
+import {
+  useSlotsForDate,
+  useProviderAvailabilities,
+} from "../../queries/providerAvailabilities";
+import SlotList from "../bookingCalendar/components/SlotList";
 import AvailableDatesCalendar from "./components/AvailableDatesCalendar";
 import Loader from "../../common/Loader";
 import { usePermission } from "../../hooks/usePermission";
@@ -124,7 +125,7 @@ const AppointmentEdit = () => {
 
   const hasAvailability = !!availableConfig.dateFrom;
 
-  // Fetch slots
+  // ==================== FETCH SLOTS (naya slots API — capacity ke saath) ====================
   const shouldFetchSlots = !!(
     appointment &&
     formData.appointment_date &&
@@ -137,19 +138,51 @@ const AppointmentEdit = () => {
     isLoading: loadingSlots,
     isFetching: fetchingSlots,
   } = useSlotsForDate({
-    adminId: shouldFetchSlots ? providerId : null,
-    appointmentTypeId: shouldFetchSlots ? appointmentTypeId : null,
-    date: shouldFetchSlots ? formData.appointment_date : null,
+    admin_id: providerId,
+    appointment_type_id: appointmentTypeId,
+    date: formData.appointment_date,
+    enabled: shouldFetchSlots,
   });
 
-  const slots = slotsData || [];
+  const rawSlots = slotsData?.slots || [];
 
-  const stats = useMemo(() => {
-    const available = slots.filter((s) => s.available === true).length;
-    return { available, total: slots.length };
-  }, [slots]);
+  // Is appointment ka apna slot API me already "booked" count hota hai.
+  // Date wahi ho to uski apni seat ko free maan lo, taaki full slot me bhi
+  // usi slot ko dobara select kiya ja sake.
+  const slots = useMemo(() => {
+    const sameDate =
+      !!originalData.appointment_date &&
+      formData.appointment_date === originalData.appointment_date;
+    if (!sameDate || !originalData.start_time) return rawSlots;
 
+    return rawSlots.map((s) => {
+      if (s.start_time !== originalData.start_time) return s;
+      if (s.status === "blocked") return s;
+
+      const appts = Array.isArray(s.appointments) ? s.appointments : [];
+      const hasOwn = appts.some((a) => String(a?.id) === String(id));
+      const ownAppts = hasOwn
+        ? appts.filter((a) => String(a?.id) !== String(id))
+        : appts;
+      const booked = Math.max(
+        (Number(s.booked_count) || appts.length) - (hasOwn ? 1 : 0),
+        0,
+      );
+      const capacity = Number(s.capacity) || 1;
+
+      return {
+        ...s,
+        appointments: ownAppts,
+        booked_count: booked,
+        available: booked < capacity,
+        status: booked < capacity ? "available" : s.status,
+      };
+    });
+  }, [rawSlots, originalData, formData.appointment_date, id]);
+
+  // SlotList se computed slot aata hai (isAvailable = capacity bachi hai)
   const handleSlotSelect = (slot) => {
+    if (!slot?.isAvailable) return;
     setFormData((prev) => ({
       ...prev,
       selected_slot: {
@@ -432,25 +465,21 @@ const AppointmentEdit = () => {
                 </div>
               )}
 
-              {slots.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-[11px] font-medium text-ink-600">
-                    <span className="font-bold">{stats.total}</span>
-                    <span className="opacity-80">Total</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[11px] font-medium text-brand-700">
-                    <span className="font-bold">{stats.available}</span>
-                    <span className="opacity-80">Available</span>
-                  </span>
-                </div>
-              )}
-
-              <SlotGrid
+              {/* SlotList (booking calendar wala component, capacity ke saath) */}
+              <SlotList
+                availability={{
+                  id: "temp",
+                }} /* hasAvailability block ke andar hain */
                 slots={slots}
+                slotsLoading={loadingSlots || fetchingSlots}
+                appointmentVisitMap={{}}
+                date={formData.appointment_date}
                 selectedSlot={formData.selected_slot}
-                onSelect={handleSlotSelect}
-                loading={loadingSlots || fetchingSlots}
-                emptyText="No slots available for this date."
+                onSlotClick={handleSlotSelect}
+                onAddAvailability={() => {}}
+                // click isi flag par depend karta hai
+                canManageAppointment
+                // onBookedSlotClick intentionally nahi: fully booked slot clickable nahi
               />
             </div>
           </div>

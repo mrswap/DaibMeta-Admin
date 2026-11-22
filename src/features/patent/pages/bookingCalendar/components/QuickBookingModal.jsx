@@ -12,6 +12,8 @@
 //   FiAlertCircle,
 //   FiUserPlus,
 //   FiUserCheck,
+//   FiUsers,
+//   FiExternalLink,
 // } from "react-icons/fi";
 // import { useCreateAppointment } from "../../../queries/appointments";
 // import { useCreatePatient, usePatients } from "../../../queries/patients";
@@ -49,7 +51,6 @@
 //   { value: "other", label: "Other" },
 // ];
 
-// // Payment status options for dropdown
 // const PAYMENT_OPTIONS = [
 //   { value: "unpaid", label: "Unpaid" },
 //   { value: "free", label: "Free" },
@@ -65,6 +66,8 @@
 //   provider,
 //   appointmentTypeId,
 //   date,
+//   appointmentVisitMap = {},
+//   onViewBookedAppointment,
 //   onSuccess,
 // }) => {
 //   const navigate = useNavigate();
@@ -75,8 +78,8 @@
 //   const { can, isLoading: permLoading } = usePermission();
 
 //   const canManageAppointment = can("appointment", "manage");
-//   const canManagePatient = can("patient", "manage");
-//   const canViewPatient = can("patient", "view");
+//   const canManagePatient = can("patients", "manage");
+//   const canViewPatient = can("patients", "view");
 //   const canManageVisit = can("visits", "manage");
 
 //   const [activeTab, setActiveTab] = useState(null);
@@ -88,8 +91,6 @@
 //   const [sex, setSex] = useState(null);
 
 //   const [selectedPatient, setSelectedPatient] = useState(null);
-
-//   // Payment dropdown (default: unpaid)
 //   const [paymentStatus, setPaymentStatus] = useState(PAYMENT_OPTIONS[0]);
 
 //   const [errors, setErrors] = useState({});
@@ -97,47 +98,46 @@
 
 //   const tabs = useMemo(() => {
 //     const arr = [];
-
 //     if (canManageAppointment) {
-//       arr.push({
-//         key: "book",
-//         label: "Book Appointment",
-//         icon: FiCalendar,
-//       });
+//       arr.push({ key: "book", label: "Book Appointment", icon: FiCalendar });
 //     }
-
 //     if (canManageVisit) {
-//       arr.push({
-//         key: "visit",
-//         label: "Create Visit",
-//         icon: FiFileText,
-//       });
+//       arr.push({ key: "visit", label: "Create Visit", icon: FiFileText });
 //     }
-
 //     return arr;
 //   }, [canManageAppointment, canManageVisit]);
 
 //   const patientModes = useMemo(() => {
 //     const arr = [];
-
 //     if (canManagePatient) {
-//       arr.push({
-//         value: "new",
-//         label: "New",
-//         icon: FiUserPlus,
-//       });
+//       arr.push({ value: "new", label: "New", icon: FiUserPlus });
 //     }
-
 //     if (canViewPatient) {
-//       arr.push({
-//         value: "existing",
-//         label: "Existing",
-//         icon: FiUserCheck,
-//       });
+//       arr.push({ value: "existing", label: "Existing", icon: FiUserCheck });
 //     }
-
 //     return arr;
 //   }, [canManagePatient, canViewPatient]);
+
+//   // ==================== SLOT'S EXISTING APPOINTMENTS ====================
+//   // ✅ NEW: slot ke andar already booked appointments (capacity ke hisaab se)
+//   const existingAppointments = useMemo(() => {
+//     if (!slot) return [];
+//     const list = Array.isArray(slot.appointments) ? slot.appointments : [];
+//     const final =
+//       list.length > 0 ? list : slot.appointment ? [slot.appointment] : [];
+
+//     return final.map((a) => {
+//       const apptId = a?.id || null;
+//       return {
+//         ...a,
+//         visit: apptId ? appointmentVisitMap[apptId] || null : null,
+//       };
+//     });
+//   }, [slot, appointmentVisitMap]);
+
+//   const slotCapacity = Number(slot?.capacity) || 1;
+//   const slotBooked = Number(slot?.booked_count) || existingAppointments.length;
+//   const slotAvailableCount = Math.max(slotCapacity - slotBooked, 0);
 
 //   // ==================== LOAD PATIENTS ====================
 //   const { data: patientsData } = usePatients({ per_page: 200 });
@@ -153,33 +153,43 @@
 //     }));
 //   }, [patientsData]);
 
-//   // ==================== RESET ====================
+//   // ✅ Reset on open/slot change (permissions ready hone ke baad)
 //   useEffect(() => {
-//     if (open) {
-//       setActiveTab(
-//         canManageAppointment ? "book" : canManageVisit ? "visit" : null,
-//       );
+//     if (!open) return;
+//     if (permLoading) return;
 
-//       setPatientMode(
-//         canManagePatient ? "new" : canViewPatient ? "existing" : null,
-//       );
+//     setActiveTab(tabs[0]?.key || null);
+//     setPatientMode(patientModes[0]?.value || "new");
+//     setName("");
+//     setMobile("");
+//     setAge("");
+//     setSex(null);
+//     setSelectedPatient(null);
+//     setPaymentStatus(PAYMENT_OPTIONS[0]);
+//     setErrors({});
+//     setSubmitError(null);
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [open, slot?.start_time, permLoading]);
 
-//       setName("");
-//       setMobile("");
-//       setAge("");
-//       setSex(null);
-//       setSelectedPatient(null);
-//       setPaymentStatus(PAYMENT_OPTIONS[0]);
-//       setErrors({});
-//       setSubmitError(null);
+//   // ✅ Safety-net
+//   useEffect(() => {
+//     if (!open || permLoading) return;
+//     const validTabs = tabs.map((t) => t.key);
+//     if (!activeTab || !validTabs.includes(activeTab)) {
+//       setActiveTab(validTabs[0] || null);
 //     }
+//     const validModes = patientModes.map((m) => m.value);
+//     if (!patientMode || !validModes.includes(patientMode)) {
+//       setPatientMode(validModes[0] || "new");
+//     }
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
 //   }, [
 //     open,
-//     slot?.start_time,
-//     canManageAppointment,
-//     canManageVisit,
-//     canManagePatient,
-//     canViewPatient,
+//     permLoading,
+//     tabs.length,
+//     patientModes.length,
+//     activeTab,
+//     patientMode,
 //   ]);
 
 //   if (
@@ -195,7 +205,6 @@
 //   const isPatientPending = createPatient.isPending;
 //   const isAppointmentPending = createAppointment.isPending;
 //   const isVisitPending = createVisit.isPending;
-
 //   const isPending = isPatientPending || isAppointmentPending || isVisitPending;
 
 //   const isVisitTab = activeTab === "visit";
@@ -209,8 +218,21 @@
 //       if (!canViewPatient) {
 //         throw new Error("You don't have permission to view patients.");
 //       }
+//       if (!selectedPatient?.raw) {
+//         e.patient = "Please select a patient";
+//       }
 
-//       const p = selectedPatient.raw;
+//       if (isVisitTab) {
+//         if (age === "" || age === null || age === undefined) {
+//           e.age = "Age is required";
+//         } else if (isNaN(Number(age))) {
+//           e.age = "Age must be a number";
+//         } else if (Number(age) < 0 || Number(age) > 150) {
+//           e.age = "Invalid age";
+//         }
+//         if (!sex) e.sex = "Sex is required";
+//       }
+//     } else {
 //       if (!name.trim()) e.name = "Patient name is required";
 //       else if (name.trim().length > 150) e.name = "Max 150 characters";
 
@@ -225,7 +247,6 @@
 //         } else if (Number(age) < 0 || Number(age) > 150) {
 //           e.age = "Invalid age";
 //         }
-
 //         if (!sex) e.sex = "Sex is required";
 //       }
 //     }
@@ -255,14 +276,12 @@
 //     };
 
 //     const apptRes = await createAppointment.mutateAsync(appointmentPayload);
-
 //     const apptData = apptRes?.data?.data || apptRes?.data || apptRes;
 //     const apptId = apptData?.id;
 
 //     if (!apptId) {
 //       throw new Error("Appointment creation failed — no ID returned.");
 //     }
-
 //     return apptId;
 //   };
 
@@ -274,7 +293,6 @@
 //     }
 //     e.preventDefault();
 //     if (!validate()) return;
-
 //     setSubmitError(null);
 
 //     try {
@@ -286,7 +304,6 @@
 //       }
 
 //       queryClient.invalidateQueries({ queryKey: ["bookingCalendar"] });
-
 //       if (onSuccess) onSuccess();
 //       onClose();
 //     } catch (err) {
@@ -306,7 +323,6 @@
 //     }
 //     e.preventDefault();
 //     if (!validate()) return;
-
 //     setSubmitError(null);
 
 //     try {
@@ -356,7 +372,7 @@
 //         visit_date: date,
 //         slot_start_time: slot.start_time,
 //         slot_end_time: slot.end_time,
-//         visit_type: "consultation", // always consultation
+//         visit_type: "consultation",
 //         payment_status: paymentStatus?.value || "unpaid",
 //       };
 
@@ -404,6 +420,13 @@
 //     if (isPending) return;
 //     onClose();
 //     if (onSuccess) onSuccess();
+//   };
+
+//   // ✅ NEW: existing booked appointment par click
+//   const handleExistingAppointmentClick = (apptId) => {
+//     if (isPending) return;
+//     if (!onViewBookedAppointment) return;
+//     onViewBookedAppointment(slot, apptId);
 //   };
 
 //   // ==================== RENDER ====================
@@ -471,11 +494,80 @@
 //                 {formatTime12(slot.start_time)} – {formatTime12(slot.end_time)}
 //               </span>
 //             </div>
+//             {/* ✅ capacity display */}
+//             <div className="flex items-center gap-2">
+//               <FiUsers className="h-3 w-3 shrink-0 text-ink-400" />
+//               <span className="font-semibold text-ink-800">
+//                 {slotAvailableCount} / {slotCapacity} capacity available
+//               </span>
+//             </div>
 //           </div>
 //         </div>
 
 //         {/* SCROLLABLE BODY */}
 //         <div className="flex-1 overflow-y-auto">
+//           {/* ✅ NEW: Already booked appointments — click par details modal khulega */}
+//           {existingAppointments.length > 0 && (
+//             <div className="border-b border-ink-100 bg-warn-50/30 px-5 py-3">
+//               <div className="mb-2 flex items-center justify-between">
+//                 <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-600">
+//                   <FiUsers className="h-3 w-3" />
+//                   Already booked in this slot ({existingAppointments.length}/
+//                   {slotCapacity})
+//                 </p>
+//               </div>
+//               <div className="space-y-1.5">
+//                 {existingAppointments.map((appt, idx) => {
+//                   const hasVisit = !!appt.visit;
+//                   return (
+//                     <button
+//                       key={appt.id || idx}
+//                       type="button"
+//                       onClick={() => handleExistingAppointmentClick(appt.id)}
+//                       disabled={isPending || !onViewBookedAppointment}
+//                       title={
+//                         hasVisit
+//                           ? `Visit #${appt.visit.id} — click to view booking details`
+//                           : "Click to view booking details"
+//                       }
+//                       className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-ink-200 bg-surface px-2.5 py-2 text-left transition hover:border-brand-300 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
+//                     >
+//                       <span className="flex min-w-0 items-center gap-2">
+//                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[9px] font-bold text-surface">
+//                           {(appt.name || "?").trim().charAt(0).toUpperCase()}
+//                         </span>
+//                         <span className="min-w-0">
+//                           <span className="block truncate text-[11px] font-semibold text-ink-900">
+//                             {appt.name || "—"}
+//                           </span>
+//                           {appt.mobile && (
+//                             <span className="block truncate text-[9px] tabular-nums text-ink-500">
+//                               {appt.mobile}
+//                             </span>
+//                           )}
+//                         </span>
+//                       </span>
+//                       <span className="flex shrink-0 items-center gap-1">
+//                         {hasVisit && (
+//                           <span className="inline-flex items-center gap-0.5 rounded bg-brand-50 px-1 py-0.5 text-[8px] font-bold uppercase text-brand-700">
+//                             <FiExternalLink className="h-2 w-2" />
+//                             Visit
+//                           </span>
+//                         )}
+//                         <span className="text-[8px] font-semibold uppercase text-ink-400">
+//                           #{appt.id}
+//                         </span>
+//                       </span>
+//                     </button>
+//                   );
+//                 })}
+//               </div>
+//               <p className="mt-1.5 text-[9px] italic text-ink-400">
+//                 Click a patient to view their booking details
+//               </p>
+//             </div>
+//           )}
+
 //           <form
 //             onSubmit={isVisitTab ? handleVisitSubmit : handleBookSubmit}
 //             className="space-y-4 px-5 py-5"
@@ -527,10 +619,7 @@
 //                   onChange={(opt) => {
 //                     setSelectedPatient(opt);
 //                     if (errors.patient)
-//                       setErrors((p) => ({
-//                         ...p,
-//                         patient: "",
-//                       }));
+//                       setErrors((p) => ({ ...p, patient: "" }));
 //                   }}
 //                   placeholder="Search patient by name or mobile..."
 //                   isDisabled={isPending}
@@ -542,7 +631,6 @@
 //                 )}
 //               </div>
 //             ) : (
-//               // NEW PATIENT FIELDS
 //               <>
 //                 <div>
 //                   <label className="mb-1.5 block text-xs font-medium text-form-label">
@@ -553,11 +641,7 @@
 //                     value={name}
 //                     onChange={(e) => {
 //                       setName(e.target.value);
-//                       if (errors.name)
-//                         setErrors((p) => ({
-//                           ...p,
-//                           name: "",
-//                         }));
+//                       if (errors.name) setErrors((p) => ({ ...p, name: "" }));
 //                     }}
 //                     placeholder="Enter patient name"
 //                     maxLength={150}
@@ -581,11 +665,7 @@
 //                   value={mobile}
 //                   onChange={(val) => {
 //                     setMobile(val || "");
-//                     if (errors.mobile)
-//                       setErrors((p) => ({
-//                         ...p,
-//                         mobile: "",
-//                       }));
+//                     if (errors.mobile) setErrors((p) => ({ ...p, mobile: "" }));
 //                   }}
 //                 />
 //                 {errors.mobile && (
@@ -594,7 +674,6 @@
 //                   </p>
 //                 )}
 
-//                 {/* Age + Sex only in visit tab */}
 //                 {isVisitTab && (
 //                   <div className="grid grid-cols-2 gap-3">
 //                     <div>
@@ -606,11 +685,7 @@
 //                         value={age}
 //                         onChange={(e) => {
 //                           setAge(e.target.value);
-//                           if (errors.age)
-//                             setErrors((p) => ({
-//                               ...p,
-//                               age: "",
-//                             }));
+//                           if (errors.age) setErrors((p) => ({ ...p, age: "" }));
 //                         }}
 //                         placeholder="Age"
 //                         maxLength={3}
@@ -634,11 +709,7 @@
 //                           const val = e.target.value;
 //                           const opt = SEX_OPTIONS.find((o) => o.value === val);
 //                           setSex(opt || null);
-//                           if (errors.sex)
-//                             setErrors((p) => ({
-//                               ...p,
-//                               sex: "",
-//                             }));
+//                           if (errors.sex) setErrors((p) => ({ ...p, sex: "" }));
 //                         }}
 //                         disabled={isPending}
 //                         className="h-10 w-full cursor-pointer rounded-lg border border-ink-200 bg-surface px-3 text-sm text-ink-800 outline-none transition hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-60"
@@ -700,7 +771,6 @@
 //               </button>
 //               <button
 //                 type="submit"
-//                 // disabled={isPending}
 //                 disabled={
 //                   isPending ||
 //                   (isVisitTab && !canManageVisit) ||
@@ -741,6 +811,8 @@ import {
   FiAlertCircle,
   FiUserPlus,
   FiUserCheck,
+  FiUsers,
+  FiExternalLink,
 } from "react-icons/fi";
 import { useCreateAppointment } from "../../../queries/appointments";
 import { useCreatePatient, usePatients } from "../../../queries/patients";
@@ -785,6 +857,63 @@ const PAYMENT_OPTIONS = [
   { value: "paid", label: "Paid" },
 ];
 
+// Walk-in booking me payment status by default Paid
+const DEFAULT_PAYMENT = PAYMENT_OPTIONS.find((o) => o.value === "paid");
+
+// Backend constants: patient_app / reception / walk_in
+// (patient_app sirf patient ki app se aata hai, yahan se sirf reception / walk_in select hoga)
+const BOOKING_SOURCE_LABELS = {
+  patient_app: "Patient App",
+  reception: "Reception",
+  walk_in: "Walk-in",
+};
+
+// Is modal se hone wali har booking ka source hamesha walk_in rahega
+const BOOKING_SOURCE = "walk_in";
+
+const SOURCE_BADGE_STYLES = {
+  patient_app: "bg-brand-50 text-brand-700",
+  reception: "bg-ink-100 text-ink-700",
+  walk_in: "bg-warn-50 text-warn-800",
+};
+
+// ==================== PATIENT MATCH ====================
+// Slots API appointment me patient_id null aa sakta hai (even jab patient linked ho),
+// isliye: pehle id se match, nahi mile to mobile (last 10 digits) + name se match.
+const normalizeMobile = (m) =>
+  String(m || "")
+    .replace(/\D/g, "")
+    .slice(-10);
+
+const findPatientForAppointment = (patients = [], appt) => {
+  if (!appt) return null;
+
+  const id = appt.patient_id || appt.patient?.id;
+  if (id) {
+    const byId = patients.find((p) => String(p.id) === String(id));
+    if (byId) return byId;
+  }
+
+  const mob = normalizeMobile(appt.mobile);
+  if (mob.length < 10) return null;
+
+  const candidates = patients.filter((p) => normalizeMobile(p.mobile) === mob);
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length > 1) {
+    const n = (appt.name || "").trim().toLowerCase();
+    return (
+      candidates.find((p) => (p.name || "").trim().toLowerCase() === n) || null
+    );
+  }
+  return null;
+};
+
+const isValidAge = (age) => {
+  if (age === "" || age === null || age === undefined) return false;
+  const n = Number(age);
+  return !isNaN(n) && n >= 0 && n <= 150;
+};
+
 // ==================== COMPONENT ====================
 const QuickBookingModal = ({
   open,
@@ -793,6 +922,8 @@ const QuickBookingModal = ({
   provider,
   appointmentTypeId,
   date,
+  appointmentVisitMap = {},
+  onViewBookedAppointment,
   onSuccess,
 }) => {
   const navigate = useNavigate();
@@ -802,10 +933,6 @@ const QuickBookingModal = ({
   const createVisit = useCreateVisit();
   const { can, isLoading: permLoading } = usePermission();
 
-  // ✅ FIX: module names EXACTLY jaise backend permissions me hain
-  //    - "appointment"    (singular) ✅
-  //    - "patients"       (plural)   ✅
-  //    - "visits"         (plural)   ✅
   const canManageAppointment = can("appointment", "manage");
   const canManagePatient = can("patients", "manage");
   const canViewPatient = can("patients", "view");
@@ -820,7 +947,7 @@ const QuickBookingModal = ({
   const [sex, setSex] = useState(null);
 
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [paymentStatus, setPaymentStatus] = useState(PAYMENT_OPTIONS[0]);
+  const [paymentStatus, setPaymentStatus] = useState(DEFAULT_PAYMENT);
 
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState(null);
@@ -849,17 +976,52 @@ const QuickBookingModal = ({
 
   // ==================== LOAD PATIENTS ====================
   const { data: patientsData } = usePatients({ per_page: 200 });
+  const patientsList = useMemo(() => patientsData?.list || [], [patientsData]);
 
   const patientOptions = useMemo(() => {
-    const list = patientsData?.list || [];
-    return list.map((p) => ({
+    return patientsList.map((p) => ({
       value: p.id,
       label: `${p.name} — ${p.patient_id || `#${p.id}`}${
         p.mobile ? ` · ${p.mobile}` : ""
       }`,
       raw: p,
     }));
-  }, [patientsData]);
+  }, [patientsList]);
+
+  // Patient ka mobile na ho (family member) to primary patient ka mobile use karo
+  const resolvePatientMobile = (p) => {
+    if (!p) return "";
+    if (p.mobile) return p.mobile;
+    const primaryId = p.primary_patient?.id;
+    if (primaryId) {
+      const primary = patientsList.find((x) => x.id === primaryId);
+      if (primary?.mobile) return primary.mobile;
+    }
+    return "";
+  };
+
+  // ==================== SLOT'S EXISTING APPOINTMENTS ====================
+  // appointment.patient_id se patients list me patient match karte hain
+  const existingAppointments = useMemo(() => {
+    if (!slot) return [];
+    const list = Array.isArray(slot.appointments) ? slot.appointments : [];
+    const final =
+      list.length > 0 ? list : slot.appointment ? [slot.appointment] : [];
+
+    return final.map((a) => {
+      const apptId = a?.id || null;
+      const matchedPatient = findPatientForAppointment(patientsList, a);
+      return {
+        ...a,
+        visit: apptId ? appointmentVisitMap[apptId] || null : null,
+        matchedPatient,
+      };
+    });
+  }, [slot, appointmentVisitMap, patientsList]);
+
+  const slotCapacity = Number(slot?.capacity) || 1;
+  const slotBooked = Number(slot?.booked_count) || existingAppointments.length;
+  const slotAvailableCount = Math.max(slotCapacity - slotBooked, 0);
 
   // ✅ Reset on open/slot change (permissions ready hone ke baad)
   useEffect(() => {
@@ -873,13 +1035,13 @@ const QuickBookingModal = ({
     setAge("");
     setSex(null);
     setSelectedPatient(null);
-    setPaymentStatus(PAYMENT_OPTIONS[0]);
+    setPaymentStatus(DEFAULT_PAYMENT);
     setErrors({});
     setSubmitError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, slot?.start_time, permLoading]);
 
-  // ✅ Safety-net: agar activeTab/patientMode invalid ho jaayein
+  // ✅ Safety-net
   useEffect(() => {
     if (!open || permLoading) return;
     const validTabs = tabs.map((t) => t.key);
@@ -918,28 +1080,37 @@ const QuickBookingModal = ({
   const isVisitTab = activeTab === "visit";
   const isExistingMode = patientMode === "existing";
 
+  // ==================== FORM COMPLETE? (button enable/disable) ====================
+  // Book tab (new)    : name + mobile
+  // Visit tab (new)   : name + mobile + age + sex
+  // Existing (dono)   : patient select
+  const isFormComplete = (() => {
+    if (isExistingMode) {
+      return !!selectedPatient?.raw;
+    }
+
+    if (!name.trim() || name.trim().length > 150) return false;
+    if (!mobile || !validatePhone(mobile)) return false;
+
+    if (isVisitTab) {
+      if (!isValidAge(age)) return false;
+      if (!sex) return false;
+    }
+    return true;
+  })();
+
+  const isSubmitDisabled =
+    isPending ||
+    !isFormComplete ||
+    (isVisitTab && !canManageVisit) ||
+    (!isVisitTab && !canManageAppointment);
+
   // ==================== VALIDATION ====================
   const validate = () => {
     const e = {};
 
     if (isExistingMode) {
-      if (!canViewPatient) {
-        throw new Error("You don't have permission to view patients.");
-      }
-      if (!selectedPatient?.raw) {
-        e.patient = "Please select a patient";
-      }
-
-      if (isVisitTab) {
-        if (age === "" || age === null || age === undefined) {
-          e.age = "Age is required";
-        } else if (isNaN(Number(age))) {
-          e.age = "Age must be a number";
-        } else if (Number(age) < 0 || Number(age) > 150) {
-          e.age = "Invalid age";
-        }
-        if (!sex) e.sex = "Sex is required";
-      }
+      if (!selectedPatient?.raw) e.patient = "Please select a patient";
     } else {
       if (!name.trim()) e.name = "Patient name is required";
       else if (name.trim().length > 150) e.name = "Max 150 characters";
@@ -978,7 +1149,7 @@ const QuickBookingModal = ({
       appointment_date: date,
       start_time: slot.start_time,
       end_time: slot.end_time,
-      booking_source: "reception",
+      booking_source: BOOKING_SOURCE, // hamesha walk_in
       status: "booked",
       notes: null,
     };
@@ -994,19 +1165,20 @@ const QuickBookingModal = ({
   };
 
   // ==================== TAB 1: BOOK APPOINTMENT ====================
+  // Sirf name + mobile se book hota hai. Age/sex baad me Create Visit par puchhe jayenge.
   const handleBookSubmit = async (e) => {
+    e.preventDefault();
     if (!canManageAppointment) {
       setSubmitError("You don't have permission to create appointment.");
       return;
     }
-    e.preventDefault();
     if (!validate()) return;
     setSubmitError(null);
 
     try {
       if (isExistingMode) {
         const p = selectedPatient.raw;
-        await createAppointmentOnly(p.id, p.name, p.mobile);
+        await createAppointmentOnly(p.id, p.name, resolvePatientMobile(p));
       } else {
         await createAppointmentOnly(null, name.trim(), mobile.trim());
       }
@@ -1025,11 +1197,11 @@ const QuickBookingModal = ({
 
   // ==================== TAB 2: CREATE VISIT ====================
   const handleVisitSubmit = async (e) => {
+    e.preventDefault();
     if (!canManageVisit) {
       setSubmitError("You don't have permission to create visit.");
       return;
     }
-    e.preventDefault();
     if (!validate()) return;
     setSubmitError(null);
 
@@ -1039,13 +1211,10 @@ const QuickBookingModal = ({
       let patientMobile;
 
       if (isExistingMode) {
-        if (!canManagePatient) {
-          throw new Error("You don't have permission to create patient.");
-        }
         const p = selectedPatient.raw;
         patientId = p.id;
         patientName = p.name;
-        patientMobile = p.mobile;
+        patientMobile = resolvePatientMobile(p);
       } else {
         const patientRes = await createPatient.mutateAsync({
           name: name.trim(),
@@ -1130,6 +1299,12 @@ const QuickBookingModal = ({
     if (onSuccess) onSuccess();
   };
 
+  const handleExistingAppointmentClick = (apptId) => {
+    if (isPending) return;
+    if (!onViewBookedAppointment) return;
+    onViewBookedAppointment(slot, apptId);
+  };
+
   // ==================== RENDER ====================
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -1195,11 +1370,101 @@ const QuickBookingModal = ({
                 {formatTime12(slot.start_time)} – {formatTime12(slot.end_time)}
               </span>
             </div>
+            <div className="flex items-center gap-2">
+              <FiUsers className="h-3 w-3 shrink-0 text-ink-400" />
+              <span className="font-semibold text-ink-800">
+                {slotAvailableCount} / {slotCapacity} capacity available
+              </span>
+            </div>
           </div>
         </div>
 
         {/* SCROLLABLE BODY */}
         <div className="flex-1 overflow-y-auto">
+          {/* Already booked appointments */}
+          {existingAppointments.length > 0 && (
+            <div className="border-b border-ink-100 bg-warn-50/30 px-5 py-3">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-600">
+                  <FiUsers className="h-3 w-3" />
+                  Already booked in this slot ({existingAppointments.length}/
+                  {slotCapacity})
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                {existingAppointments.map((appt, idx) => {
+                  const hasVisit = !!appt.visit;
+                  const displayName =
+                    appt.matchedPatient?.name || appt.name || "—";
+                  const displayMobile =
+                    appt.matchedPatient?.mobile || appt.mobile;
+                  const patientCode = appt.matchedPatient?.patient_id || null;
+                  const srcKey = appt.booking_source;
+
+                  return (
+                    <button
+                      key={appt.id || idx}
+                      type="button"
+                      onClick={() => handleExistingAppointmentClick(appt.id)}
+                      disabled={isPending || !onViewBookedAppointment}
+                      title={
+                        hasVisit
+                          ? `Visit #${appt.visit.id} — click to view booking details`
+                          : "Click to view booking details"
+                      }
+                      className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-ink-200 bg-surface px-2.5 py-2 text-left transition hover:border-brand-300 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[9px] font-bold text-surface">
+                          {displayName.trim().charAt(0).toUpperCase() || "?"}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-[11px] font-semibold text-ink-900">
+                            {displayName}
+                            {patientCode && (
+                              <span className="ml-1 text-[9px] font-medium text-brand-700">
+                                · {patientCode}
+                              </span>
+                            )}
+                          </span>
+                          {displayMobile && (
+                            <span className="block truncate text-[9px] tabular-nums text-ink-500">
+                              {displayMobile}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1">
+                        {srcKey && (
+                          <span
+                            className={`rounded px-1 py-0.5 text-[8px] font-bold uppercase ${
+                              SOURCE_BADGE_STYLES[srcKey] ||
+                              "bg-ink-100 text-ink-700"
+                            }`}
+                          >
+                            {BOOKING_SOURCE_LABELS[srcKey] || srcKey}
+                          </span>
+                        )}
+                        {hasVisit && (
+                          <span className="inline-flex items-center gap-0.5 rounded bg-brand-50 px-1 py-0.5 text-[8px] font-bold uppercase text-brand-700">
+                            <FiExternalLink className="h-2 w-2" />
+                            Visit
+                          </span>
+                        )}
+                        <span className="text-[8px] font-semibold uppercase text-ink-400">
+                          #{appt.id}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-[9px] italic text-ink-400">
+                Click a patient to view their booking details
+              </p>
+            </div>
+          )}
+
           <form
             onSubmit={isVisitTab ? handleVisitSubmit : handleBookSubmit}
             className="space-y-4 px-5 py-5"
@@ -1320,7 +1585,6 @@ const QuickBookingModal = ({
                           if (errors.age) setErrors((p) => ({ ...p, age: "" }));
                         }}
                         placeholder="Age"
-                        maxLength={3}
                         disabled={isPending}
                         className="h-10 w-full rounded-lg border border-ink-200 bg-surface px-3 text-sm text-ink-800 outline-none transition placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                       />
@@ -1374,9 +1638,7 @@ const QuickBookingModal = ({
                   name="payment_status"
                   options={PAYMENT_OPTIONS}
                   value={paymentStatus}
-                  onChange={(opt) =>
-                    setPaymentStatus(opt || PAYMENT_OPTIONS[0])
-                  }
+                  onChange={(opt) => setPaymentStatus(opt || DEFAULT_PAYMENT)}
                   placeholder="Select payment status..."
                   isDisabled={isPending}
                 />
@@ -1403,11 +1665,7 @@ const QuickBookingModal = ({
               </button>
               <button
                 type="submit"
-                disabled={
-                  isPending ||
-                  (isVisitTab && !canManageVisit) ||
-                  (!isVisitTab && !canManageAppointment)
-                }
+                disabled={isSubmitDisabled}
                 className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-surface hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isPending ? (

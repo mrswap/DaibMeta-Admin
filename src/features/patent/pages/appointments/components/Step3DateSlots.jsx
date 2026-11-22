@@ -1,3 +1,314 @@
+// // src/features/patent/pages/providerAvailability/components/Step3DateSlots.jsx
+
+// import { useState, useMemo, useEffect } from "react";
+// import {
+//   FiArrowLeft,
+//   FiArrowRight,
+//   FiCalendar,
+//   FiClock,
+//   FiUser,
+//   FiAlertCircle,
+//   FiInfo,
+// } from "react-icons/fi";
+// import { useSlotsForDate } from "../../../queries/providerAvailabilities";
+// import { useProviderAvailabilities } from "../../../queries/providerAvailabilities";
+// import SlotList from "../../bookingCalendar/components/SlotList";
+// import AvailableDatesCalendar from "./AvailableDatesCalendar";
+
+// const Step3DateSlots = ({ formData, setFormData, onNext, onBack }) => {
+//   const [selectedDate, setSelectedDate] = useState(
+//     formData.appointment_date || "",
+//   );
+
+//   const providerId = formData.provider_id?.value;
+//   const appointmentTypeId = formData.appointment_type_id?.value;
+
+//   // ==================== FETCH AVAILABILITY RULES ====================
+//   const {
+//     data: availabilitiesData,
+//     isLoading: loadingAvailabilities,
+//     isFetching: fetchingAvailabilities,
+//   } = useProviderAvailabilities(
+//     providerId && appointmentTypeId
+//       ? {
+//           admin_id: providerId,
+//           appointment_type_id: appointmentTypeId,
+//           status: 1,
+//           per_page: 100,
+//         }
+//       : { per_page: 0 },
+//   );
+
+//   const availabilities = availabilitiesData?.list || [];
+
+//   // Aggregate all date ranges and days from all active availabilities
+//   const availableConfig = useMemo(() => {
+//     if (!availabilities.length) {
+//       return { dateFrom: null, dateTo: null, daysOfWeek: [] };
+//     }
+
+//     let earliestFrom = null;
+//     let latestTo = null;
+//     const allDays = new Set();
+
+//     availabilities.forEach((av) => {
+//       if (!earliestFrom || av.date_from < earliestFrom) {
+//         earliestFrom = av.date_from;
+//       }
+//       if (!latestTo || av.date_to > latestTo) {
+//         latestTo = av.date_to;
+//       }
+//       (av.days_of_week || []).forEach((d) => allDays.add(d));
+//     });
+
+//     return {
+//       dateFrom: earliestFrom,
+//       dateTo: latestTo,
+//       daysOfWeek: Array.from(allDays).sort((a, b) => a - b),
+//     };
+//   }, [availabilities]);
+
+//   const hasAvailability = !!availableConfig.dateFrom;
+
+//   // Auto-select first valid date if none selected
+//   useEffect(() => {
+//     if (selectedDate) return;
+//     if (!availableConfig.dateFrom) return;
+
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+
+//     const [fy, fm, fd] = availableConfig.dateFrom.split("-").map(Number);
+//     const [ty, tm, td] = availableConfig.dateTo.split("-").map(Number);
+//     const from = new Date(fy, fm - 1, fd);
+//     const to = new Date(ty, tm - 1, td);
+
+//     const start = from < today ? today : from;
+
+//     const current = new Date(start);
+//     while (current <= to) {
+//       const jsDay = current.getDay();
+//       const isoDay = jsDay === 0 ? 7 : jsDay;
+//       if (availableConfig.daysOfWeek.includes(isoDay)) {
+//         const y = current.getFullYear();
+//         const m = String(current.getMonth() + 1).padStart(2, "0");
+//         const d = String(current.getDate()).padStart(2, "0");
+//         const dateStr = `${y}-${m}-${d}`;
+//         setSelectedDate(dateStr);
+//         setFormData((prev) => ({
+//           ...prev,
+//           appointment_date: dateStr,
+//         }));
+//         return;
+//       }
+//       current.setDate(current.getDate() + 1);
+//     }
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [availableConfig.dateFrom, availableConfig.dateTo]);
+
+//   // ==================== FETCH SLOTS ====================
+//   const {
+//     data: slotsData,
+//     isLoading: loadingSlots,
+//     isFetching: fetchingSlots,
+//   } = useSlotsForDate({
+//     admin_id: providerId,
+//     appointment_type_id: appointmentTypeId,
+//     date: selectedDate,
+//     enabled: !!providerId && !!appointmentTypeId && !!selectedDate,
+//   });
+
+//   const slots = slotsData?.slots || [];
+
+//   // Sync date to formData
+//   useEffect(() => {
+//     setFormData((prev) => ({ ...prev, appointment_date: selectedDate }));
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [selectedDate]);
+
+//   // Clear selected slot when date changes
+//   useEffect(() => {
+//     setFormData((prev) => ({ ...prev, selected_slot: null }));
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [selectedDate]);
+
+//   // ==================== HANDLERS ====================
+//   // SlotList ka handleSlotClick aur handleBookedSlotClick yaha wrap kiya
+
+//   const handleSlotClick = (slot) => {
+//     // Only allow clicking if available
+//     if (slot.available !== true) return;
+
+//     setFormData((prev) => ({
+//       ...prev,
+//       selected_slot: {
+//         start_time: slot.start_time,
+//         end_time: slot.end_time,
+//         status: slot.status,
+//         is_free: !!slot.is_free,
+//       },
+//     }));
+//   };
+
+//   const handleDateSelect = (dateStr) => {
+//     setSelectedDate(dateStr);
+//   };
+
+//   const canProceed = !!formData.selected_slot;
+
+//   const providerName =
+//     formData.provider_id?.label?.split("—")[0]?.trim() || "—";
+//   const typeName =
+//     formData.appointment_type_id?.label?.split("—")[0]?.trim() || "—";
+
+//   return (
+//     <div className="space-y-5">
+//       <div>
+//         <h3 className="font-jakarta text-base font-bold text-ink-900">
+//           Select Date & Slot
+//         </h3>
+//         <p className="mt-1 text-sm text-ink-500">
+//           Pick from available dates and choose a slot for this appointment.
+//         </p>
+//       </div>
+
+//       {/* Provider/Type summary */}
+//       <div className="rounded-lg border border-ink-100 bg-ink-50/40 p-3">
+//         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+//           <div className="flex items-center gap-1.5 text-[11px] text-ink-600">
+//             <FiUser className="h-3 w-3 text-ink-400" />
+//             <span className="font-medium">{providerName}</span>
+//           </div>
+//           <div className="flex items-center gap-1.5 text-[11px] text-ink-600">
+//             <FiCalendar className="h-3 w-3 text-ink-400" />
+//             <span className="font-medium">{typeName}</span>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Loading availability */}
+//       {(loadingAvailabilities || fetchingAvailabilities) && (
+//         <div className="flex items-center gap-2 rounded-lg border border-accent-200 bg-accent-50/50 px-3 py-2.5">
+//           <FiInfo className="h-4 w-4 text-accent-600" />
+//           <p className="text-xs text-accent-800">
+//             Loading provider availability...
+//           </p>
+//         </div>
+//       )}
+
+//       {/* No availability */}
+//       {!loadingAvailabilities &&
+//         !fetchingAvailabilities &&
+//         !hasAvailability &&
+//         providerId &&
+//         appointmentTypeId && (
+//           <div className="flex items-start gap-2.5 rounded-lg border border-warn-200 bg-warn-50/50 p-4">
+//             <FiAlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warn-700" />
+//             <div>
+//               <p className="text-sm font-semibold text-warn-900">
+//                 No availability found
+//               </p>
+//               <p className="mt-0.5 text-xs text-warn-800">
+//                 This provider has no availability configured for this
+//                 appointment type. Please set availability first.
+//               </p>
+//             </div>
+//           </div>
+//         )}
+
+//       {/* Date + Slots */}
+//       {hasAvailability && (
+//         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[360px_1fr]">
+//           {/* Calendar */}
+//           <div className="space-y-2">
+//             <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+//               Available Dates
+//             </p>
+//             <AvailableDatesCalendar
+//               dateFrom={availableConfig.dateFrom}
+//               dateTo={availableConfig.dateTo}
+//               daysOfWeek={availableConfig.daysOfWeek}
+//               selectedDate={selectedDate}
+//               onSelect={handleDateSelect}
+//               disabled={loadingSlots || fetchingSlots}
+//             />
+//           </div>
+
+//           {/* Slots Area */}
+//           <div className="space-y-3">
+//             <div className="flex flex-wrap items-center justify-between gap-2">
+//               <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+//                 Slots for {selectedDate || "—"}
+//               </p>
+//             </div>
+
+//             {/* Selected slot banner */}
+//             {formData.selected_slot && (
+//               <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-3">
+//                 <div className="flex items-center gap-3">
+//                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-surface">
+//                     <FiClock className="h-5 w-5" />
+//                   </div>
+//                   <div className="min-w-0 flex-1">
+//                     <p className="text-[11px] font-medium uppercase tracking-wide text-brand-700">
+//                       Selected Slot
+//                     </p>
+//                     <p className="mt-0.5 text-sm font-bold text-ink-900">
+//                       {formData.selected_slot.start_time} -{" "}
+//                       {formData.selected_slot.end_time}
+//                     </p>
+//                   </div>
+//                 </div>
+//               </div>
+//             )}
+
+//             {/* Render SlotList (Calendar wala component) */}
+//             <SlotList
+//               availability={
+//                 hasAvailability ? { id: "temp" } : null
+//               } /* Fake availability taaki empty state na aaye */
+//               slots={slots}
+//               slotsLoading={loadingSlots || fetchingSlots}
+//               appointmentVisitMap={{}}
+//               date={selectedDate}
+//               onSlotClick={handleSlotClick}
+//               onBookedSlotClick={() => {}} // Booked slot pe click karne par kuch nahi hoga
+//               onAddAvailability={() => {}} // Add availability pe click karne par kuch nahi hoga
+//             />
+//           </div>
+//         </div>
+//       )}
+
+//       {/* Actions */}
+//       <div className="flex justify-between gap-3 border-t border-ink-100 pt-4">
+//         <button
+//           type="button"
+//           onClick={onBack}
+//           className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50"
+//         >
+//           <FiArrowLeft className="h-4 w-4" />
+//           Back
+//         </button>
+//         <button
+//           type="button"
+//           onClick={onNext}
+//           disabled={!canProceed}
+//           className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${
+//             canProceed
+//               ? "cursor-pointer bg-brand-600 text-surface hover:bg-brand-700"
+//               : "cursor-not-allowed bg-ink-100 text-ink-400"
+//           }`}
+//         >
+//           Next
+//           <FiArrowRight className="h-4 w-4" />
+//         </button>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Step3DateSlots;
+
 // src/features/patent/pages/providerAvailability/components/Step3DateSlots.jsx
 
 import { useState, useMemo, useEffect } from "react";
@@ -10,8 +321,10 @@ import {
   FiAlertCircle,
   FiInfo,
 } from "react-icons/fi";
-import { useSlotsForDate } from "../../../queries/providerAvailabilities";
-import { useProviderAvailabilities } from "../../../queries/providerAvailabilities";
+import {
+  useSlotsForDate,
+  useProviderAvailabilities,
+} from "../../../queries/providerAvailabilities";
 import SlotList from "../../bookingCalendar/components/SlotList";
 import AvailableDatesCalendar from "./AvailableDatesCalendar";
 
@@ -133,11 +446,10 @@ const Step3DateSlots = ({ formData, setFormData, onNext, onBack }) => {
   }, [selectedDate]);
 
   // ==================== HANDLERS ====================
-  // SlotList ka handleSlotClick aur handleBookedSlotClick yaha wrap kiya
-
+  // SlotList ab slot ko compute karke (isAvailable, availableCount, capacity...) bhejta hai.
+  // Click tabhi aata hai jab capacity bachi ho (aur canManageAppointment true ho).
   const handleSlotClick = (slot) => {
-    // Only allow clicking if available
-    if (slot.available !== true) return;
+    if (!slot?.isAvailable) return;
 
     setFormData((prev) => ({
       ...prev,
@@ -146,6 +458,8 @@ const Step3DateSlots = ({ formData, setFormData, onNext, onBack }) => {
         end_time: slot.end_time,
         status: slot.status,
         is_free: !!slot.is_free,
+        capacity: slot.capacity,
+        available_count: slot.availableCount,
       },
     }));
   };
@@ -262,7 +576,7 @@ const Step3DateSlots = ({ formData, setFormData, onNext, onBack }) => {
               </div>
             )}
 
-            {/* Render SlotList (Calendar wala component) */}
+            {/* SlotList (booking calendar wala component) */}
             <SlotList
               availability={
                 hasAvailability ? { id: "temp" } : null
@@ -271,9 +585,14 @@ const Step3DateSlots = ({ formData, setFormData, onNext, onBack }) => {
               slotsLoading={loadingSlots || fetchingSlots}
               appointmentVisitMap={{}}
               date={selectedDate}
+              selectedSlot={formData.selected_slot}
               onSlotClick={handleSlotClick}
-              onBookedSlotClick={() => {}} // Booked slot pe click karne par kuch nahi hoga
-              onAddAvailability={() => {}} // Add availability pe click karne par kuch nahi hoga
+              onAddAvailability={() => {}}
+              // ✅ Naye SlotList me click isi flag par depend karta hai —
+              //    ye pass na ho to available slots bhi select nahi hote.
+              canManageAppointment
+              // onBookedSlotClick intentionally nahi diya:
+              // fully booked slot yahan clickable nahi hona chahiye
             />
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   FiArrowLeft,
   FiCheck,
@@ -10,9 +10,28 @@ import {
   FiAlertCircle,
 } from "react-icons/fi";
 import { BOOKING_SOURCES } from "../../../queries/appointments";
+import { usePatients } from "../../../queries/patients";
 
 const Step4Confirm = ({ formData, setFormData, onBack, onSave, isSaving }) => {
   const [error, setError] = useState("");
+
+  // ==================== PATIENT DETAILS (name / mobile) ====================
+  // Existing patient chunne par formData me name/mobile khali reh sakte hain,
+  // isliye patient_id se patients list me dhundh kar fallback lete hain.
+  const { data: patientsData } = usePatients({ per_page: 200 });
+
+  const selectedPatient = useMemo(() => {
+    if (!formData.patient_id) return null;
+    return (
+      (patientsData?.list || []).find(
+        (p) => String(p.id) === String(formData.patient_id),
+      ) || null
+    );
+  }, [patientsData, formData.patient_id]);
+
+  const patientName = formData.name?.trim() || selectedPatient?.name || "";
+  const patientMobile =
+    formData.mobile?.trim() || selectedPatient?.mobile || "";
 
   const providerName =
     formData.provider_id?.label?.split("—")[0]?.trim() || "—";
@@ -31,8 +50,8 @@ const Step4Confirm = ({ formData, setFormData, onBack, onSave, isSaving }) => {
       patient_id: formData.patient_id || null,
       provider_id: formData.provider_id?.value,
       appointment_type_id: formData.appointment_type_id?.value,
-      name: formData.name?.trim(),
-      mobile: formData.mobile?.trim(),
+      name: patientName,
+      mobile: patientMobile,
       appointment_date: formData.appointment_date,
       start_time: formData.selected_slot.start_time,
       end_time: formData.selected_slot.end_time,
@@ -66,8 +85,8 @@ const Step4Confirm = ({ formData, setFormData, onBack, onSave, isSaving }) => {
         iconColor="text-brand-600"
       >
         <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-          <Row icon={FiUser} label="Name" value={formData.name || "—"} />
-          <Row icon={FiPhone} label="Mobile" value={formData.mobile || "—"} />
+          <Row icon={FiUser} label="Name" value={patientName || "—"} />
+          <Row icon={FiPhone} label="Mobile" value={patientMobile || "—"} />
           <Row
             icon={FiFileText}
             label="Type"
