@@ -71,6 +71,9 @@ import ContactMessageDetails from "../pages/contactMessages/ContactMessageDetail
 // Notifications
 import NotificationList from "../pages/notifications/NotificationList";
 import NotificationDetail from "../pages/notifications/NotificationDetail";
+import CampaignList from "../pages/notifications/campaigns/CampaignList";
+import CampaignForm from "../pages/notifications/campaigns/CampaignForm";
+import CampaignDetail from "../pages/notifications/campaigns/CampaignDetail";
 
 // CMS IMPORTS
 import BookAppointmentUI from "../pages/cms/BookAppointment/BookAppointmentUI";
@@ -140,6 +143,19 @@ const AdminRoutes = () => {
 
           {/* Notifications */}
           <Route path="notifications" element={<NotificationList />} />
+          <Route path="notifications/campaigns" element={<CampaignList />} />
+          <Route
+            path="notifications/campaigns/create"
+            element={<CampaignForm />}
+          />
+          <Route
+            path="notifications/campaigns/:uuid/edit"
+            element={<CampaignForm />}
+          />
+          <Route
+            path="notifications/campaigns/:uuid"
+            element={<CampaignDetail />}
+          />
           <Route path="notifications/:id" element={<NotificationDetail />} />
 
           {/* Clinical */}
