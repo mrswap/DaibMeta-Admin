@@ -12,6 +12,10 @@ import {
   FiAlertCircle,
   FiInfo,
   FiLock,
+  FiGift,
+  FiUsers,
+  FiChevronLeft,
+  FiChevronRight,
 } from "react-icons/fi";
 import {
   useVisit,
@@ -20,9 +24,10 @@ import {
   PAYMENT_STATUSES,
 } from "../../queries/visits";
 import { useStaff } from "../../queries/staff";
-import { SelectField, FormButton } from "../../common/form";
+import { useSlotsForDate } from "../../queries/providerAvailabilities";
+import { useAllAvailabilities } from "../../queries/bookingCalendar";
+import { SelectField } from "../../common/form";
 import Loader from "../../common/Loader";
-import SlotSelector from "./components/SlotSelector";
 import { usePermission } from "../../hooks/usePermission";
 
 // ==================== HELPERS ====================
@@ -32,6 +37,279 @@ const todayStr = () => {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+};
+
+const getISODay = (dateStr) => {
+  if (!dateStr) return null;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const jsDay = new Date(y, m - 1, d).getDay();
+  return jsDay === 0 ? 7 : jsDay;
+};
+
+// date string me days add/subtract (local time, timezone issue nahi)
+const shiftDate = (dateStr, days) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + days);
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+};
+
+const formatDateLabel = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+const formatTime12 = (t) => {
+  if (!t) return "";
+  const [h, m] = t.slice(0, 5).split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hr = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hr}:${String(m).padStart(2, "0")} ${period}`;
+};
+
+// visit se original provider / date / slot nikalo
+const getVisitSchedule = (visit) => {
+  if (!visit) return null;
+  return {
+    providerId: visit.provider?.id || visit.provider_id || null,
+    date: visit.visit_schedule?.date || visit.visit_date || todayStr(),
+    start:
+      visit.visit_schedule?.start_time?.slice(0, 5) ||
+      visit.slot_start_time?.slice(0, 5) ||
+      "",
+    end:
+      visit.visit_schedule?.end_time?.slice(0, 5) ||
+      visit.slot_end_time?.slice(0, 5) ||
+      "",
+  };
+};
+
+// ==================== SLOT STYLES ====================
+const SLOT_STYLES = {
+  available:
+    "cursor-pointer border-brand-200 bg-brand-50 text-brand-700 hover:border-brand-400 hover:bg-brand-100",
+  available_free:
+    "cursor-pointer border-accent-300 bg-accent-50 text-accent-800 hover:border-accent-400 hover:bg-accent-100",
+  selected:
+    "cursor-pointer border-brand-600 bg-brand-100 text-brand-800 ring-2 ring-brand-500",
+  booked:
+    "cursor-not-allowed border-ink-200 bg-ink-100 text-ink-600 opacity-60",
+  blocked:
+    "cursor-not-allowed border-danger-200 bg-danger-50 text-danger-700 opacity-60",
+};
+
+// ==================== SLOT PICKER (slots API + capacity) ====================
+const SlotPicker = ({
+  providerId,
+  date,
+  onDateChange,
+  availability,
+  slots = [],
+  slotsLoading = false,
+  selectedSlot,
+  onSlotSelect,
+  currentSlot, // visit ka apna original slot (provider + date same ho to hi)
+  disabled = false,
+}) => {
+  const computedSlots = useMemo(
+    () =>
+      slots.map((s) => {
+        const rawStatus = s.status || (s.available ? "available" : "booked");
+        // partially_booked alag status nahi — capacity bachi hai to "available"
+        const status =
+          rawStatus === "partially_booked" ? "available" : rawStatus;
+
+        const appointments = Array.isArray(s.appointments)
+          ? s.appointments
+          : [];
+        const capacity = Number(s.capacity) || 1;
+        const bookedCount = Number(s.booked_count) || appointments.length;
+        const availableCount = Math.max(capacity - bookedCount, 0);
+
+        // Is visit ka apna slot already count ho chuka hota hai, isliye
+        // full hone par bhi usi ko dobara select karne dena hai
+        const isCurrent =
+          !!currentSlot && currentSlot.start_time === s.start_time;
+
+        const isAvailable =
+          (status === "available" &&
+            s.available === true &&
+            availableCount > 0) ||
+          (isCurrent && status !== "blocked");
+        const isFree = !!s.is_free;
+
+        return {
+          ...s,
+          status,
+          capacity,
+          bookedCount,
+          availableCount,
+          isAvailable,
+          isCurrent,
+          isFree,
+          styleKey:
+            status === "available" && isFree ? "available_free" : status,
+        };
+      }),
+    [slots, currentSlot],
+  );
+
+  const totalCapacity = computedSlots.reduce((a, s) => a + s.capacity, 0);
+  const totalBooked = computedSlots.reduce((a, s) => a + s.bookedCount, 0);
+
+  return (
+    <div className="space-y-3">
+      {/* Date — arrows se change */}
+      {providerId && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-ink-200 bg-surface px-2 py-1.5">
+          <button
+            type="button"
+            onClick={() => onDateChange(shiftDate(date, -1))}
+            disabled={disabled || date <= todayStr()}
+            aria-label="Previous day"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-ink-600 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <FiChevronLeft className="h-4 w-4" />
+          </button>
+
+          <div className="text-center">
+            <p className="text-sm font-semibold text-ink-900">
+              {formatDateLabel(date)}
+            </p>
+            {date === todayStr() && (
+              <p className="text-[10px] font-medium uppercase tracking-wide text-brand-700">
+                Today
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onDateChange(shiftDate(date, 1))}
+            disabled={disabled}
+            aria-label="Next day"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-ink-600 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <FiChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {!providerId ? (
+        <div className="rounded-lg border border-dashed border-ink-200 bg-ink-50/40 py-6 text-center text-xs text-ink-500">
+          Select a provider to see slots.
+        </div>
+      ) : !availability ? (
+        <div className="rounded-lg border border-warn-200 bg-warn-50/40 px-3 py-6 text-center text-xs text-warn-800">
+          No availability configured for this provider on this date.
+        </div>
+      ) : slotsLoading ? (
+        <div className="py-6 text-center text-xs text-ink-500">
+          Loading slots...
+        </div>
+      ) : computedSlots.length === 0 ? (
+        <div className="py-6 text-center text-xs text-ink-500">
+          No slots available.
+        </div>
+      ) : (
+        <>
+          <span className="inline-flex items-center gap-1 rounded-md bg-ink-100 px-2 py-0.5 text-[10px] font-semibold text-ink-700">
+            <FiUsers className="h-2.5 w-2.5" />
+            {totalCapacity - totalBooked} / {totalCapacity} capacity available
+          </span>
+
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+            {computedSlots.map((slot, idx) => {
+              const isSelected = selectedSlot?.start_time === slot.start_time;
+              const styleKey = isSelected
+                ? "selected"
+                : slot.isAvailable && slot.status !== "available"
+                  ? "available"
+                  : slot.styleKey;
+
+              return (
+                <button
+                  key={`${slot.start_time}-${idx}`}
+                  type="button"
+                  disabled={disabled || !slot.isAvailable}
+                  onClick={() =>
+                    onSlotSelect({
+                      start_time: slot.start_time,
+                      end_time: slot.end_time,
+                    })
+                  }
+                  className={`flex w-full flex-col gap-2 rounded-lg border p-2.5 text-left transition hover:shadow-sm disabled:cursor-not-allowed ${
+                    SLOT_STYLES[styleKey] || SLOT_STYLES.available
+                  }`}
+                >
+                  {/* Row 1: time + Free / selected tick */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="whitespace-nowrap text-[13px] font-semibold leading-tight">
+                        {formatTime12(slot.start_time)}
+                      </p>
+                      <p className="mt-0.5 whitespace-nowrap text-[10px] leading-tight opacity-70">
+                        to {formatTime12(slot.end_time)}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 flex-col items-center gap-1">
+                      {isSelected && (
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600">
+                          <FiCheck className="h-3.5 w-3.5 text-surface" />
+                        </div>
+                      )}
+                      {slot.isFree && (
+                        <span className="inline-flex items-center gap-0.5 whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-accent-700">
+                          <FiGift className="h-2.5 w-2.5" />
+                          Free
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Row 2: capacity */}
+                  <span className="inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-md bg-accent-100 px-1.5 py-0.5 text-[10px] font-semibold text-accent-800 ring-1 ring-accent-200">
+                    <FiUsers className="h-2.5 w-2.5 shrink-0" />
+                    {slot.availableCount}/{slot.capacity} capacity
+                  </span>
+
+                  {/* Row 3: available + booked */}
+                  <div className="flex flex-nowrap items-center gap-1">
+                    <span
+                      className={`min-w-0 truncate whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 ${
+                        slot.availableCount > 0
+                          ? "bg-brand-100 text-brand-800 ring-brand-200"
+                          : "bg-surface/60 text-ink-500 ring-ink-200"
+                      }`}
+                    >
+                      {slot.availableCount} available
+                    </span>
+                    {slot.bookedCount > 0 && (
+                      <span className="min-w-0 truncate whitespace-nowrap rounded-md bg-surface px-1.5 py-0.5 text-[10px] font-semibold text-ink-700 ring-1 ring-ink-300">
+                        {slot.bookedCount} booked
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
 };
 
 // ==================== FORM INNER ====================
@@ -45,14 +323,58 @@ const VisitEditInner = ({
   setSelectedDate,
   selectedSlot,
   setSelectedSlot,
+  activeAvailability,
+  apiSlots,
+  slotsLoading,
 }) => {
   const { values, setFieldValue } = useFormikContext();
+
+  const clearSlot = () => {
+    setSelectedSlot(null);
+    setFieldValue("slot_start_time", "");
+    setFieldValue("slot_end_time", "");
+  };
 
   const handleSlotSelect = (slot) => {
     setSelectedSlot(slot);
     setFieldValue("slot_start_time", slot.start_time);
     setFieldValue("slot_end_time", slot.end_time);
   };
+
+  // ✅ Date badle: form ki visit_date bhi update + purana slot clear
+  const handleDateChange = (newDate) => {
+    if (!newDate || newDate === selectedDate) return;
+    setSelectedDate(newDate);
+    setFieldValue("visit_date", newDate);
+    clearSlot();
+  };
+
+  // ✅ Provider badle: slots naye provider ke aayein + purana slot clear
+  const handleProviderChange = (opt) => {
+    const newId = opt?.value || null;
+    if (newId === (values.provider_id?.value || null)) return;
+    setFieldValue("provider_id", opt);
+    setSelectedProviderId(newId);
+    clearSlot();
+  };
+
+  // Visit ka original slot — sirf tab jab provider + date wahi ho
+  const original = getVisitSchedule(visit);
+  const currentSlot =
+    original &&
+    original.start &&
+    original.providerId === selectedProviderId &&
+    original.date === selectedDate
+      ? { start_time: original.start, end_time: original.end }
+      : null;
+
+  const isFormComplete =
+    !!values.provider_id?.value &&
+    !!values.visit_date &&
+    !!values.visit_type?.value &&
+    !!values.payment_status?.value &&
+    !!values.slot_start_time &&
+    !!values.slot_end_time;
 
   return (
     <Form className="space-y-5">
@@ -142,18 +464,23 @@ const VisitEditInner = ({
             options={providerOptions}
             placeholder="Select provider..."
             required
+            onChange={handleProviderChange}
           />
 
           <div>
             <label className="mb-1.5 block text-xs font-medium text-form-label">
               Select Slot <span className="text-form-required">*</span>
             </label>
-            <SlotSelector
+            <SlotPicker
               providerId={selectedProviderId}
               date={selectedDate}
-              onDateChange={setSelectedDate}
+              onDateChange={handleDateChange}
+              availability={activeAvailability}
+              slots={apiSlots}
+              slotsLoading={slotsLoading}
               selectedSlot={selectedSlot}
               onSlotSelect={handleSlotSelect}
+              currentSlot={currentSlot}
               disabled={isPending}
             />
           </div>
@@ -206,11 +533,13 @@ const VisitEditInner = ({
           Cancel
         </button>
         <div className="w-full sm:w-48">
-          <FormButton
+          <button
             type="submit"
-            text={isPending ? "Updating..." : "Update Visit"}
-            disabled={isPending}
-          />
+            disabled={isPending || !isFormComplete}
+            className="w-full cursor-pointer rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-500 disabled:hover:bg-ink-200"
+          >
+            {isPending ? "Updating..." : "Update Visit"}
+          </button>
         </div>
       </div>
     </Form>
@@ -246,25 +575,47 @@ const VisitEdit = () => {
     [staffData],
   );
 
+  // ==================== AVAILABILITIES + SLOTS API ====================
+  const { data: availabilities = [] } = useAllAvailabilities();
+
+  // Selected provider + date ke liye matching availability (appointment_type yahin se milta hai)
+  const activeAvailability = useMemo(() => {
+    if (!selectedProviderId || !selectedDate) return null;
+    const isoDay = getISODay(selectedDate);
+
+    return (
+      availabilities.find((av) => {
+        if (av.provider?.id !== selectedProviderId) return false;
+        if (!av.status) return false;
+        if (selectedDate < av.date_from || selectedDate > av.date_to)
+          return false;
+        const days = av.days_of_week || [];
+        return days.includes(isoDay);
+      }) || null
+    );
+  }, [availabilities, selectedProviderId, selectedDate]);
+
+  const appointmentTypeId = activeAvailability?.appointment_type?.id || null;
+
+  const { data: slotsData, isLoading: slotsLoading } = useSlotsForDate({
+    admin_id: selectedProviderId,
+    appointment_type_id: appointmentTypeId,
+    date: selectedDate,
+    enabled: !!selectedProviderId && !!appointmentTypeId && !!selectedDate,
+  });
+
+  const apiSlots = slotsData?.slots || [];
+
   // Hydrate state from visit
   useEffect(() => {
     if (!visit) return;
 
-    const providerId = visit.provider?.id || visit.provider_id;
-    setSelectedProviderId(providerId);
+    const sch = getVisitSchedule(visit);
+    setSelectedProviderId(sch.providerId);
+    setSelectedDate(sch.date);
 
-    const date = visit.visit_schedule?.date || visit.visit_date || todayStr();
-    setSelectedDate(date);
-
-    const startTime =
-      visit.visit_schedule?.start_time?.slice(0, 5) ||
-      visit.slot_start_time?.slice(0, 5);
-    const endTime =
-      visit.visit_schedule?.end_time?.slice(0, 5) ||
-      visit.slot_end_time?.slice(0, 5);
-
-    if (startTime && endTime) {
-      setSelectedSlot({ start_time: startTime, end_time: endTime });
+    if (sch.start && sch.end) {
+      setSelectedSlot({ start_time: sch.start, end_time: sch.end });
     }
   }, [visit]);
 
@@ -272,7 +623,8 @@ const VisitEdit = () => {
   const initialValues = useMemo(() => {
     if (!visit) return null;
 
-    const providerId = visit.provider?.id || visit.provider_id;
+    const sch = getVisitSchedule(visit);
+    const providerId = sch.providerId;
     const providerObj = providerId
       ? {
           value: providerId,
@@ -301,23 +653,13 @@ const VisitEdit = () => {
         }
       : null;
 
-    const startTime =
-      visit.visit_schedule?.start_time?.slice(0, 5) ||
-      visit.slot_start_time?.slice(0, 5) ||
-      "";
-    const endTime =
-      visit.visit_schedule?.end_time?.slice(0, 5) ||
-      visit.slot_end_time?.slice(0, 5) ||
-      "";
-    const date = visit.visit_schedule?.date || visit.visit_date || todayStr();
-
     return {
       provider_id: providerObj,
-      visit_date: date,
+      visit_date: sch.date,
       visit_type: visitType,
       payment_status: paymentStatus,
-      slot_start_time: startTime,
-      slot_end_time: endTime,
+      slot_start_time: sch.start,
+      slot_end_time: sch.end,
     };
   }, [visit, providerOptions]);
 
@@ -470,6 +812,9 @@ const VisitEdit = () => {
             setSelectedDate={setSelectedDate}
             selectedSlot={selectedSlot}
             setSelectedSlot={setSelectedSlot}
+            activeAvailability={activeAvailability}
+            apiSlots={apiSlots}
+            slotsLoading={slotsLoading}
           />
         </Formik>
       )}
