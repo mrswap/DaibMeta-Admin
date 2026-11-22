@@ -13,6 +13,83 @@
    ========================================================= */
 
 @import "tailwindcss";
+@import "react-datepicker/dist/react-datepicker.css";
+
+/* ================= Datepicker Custom Theme ================= */
+.react-datepicker {
+    font-family: inherit !important;
+    border: 1px solid #e2e8f0 !important;
+    /* ink-200 */
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    overflow: hidden;
+}
+
+.react-datepicker__header {
+    background-color: #f8fafc !important;
+    /* ink-50 */
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding-top: 12px !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header {
+    font-weight: 600 !important;
+    color: #0f172a !important;
+    /* ink-900 */
+    font-size: 0.95rem !important;
+}
+
+.react-datepicker__day-name {
+    color: #64748b !important;
+    /* ink-500 */
+    font-weight: 500 !important;
+}
+
+/* Selected Date */
+.react-datepicker__day--selected,
+.react-datepicker__day--in-selecting-range,
+.react-datepicker__day--in-range {
+    background-color: #0d9488 !important;
+    /* brand-600 - Replace with your actual brand hex */
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+}
+
+/* Hover effect on days */
+.react-datepicker__day:hover {
+    background-color: #ccfbf1 !important;
+    /* brand-100 */
+    border-radius: 8px !important;
+    color: #0f766e !important;
+    /* brand-700 */
+}
+
+/* Time list selected */
+.react-datepicker__time-list-item--selected {
+    background-color: #0d9488 !important;
+    /* brand-600 */
+    font-weight: 600 !important;
+    color: white !important;
+}
+
+/* Time list hover */
+.react-datepicker__time-list-item:hover {
+    background-color: #ccfbf1 !important;
+    /* brand-100 */
+    color: #0f766e !important;
+    /* brand-700 */
+}
+
+/* Navigation Arrows */
+.react-datepicker__navigation {
+    top: 12px !important;
+}
+
+.react-datepicker__navigation-icon::before {
+    border-color: #64748b !important;
+    border-width: 2px 2px 0 0 !important;
+}
 
 /* =========================================================
    🌈 THEME TOKENS
