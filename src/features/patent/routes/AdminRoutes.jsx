@@ -69,6 +69,12 @@ import ContactMessageList from "../pages/contactMessages/ContactMessageList";
 import ContactMessageDetails from "../pages/contactMessages/ContactMessageDetails";
 
 // Notifications
+// import NotificationList from "../pages/notifications/NotificationList";
+// import NotificationDetail from "../pages/notifications/NotificationDetail";
+// import CampaignList from "../pages/notifications/campaigns/CampaignList";
+// import CampaignForm from "../pages/notifications/campaigns/CampaignForm";
+// import CampaignDetail from "../pages/notifications/campaigns/CampaignDetail";
+// ✅ SAHI imports
 import NotificationList from "../pages/notifications/NotificationList";
 import NotificationDetail from "../pages/notifications/NotificationDetail";
 import CampaignList from "../pages/notifications/campaigns/CampaignList";
@@ -140,7 +146,22 @@ const AdminRoutes = () => {
           <Route path="dashboard" element={<ComingSoon />} />
           <Route path="theme-preview" element={<ThemePreview />} />
           <Route path="profile" element={<ProfilePage />} />
-
+          {/* Notifications */}
+          {/* <Route path="notifications" element={<NotificationList />} />
+          <Route path="notifications/campaigns" element={<CampaignList />} />
+          <Route
+            path="notifications/campaigns/create"
+            element={<CampaignForm />}
+          />
+          <Route
+            path="notifications/campaigns/:uuid/edit"
+            element={<CampaignForm />}
+          />
+          <Route
+            path="notifications/campaigns/:uuid"
+            element={<CampaignDetail />}
+          />
+          <Route path="notifications/:id" element={<NotificationDetail />} /> */}
           {/* Notifications */}
           <Route path="notifications" element={<NotificationList />} />
           <Route path="notifications/campaigns" element={<CampaignList />} />
@@ -157,7 +178,8 @@ const AdminRoutes = () => {
             element={<CampaignDetail />}
           />
           <Route path="notifications/:id" element={<NotificationDetail />} />
-
+          {/* YE HONA CHAHIYE
+          <Route path="notifications/:id" element={<NotificationDetail />} /> */}
           {/* Clinical */}
           <Route path="patients" element={<PatientList />} />
           <Route path="appointments" element={<AppointmentList />} />
@@ -193,7 +215,6 @@ const AdminRoutes = () => {
             path="provider-availabilities/:id/exceptions"
             element={<AvailabilityExceptions />}
           />
-
           {/* Health Quiz */}
           <Route
             path="health-quiz/questions"
@@ -223,14 +244,12 @@ const AdminRoutes = () => {
             path="health-quiz/leaderboard/:id"
             element={<HealthQuizPatientLeaderboard />}
           />
-
           {/* Contact Messages */}
           <Route path="contact-messages" element={<ContactMessageList />} />
           <Route
             path="contact-messages/:id"
             element={<ContactMessageDetails />}
           />
-
           {/* Service Manager & Packages */}
           <Route path="service-manager" element={<ServiceManagerList />} />
           <Route path="service-manager/new" element={<ServiceManagerForm />} />
@@ -263,12 +282,10 @@ const AdminRoutes = () => {
           <Route path="health-tips/new" element={<HealthTipsForm />} />
           <Route path="health-tips/:id" element={<HealthTipsView />} />
           <Route path="health-tips/:id/edit" element={<HealthTipsForm />} />
-
           {/* CMS */}
           <Route path="cms/banners" element={<BannerList />} />
           <Route path="cms/banners/new" element={<BannerForm />} />
           <Route path="cms/banners/:id/edit" element={<BannerForm />} />
-
           {/* Clinic Privileges (Free Services) */}
           <Route
             path="cms/clinical-privileges"
@@ -282,7 +299,6 @@ const AdminRoutes = () => {
             path="cms/clinical-privileges/:id/edit"
             element={<FreeServiceForm />}
           />
-
           <Route path="cms/book-appointment" element={<BookAppointmentUI />} />
           <Route path="cms/bmi" element={<BmiUI />} />
           <Route path="cms/diabetes" element={<DiabetesUI />} />
@@ -303,7 +319,6 @@ const AdminRoutes = () => {
           <Route path="cms/scan-food" element={<ScanFoodUI />} />
           <Route path="cms/calories" element={<CaloriesUI />} />
           <Route path="cms/records" element={<RecordsUI />} />
-
           {/* STORE */}
           <Route path="store/flash-cards" element={<StoreFlashCardList />} />
           <Route
@@ -326,13 +341,10 @@ const AdminRoutes = () => {
           <Route path="store/products" element={<ProductList />} />
           <Route path="store/products/new" element={<ProductForm />} />
           <Route path="store/products/:id/edit" element={<ProductForm />} />
-
           <Route path="store/charges" element={<ChargesForm />} />
           <Route path="store/seller" element={<SellerInfoForm />} />
-
           <Route path="store/leads" element={<StoreLeadList />} />
           <Route path="store/leads/:id" element={<StoreLeadView />} />
-
           {/* Team & Masters */}
           <Route path="staff" element={<StaffList />} />
           <Route path="staff/new" element={<StaffFormPage />} />

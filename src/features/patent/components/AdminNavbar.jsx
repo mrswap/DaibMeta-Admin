@@ -2,6 +2,7 @@
 
 // import { useState, useRef, useEffect } from "react";
 // import { FiMenu, FiBell, FiSettings, FiLogOut, FiUser } from "react-icons/fi";
+// import { HiOutlineSpeakerphone } from "react-icons/hi";
 // import { useNavigate } from "react-router-dom";
 // import { useAuthStore } from "../../../stores/authStore";
 // import { useLogout } from "../pages/auth/queries";
@@ -109,6 +110,16 @@
 
 //         {/* Right */}
 //         <div className="flex items-center gap-3">
+//           {/* Campaign shortcut */}
+//           <button
+//             onClick={() => navigate("/notifications/campaigns")}
+//             aria-label="Campaigns"
+//             title="Campaigns"
+//             className="cursor-pointer rounded-lg p-1.5 text-ink-700 transition hover:bg-ink-50 hover:text-ink-900"
+//           >
+//             <HiOutlineSpeakerphone className="h-5 w-5" />
+//           </button>
+
 //           {/* Bell */}
 //           <div className="relative">
 //             <button
@@ -131,14 +142,6 @@
 //               onClose={() => setNotifOpen(false)}
 //             />
 //           </div>
-
-//           {/* Campaign shortcut */}
-//           <button
-//             onClick={() => navigate("/notifications/campaigns")}
-//             className="hidden cursor-pointer items-center gap-1.5 rounded-lg border border-ink-200 px-3 py-1.5 text-sm font-medium text-ink-700 transition hover:bg-ink-50 sm:inline-flex"
-//           >
-//             Campaign
-//           </button>
 
 //           {/* Profile */}
 //           <div className="relative" ref={profileRef}>
@@ -233,12 +236,17 @@ import { useToast } from "../common/toast/ToastContext";
 import ConfirmModal from "../common/ConfirmModal";
 import NotificationDropdown from "../common/noitification/NotificationDropdown";
 import { useUnreadCount } from "../queries/notifications";
+import { usePermission } from "../hooks/usePermission"; // 👈 Permission Hook import kiya
 
 const AdminNavbar = ({ setSidebarOpen }) => {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logoutMutation = useLogout();
   const toast = useToast();
+  const { can } = usePermission(); // 👈 Hook initialize kiya
+
+  // 🛡️ Notification Permissions Check
+  const canViewNotifications = can("notifications", "view");
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -333,38 +341,43 @@ const AdminNavbar = ({ setSidebarOpen }) => {
 
         {/* Right */}
         <div className="flex items-center gap-3">
-          {/* Campaign shortcut */}
-          <button
-            onClick={() => navigate("/notifications/campaigns")}
-            aria-label="Campaigns"
-            title="Campaigns"
-            className="cursor-pointer rounded-lg p-1.5 text-ink-700 transition hover:bg-ink-50 hover:text-ink-900"
-          >
-            <HiOutlineSpeakerphone className="h-5 w-5" />
-          </button>
+          {/* 👇 Permission Check: Campaigns & Notifications sirf tab dikhenge jab permission hogi */}
+          {canViewNotifications && (
+            <>
+              {/* Campaign shortcut */}
+              <button
+                onClick={() => navigate("/notifications/campaigns")}
+                aria-label="Campaigns"
+                title="Campaigns"
+                className="cursor-pointer rounded-lg p-1.5 text-ink-700 transition hover:bg-ink-50 hover:text-ink-900"
+              >
+                <HiOutlineSpeakerphone className="h-5 w-5" />
+              </button>
 
-          {/* Bell */}
-          <div className="relative">
-            <button
-              onClick={handleToggleNotif}
-              aria-label="Notifications"
-              aria-haspopup="true"
-              aria-expanded={notifOpen}
-              className="relative cursor-pointer rounded-lg p-1.5 text-ink-700 transition hover:bg-ink-50 hover:text-ink-900"
-            >
-              <FiBell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-bold leading-none text-surface">
-                  {displayCount}
-                </span>
-              )}
-            </button>
+              {/* Bell */}
+              <div className="relative">
+                <button
+                  onClick={handleToggleNotif}
+                  aria-label="Notifications"
+                  aria-haspopup="true"
+                  aria-expanded={notifOpen}
+                  className="relative cursor-pointer rounded-lg p-1.5 text-ink-700 transition hover:bg-ink-50 hover:text-ink-900"
+                >
+                  <FiBell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-bold leading-none text-surface">
+                      {displayCount}
+                    </span>
+                  )}
+                </button>
 
-            <NotificationDropdown
-              open={notifOpen}
-              onClose={() => setNotifOpen(false)}
-            />
-          </div>
+                <NotificationDropdown
+                  open={notifOpen}
+                  onClose={() => setNotifOpen(false)}
+                />
+              </div>
+            </>
+          )}
 
           {/* Profile */}
           <div className="relative" ref={profileRef}>
