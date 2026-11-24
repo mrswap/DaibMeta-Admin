@@ -1,116 +1,220 @@
 // src/features/patent/pages/visits/components/tabs/DocumentsTab.jsx
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   FiUpload,
+  FiCamera,
   FiTrash2,
   FiFile,
   FiImage,
+  FiFileText,
+  FiDownload,
   FiX,
-  FiPaperclip,
-  FiExternalLink,
   FiLock,
+  FiEye,
+  FiCheckCircle,
 } from "react-icons/fi";
 import {
   useVisitDocuments,
   useUploadDocument,
   useDeleteDocument,
   DOCUMENT_TYPES,
+  getDocumentTypeLabel,
 } from "../../../../queries/visits";
-import { FilterSelect } from "../../../../common/form";
 import Loader from "../../../../common/Loader";
 import ConfirmModal from "../../../../common/ConfirmModal";
+import { usePermission } from "../../../../hooks/usePermission";
 
 // ==================== HELPERS ====================
-const formatFileSize = (bytes) => {
-  if (!bytes && bytes !== 0) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-};
-
-const formatDate = (d) => {
+const formatDateTime = (d) => {
   if (!d) return "—";
   try {
-    return new Date(d).toLocaleDateString("en-GB", {
+    return new Date(d).toLocaleString("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   } catch {
     return d;
   }
 };
 
-const getFileUrl = (filePath) => {
-  if (!filePath) return "#";
-  if (filePath.startsWith("http")) return filePath;
-  const base = "https://daibmeta.netswaptech.com";
-  return `${base}/${filePath.replace(/^\/+/, "")}`;
+const formatFileSize = (bytes) => {
+  if (!bytes) return "—";
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  return `${(kb / 1024).toFixed(2)} MB`;
+};
+
+const getFileIcon = (type, mime) => {
+  if (mime?.startsWith("image/")) return FiImage;
+  if (type === "prescription") return FiFileText;
+  return FiFile;
+};
+
+const isImageFile = (mime) => mime?.startsWith("image/");
+
+// Mobile/tablet: native camera app (capture input). Desktop: webcam modal.
+const isMobileDevice = () => {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 };
 
 // ==================== MAIN ====================
-const DocumentsTab = ({ visitId, canManage = false }) => {
-  const { data: documents, isLoading } = useVisitDocuments(visitId);
+const DocumentsTab = ({ visitId }) => {
+  const { can } = usePermission();
+
+  // ==================== PERMISSIONS ====================
+  const canView = can("documents", "view");
+  const canManage = can("documents", "manage");
+
+  const { data: documents = [], isLoading } = useVisitDocuments(
+    canView ? visitId : null,
+  );
+
   const uploadMutation = useUploadDocument();
   const deleteMutation = useDeleteDocument();
 
-  const [uploadOpen, setUploadOpen] = useState(false);
-  const [docType, setDocType] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedType, setSelectedType] = useState(
+    DOCUMENT_TYPES[0]?.value || "other",
+  );
   const [confirm, setConfirm] = useState({ open: false, item: null });
 
+  // Server document preview (file_url se)
+  const [preview, setPreview] = useState(null);
+
+  // Abhi select/click kiya hua file — submit hone tak API hit nahi hogi
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingUrl, setPendingUrl] = useState(null);
+
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
-  // Group documents by type
-  const grouped = useMemo(() => {
-    const groups = {};
-    DOCUMENT_TYPES.forEach((t) => {
-      groups[t.value] = [];
-    });
-    (Array.isArray(documents) ? documents : []).forEach((doc) => {
-      const key = doc.document_type || "other";
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(doc);
-    });
-    return groups;
-  }, [documents]);
+  // Desktop webcam modal
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const [cameraReady, setCameraReady] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
 
-  const totalDocs = Array.isArray(documents) ? documents.length : 0;
+  // Camera modal khulte hi stream start, band hote hi stop
+  useEffect(() => {
+    if (!cameraOpen) return;
+    let cancelled = false;
 
-  // ==================== HANDLERS ====================
-  const handleUploadClick = () => {
-    if (!canManage) return;
-    setUploadOpen(true);
+    const start = async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("unsupported");
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch {
+        if (!cancelled) {
+          setCameraError(
+            "Camera open nahi ho paya. Browser me camera permission allow karein (HTTPS zaroori hai) ya Choose File se photo select karein.",
+          );
+        }
+      }
+    };
+
+    start();
+
+    return () => {
+      cancelled = true;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      setCameraReady(false);
+    };
+  }, [cameraOpen]);
+
+  const handleTakePhoto = () => {
+    if (isMobileDevice()) {
+      // Mobile: phone ka native camera khulega
+      cameraInputRef.current?.click();
+    } else {
+      // Desktop/laptop: system ka webcam modal khulega
+      setCameraError("");
+      setCameraReady(false);
+      setCameraOpen(true);
+    }
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (file) setSelectedFile(file);
-  };
+  const closeCamera = () => setCameraOpen(false);
 
-  const handleUpload = () => {
-    if (!canManage) return;
-    if (!docType || !selectedFile) return;
-    uploadMutation.mutate(
-      {
-        visitId,
-        documentType: docType.value,
-        file: selectedFile,
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `photo-${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
+        setPendingFile(file); // preview + Submit panel me jayegi
+        setCameraOpen(false);
       },
-      {
-        onSuccess: () => {
-          handleUploadCancel();
-        },
-      },
+      "image/jpeg",
+      0.92,
     );
   };
 
-  const handleUploadCancel = () => {
-    setUploadOpen(false);
-    setDocType(null);
-    setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  // Pending image ka local preview URL banao / cleanup karo
+  useEffect(() => {
+    if (!pendingFile || !isImageFile(pendingFile.type)) {
+      setPendingUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(pendingFile);
+    setPendingUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingFile]);
+
+  // ==================== FILE SELECT (NO API CALL) ====================
+  const handleFileInput = (e) => {
+    const file = e.target.files?.[0];
+    if (file && canManage) setPendingFile(file);
+    e.target.value = ""; // reset so same file can be re-selected
+  };
+
+  const clearPending = () => {
+    setPendingFile(null);
+  };
+
+  // ==================== SUBMIT (API HIT) ====================
+  const handleSubmit = () => {
+    if (!pendingFile || !canManage) return;
+
+    uploadMutation.mutate(
+      {
+        visitId,
+        documentType: selectedType,
+        file: pendingFile,
+      },
+      {
+        onSuccess: () => {
+          setPendingFile(null);
+        },
+      },
+    );
   };
 
   const handleDeleteClick = (item) => {
@@ -118,197 +222,286 @@ const DocumentsTab = ({ visitId, canManage = false }) => {
     setConfirm({ open: true, item });
   };
 
-  const handleDeleteConfirm = () => {
+  const handleConfirmDelete = () => {
     if (!canManage) return;
     const { item } = confirm;
     if (!item) return;
     deleteMutation.mutate(
       { documentId: item.id },
-      {
-        onSettled: () => setConfirm({ open: false, item: null }),
-      },
+      { onSettled: () => setConfirm({ open: false, item: null }) },
     );
   };
+
+  // ==================== ACCESS DENIED ====================
+  if (!canView) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-6 w-6" />
+        </div>
+        <p className="mt-3 text-sm font-semibold text-ink-900">Access Denied</p>
+        <p className="mt-1 max-w-sm text-xs text-ink-500">
+          You do not have permission to view documents. Please contact your
+          administrator.
+        </p>
+      </div>
+    );
+  }
 
   // ==================== LOADING ====================
   if (isLoading) return <Loader text="Loading documents..." />;
 
+  const PendingIcon = pendingFile
+    ? getFileIcon(selectedType, pendingFile.type)
+    : FiFile;
+
   return (
     <div className="space-y-4">
-      {/* Read-only notice for users without manage permission */}
-      {!canManage && totalDocs > 0 && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-warn-200 bg-warn-50/50 px-4 py-3">
-          <FiLock className="mt-0.5 h-4 w-4 shrink-0 text-warn-700" />
-          <div>
-            <p className="text-xs font-semibold text-warn-900">
-              Read-only access
-            </p>
-            <p className="mt-0.5 text-[11px] text-warn-800">
-              You can view and download documents, but uploading or deleting
-              requires manage permission.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-100 bg-ink-50/40 px-4 py-2.5">
-        <div className="flex items-center gap-2">
-          <FiPaperclip className="h-4 w-4 text-ink-500" />
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-600">
-            Medical Documents
-          </p>
-          <span className="rounded-md bg-ink-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-ink-600">
-            {totalDocs}
-          </span>
-        </div>
-
-        {/* Upload button — only if canManage */}
-        {canManage && (
-          <button
-            type="button"
-            onClick={handleUploadClick}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-surface hover:bg-brand-700"
-          >
-            <FiUpload className="h-3.5 w-3.5" />
-            Upload Document
-          </button>
-        )}
-      </div>
-
-      {/* Upload form — only if canManage */}
-      {canManage && uploadOpen && (
-        <div className="overflow-hidden rounded-xl border border-brand-200 bg-brand-50/30">
-          <div className="flex items-center justify-between border-b border-brand-200 bg-brand-50/60 px-4 py-2.5">
-            <p className="text-xs font-semibold text-brand-900">
-              Upload New Document
-            </p>
-            <button
-              type="button"
-              onClick={handleUploadCancel}
-              disabled={uploadMutation.isPending}
-              className="cursor-pointer rounded-md p-1 text-brand-700 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <FiX className="h-4 w-4" />
-            </button>
+      {/* Upload section — only if canManage */}
+      {canManage && (
+        <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
+          <div className="border-b border-ink-100 bg-ink-50/40 px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <FiUpload className="h-4 w-4 text-ink-500" />
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-600">
+                Upload Document
+              </p>
+            </div>
           </div>
 
           <div className="space-y-3 p-4">
+            {/* Document type */}
             <div>
               <label className="mb-1.5 block text-xs font-medium text-form-label">
                 Document Type <span className="text-form-required">*</span>
               </label>
-              <FilterSelect
-                value={docType}
-                onChange={setDocType}
-                options={DOCUMENT_TYPES.map((d) => ({
-                  value: d.value,
-                  label: d.label,
-                }))}
-                placeholder="Select document type..."
-                isClearable
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-form-label">
-                File <span className="text-form-required">*</span>
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,.webp"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id={`doc-upload-${visitId}`}
-                />
-                <label
-                  htmlFor={`doc-upload-${visitId}`}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
-                >
-                  <FiUpload className="h-3.5 w-3.5" />
-                  {selectedFile ? "Change File" : "Choose File"}
-                </label>
-                {selectedFile && (
-                  <span className="truncate text-xs text-ink-600">
-                    {selectedFile.name}
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-[11px] text-ink-500">
-                Accepted: PDF, JPEG, PNG, WebP
-              </p>
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-brand-200 pt-3">
-              <button
-                type="button"
-                onClick={handleUploadCancel}
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
                 disabled={uploadMutation.isPending}
-                className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-10 w-full rounded-lg border border-form-border bg-surface px-3 text-sm outline-none focus:border-brand-500 disabled:opacity-60"
               >
-                Cancel
-              </button>
+                {DOCUMENT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Hidden inputs */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf,.doc,.docx"
+              onChange={handleFileInput}
+              className="hidden"
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileInput}
+              className="hidden"
+            />
+
+            {/* Select buttons */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={handleUpload}
-                disabled={!docType || !selectedFile || uploadMutation.isPending}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-surface hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadMutation.isPending}
+                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-ink-200 bg-surface px-4 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <FiUpload className="h-3.5 w-3.5" />
-                {uploadMutation.isPending ? "Uploading..." : "Upload"}
+                <FiUpload className="h-4 w-4" />
+                Choose File
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTakePhoto}
+                disabled={uploadMutation.isPending}
+                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FiCamera className="h-4 w-4" />
+                Take Photo
               </button>
             </div>
+
+            {/* Selected file preview + Submit */}
+            {pendingFile && (
+              <div className="space-y-3 rounded-xl border border-ink-200 bg-ink-50/40 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-600">
+                    Selected File
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearPending}
+                    disabled={uploadMutation.isPending}
+                    title="Remove"
+                    className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-100 hover:text-ink-800 disabled:opacity-60"
+                  >
+                    <FiX className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {pendingUrl ? (
+                  <div className="overflow-hidden rounded-lg border border-ink-100 bg-surface p-2">
+                    <img
+                      src={pendingUrl}
+                      alt={pendingFile.name}
+                      className="mx-auto max-h-64 w-auto rounded-md object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 rounded-lg border border-ink-100 bg-surface p-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                      <PendingIcon className="h-4 w-4" />
+                    </div>
+                    <p className="text-xs text-ink-500">
+                      Preview not available for this file type.
+                    </p>
+                  </div>
+                )}
+
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-ink-900">
+                    {pendingFile.name}
+                  </p>
+                  <p className="text-[11px] text-ink-500">
+                    {getDocumentTypeLabel(selectedType)} ·{" "}
+                    {formatFileSize(pendingFile.size)}
+                  </p>
+                </div>
+
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={clearPending}
+                    disabled={uploadMutation.isPending}
+                    className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={uploadMutation.isPending}
+                    className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-surface shadow-sm transition-all hover:bg-brand-700 hover:shadow disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <FiCheckCircle className="h-4 w-4" />
+                    {uploadMutation.isPending ? "Submitting..." : "Submit"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <p className="text-[10px] text-ink-400">
+              Supported: images, PDF, DOC, DOCX. Take Photo mobile par phone ka
+              camera aur laptop/PC par webcam kholta hai. Photo khinchne ke baad
+              preview dekh kar Submit karein.
+            </p>
           </div>
         </div>
       )}
 
-      {/* Empty state */}
-      {totalDocs === 0 && !uploadOpen && (
+      {/* Documents list */}
+      {documents.length === 0 ? (
         <div className="rounded-xl border border-dashed border-ink-200 bg-ink-50/40 py-12 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100">
-            <FiPaperclip className="h-5 w-5 text-ink-500" />
+            <FiFile className="h-5 w-5 text-ink-500" />
           </div>
-          <p className="text-sm font-medium text-ink-700">No documents</p>
+          <p className="text-sm font-medium text-ink-700">No documents yet</p>
           <p className="mt-1 text-xs text-ink-500">
             {canManage
-              ? "Upload prescriptions, reports, or other medical documents."
-              : "No documents have been uploaded for this visit yet."}
+              ? "Upload a file or take a photo to attach it to this visit."
+              : "No documents have been uploaded for this visit."}
           </p>
         </div>
-      )}
-
-      {/* Grouped documents */}
-      {totalDocs > 0 && (
-        <div className="space-y-4">
-          {DOCUMENT_TYPES.map((type) => {
-            const items = grouped[type.value] || [];
-            if (items.length === 0) return null;
+      ) : (
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {documents.map((doc) => {
+            const Icon = getFileIcon(doc.document_type, doc.mime_type);
+            const image = isImageFile(doc.mime_type);
+            const docName =
+              doc.original_name || doc.file_name || doc.name || "Document";
 
             return (
               <div
-                key={type.value}
+                key={doc.id}
                 className="overflow-hidden rounded-xl border border-ink-100 bg-surface"
               >
-                <div className="flex items-center justify-between border-b border-ink-100 bg-ink-50/40 px-4 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-600">
-                    {type.label}
-                  </p>
-                  <span className="rounded-md bg-ink-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-ink-600">
-                    {items.length}
-                  </span>
-                </div>
+                <div className="flex items-start gap-3 p-3">
+                  {image && doc.file_url ? (
+                    <button
+                      type="button"
+                      onClick={() => setPreview(doc)}
+                      title="Preview"
+                      className="h-10 w-10 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-ink-100 bg-ink-50"
+                    >
+                      <img
+                        src={doc.file_url}
+                        alt={docName}
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                  )}
 
-                <div className="divide-y divide-ink-100">
-                  {items.map((doc) => (
-                    <DocumentRow
-                      key={doc.id}
-                      doc={doc}
-                      canManage={canManage}
-                      onDelete={() => handleDeleteClick(doc)}
-                    />
-                  ))}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink-900">
+                      {docName}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-ink-500">
+                      {getDocumentTypeLabel(doc.document_type)} ·{" "}
+                      {formatFileSize(doc.file_size)}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-ink-400">
+                      {formatDateTime(doc.created_at)}
+                      {doc.uploaded_by?.name && ` · ${doc.uploaded_by.name}`}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    {image && doc.file_url && (
+                      <button
+                        type="button"
+                        onClick={() => setPreview(doc)}
+                        title="Preview"
+                        className="cursor-pointer rounded-lg p-1.5 text-ink-600 transition hover:bg-ink-100 hover:text-ink-900"
+                      >
+                        <FiEye className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+
+                    {doc.file_url && (
+                      <a
+                        href={doc.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Download"
+                        className="cursor-pointer rounded-lg p-1.5 text-ink-600 transition hover:bg-ink-100 hover:text-ink-900"
+                      >
+                        <FiDownload className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClick(doc)}
+                        title="Delete"
+                        className="cursor-pointer rounded-lg p-1.5 text-danger-500 transition hover:bg-danger-50"
+                      >
+                        <FiTrash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -316,79 +509,110 @@ const DocumentsTab = ({ visitId, canManage = false }) => {
         </div>
       )}
 
-      {/* Delete Confirm — only if canManage */}
+      {/* Desktop webcam modal */}
+      {cameraOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70" onClick={closeCamera} />
+          <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-xl bg-surface shadow-xl">
+            <div className="flex items-center justify-between border-b border-ink-100 px-4 py-3">
+              <p className="text-sm font-semibold text-ink-900">Take Photo</p>
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50"
+              >
+                <FiX className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="bg-black">
+              {cameraError ? (
+                <div className="px-4 py-10 text-center text-xs text-white">
+                  {cameraError}
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  onLoadedMetadata={() => setCameraReady(true)}
+                  className="mx-auto max-h-[60vh] w-full object-contain"
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 p-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="cursor-pointer rounded-lg border border-ink-200 bg-surface px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50"
+              >
+                Cancel
+              </button>
+              {!cameraError && (
+                <button
+                  type="button"
+                  onClick={capturePhoto}
+                  disabled={!cameraReady}
+                  className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-surface shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <FiCamera className="h-4 w-4" />
+                  Capture
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview modal — file_url use hota hai */}
+      {preview && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setPreview(null)}
+          />
+          <div className="relative z-10 max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-xl bg-surface shadow-xl">
+            <div className="flex items-center justify-between border-b border-ink-100 px-4 py-3">
+              <p className="truncate text-sm font-semibold text-ink-900">
+                {preview.original_name ||
+                  preview.file_name ||
+                  preview.name ||
+                  "Document"}
+              </p>
+              <button
+                type="button"
+                onClick={() => setPreview(null)}
+                className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50"
+              >
+                <FiX className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-auto bg-ink-50/40 p-3">
+              <img
+                src={preview.file_url}
+                alt={preview.original_name || "Document"}
+                className="mx-auto max-h-[65vh] w-auto rounded-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation — only if canManage */}
       {canManage && (
         <ConfirmModal
           open={confirm.open}
           title="Delete Document"
-          message={`Are you sure you want to delete "${
-            confirm.item?.original_name || "this document"
-          }"? This action cannot be undone.`}
+          message="Are you sure you want to delete this document? This action cannot be undone."
           confirmText="Delete"
           variant="danger"
-          onConfirm={handleDeleteConfirm}
+          onConfirm={handleConfirmDelete}
           onCancel={() => setConfirm({ open: false, item: null })}
           loading={deleteMutation.isPending}
         />
       )}
-    </div>
-  );
-};
-
-// ==================== DOCUMENT ROW ====================
-const DocumentRow = ({ doc, onDelete, canManage }) => {
-  const isImage = doc.mime_type?.startsWith("image/");
-  const Icon = isImage ? FiImage : FiFile;
-
-  return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-600">
-        <Icon className="h-4 w-4" />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink-900">
-          {doc.original_name || "—"}
-        </p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-ink-500">
-          <span>{formatFileSize(doc.file_size)}</span>
-          <span>·</span>
-          <span>{formatDate(doc.created_at)}</span>
-          {doc.uploaded_by?.name && (
-            <>
-              <span>·</span>
-              <span>by {doc.uploaded_by.name}</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-1">
-        {/* Open/Download — allowed with view permission */}
-        {doc.file_path && (
-          <a
-            href={getFileUrl(doc.file_path)}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open document"
-            className="cursor-pointer rounded-lg p-1.5 text-ink-600 transition hover:bg-ink-100 hover:text-ink-900"
-          >
-            <FiExternalLink className="h-4 w-4" />
-          </a>
-        )}
-
-        {/* Delete — only if canManage */}
-        {canManage && (
-          <button
-            type="button"
-            onClick={onDelete}
-            title="Delete"
-            className="cursor-pointer rounded-lg p-1.5 text-danger-500 transition hover:bg-danger-50"
-          >
-            <FiTrash2 className="h-4 w-4" />
-          </button>
-        )}
-      </div>
     </div>
   );
 };

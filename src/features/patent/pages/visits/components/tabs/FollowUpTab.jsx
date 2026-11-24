@@ -1,28 +1,17 @@
 // src/features/patent/pages/visits/components/tabs/FollowUpTab.jsx
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Formik, Form, useFormikContext } from "formik";
 import * as Yup from "yup";
+import { FiPlus, FiLock, FiX, FiCheckCircle } from "react-icons/fi";
 import {
-  FiCalendar,
-  FiInfo,
-  FiCheck,
-  FiUser,
-  FiClock,
-  FiFileText,
-  FiLock,
-} from "react-icons/fi";
-import { useCreateFollowUp } from "../../../../queries/visits";
-import { useStaff } from "../../../../queries/staff";
-import { useAppointmentTypes } from "../../../../queries/appointmentTypes";
-import {
-  TextInput,
-  TextareaField,
-  SelectField,
-  FormButton,
-  DatePicker,
-  ToggleSwitch,
-} from "../../../../common/form";
+  useVisitFollowUps,
+  useCreateFollowUp,
+} from "../../../../queries/visits";
+import Loader from "../../../../common/Loader";
+import CustomeTable from "../../../../common/table/CustomeTable";
+import { DatePicker, TextareaField } from "../../../../common/form";
+import { usePermission } from "../../../../hooks/usePermission";
 
 // ==================== HELPERS ====================
 const todayStr = () => {
@@ -33,335 +22,316 @@ const todayStr = () => {
   return `${y}-${m}-${day}`;
 };
 
-const addDays = (dateStr, days) => {
+const shiftDate = (dateStr, days) => {
+  if (!dateStr) return todayStr();
   const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + days);
-  const ny = dt.getFullYear();
-  const nm = String(dt.getMonth() + 1).padStart(2, "0");
-  const nd = String(dt.getDate()).padStart(2, "0");
-  return `${ny}-${nm}-${nd}`;
+  const dt = new Date(y, m - 1, d + Number(days));
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+};
+
+// Minimum selectable date = tomorrow
+const tomorrowStr = () => shiftDate(todayStr(), 1);
+
+const diffDays = (fromStr, toStr) => {
+  if (!fromStr || !toStr) return null;
+  const [y1, m1, d1] = fromStr.split("-").map(Number);
+  const [y2, m2, d2] = toStr.split("-").map(Number);
+  // Use UTC to avoid DST and timezone issues
+  const a = Date.UTC(y1, m1 - 1, d1);
+  const b = Date.UTC(y2, m2 - 1, d2);
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
+};
+
+const formatDate = (d) => {
+  if (!d) return "—";
+  try {
+    return new Date(d + "T00:00:00").toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return d;
+  }
 };
 
 // ==================== FORM INNER ====================
-const FollowUpFormInner = ({
-  isPending,
-  providerOptions,
-  appointmentTypeOptions,
-}) => {
+const FollowUpFormInner = ({ isPending, onCancel }) => {
   const { values, setFieldValue } = useFormikContext();
-  const showAppointment = values.book_appointment === true;
 
-  // Auto-set follow_up_date when follow_up_days changes
+  // 1. Date ➔ Days Auto-fill
   useEffect(() => {
-    const days = Number(values.follow_up_days);
-    if (!Number.isFinite(days) || days < 1) return;
-    const newDate = addDays(todayStr(), days);
-    if (values.follow_up_date !== newDate) {
-      setFieldValue("follow_up_date", newDate);
+    if (!values.follow_up_date) {
+      // Agar date clear ho jaye to days bhi clear kardo
+      if (values.follow_up_days !== "") {
+        setFieldValue("follow_up_days", "");
+      }
+      return;
+    }
+
+    const computed = diffDays(todayStr(), values.follow_up_date);
+
+    // Minimum 1 day (tomorrow se start). Aaj ya past date ke liye days set nahi honge.
+    if (computed != null && computed >= 1) {
+      setFieldValue("follow_up_days", computed);
+    } else if (values.follow_up_days !== "") {
+      setFieldValue("follow_up_days", "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values.follow_up_days]);
+  }, [values.follow_up_date]);
+
+  // 2. Days ➔ Date Auto-fill
+  const handleDaysChange = (e) => {
+    const rawValue = e.target.value;
+
+    // Allow empty string to delete input
+    if (rawValue === "") {
+      setFieldValue("follow_up_days", "");
+      return;
+    }
+
+    // Strict number check
+    if (!/^\d+$/.test(rawValue)) return;
+
+    const days = Number(rawValue);
+
+    // 0 allowed nahi hai, minimum 1
+    if (days < 1) return;
+
+    // Leading zeros hata do (e.g. "05" -> "5")
+    setFieldValue("follow_up_days", String(days));
+
+    const newDate = shiftDate(todayStr(), days);
+    setFieldValue("follow_up_date", newDate);
+  };
 
   return (
-    <Form className="space-y-5 px-4 py-5">
-      {/* Follow-up details */}
-      <div>
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
-          Follow-up Details
-        </p>
-
-        <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-          <TextInput
-            label="Follow-up Days"
-            name="follow_up_days"
-            type="number"
-            placeholder="e.g. 7"
-            required
-          />
-
-          <DatePicker
-            label="Follow-up Date"
-            name="follow_up_date"
-            placeholder="Select date"
-            min={todayStr()}
-            required
-          />
-
-          <div className="sm:col-span-2">
-            <TextareaField
-              label="Notes"
-              name="notes"
-              rows={3}
-              placeholder="Follow-up notes..."
-              maxLength={500}
+    <Form className="space-y-4">
+      <div className="rounded-xl border border-ink-100 bg-surface p-4 space-y-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-form-label">
+              Follow-up Date <span className="text-form-required">*</span>
+            </label>
+            <DatePicker
+              name="follow_up_date"
+              isFormik
+              placeholder="Select date"
+              min={tomorrowStr()}
             />
           </div>
-        </div>
-      </div>
 
-      {/* Book appointment toggle */}
-      <ToggleSwitch
-        name="book_appointment"
-        label="Book Next Appointment"
-        description={
-          showAppointment
-            ? "Appointment will be booked along with follow-up"
-            : "Only follow-up will be created"
-        }
-      />
-
-      {/* Appointment section */}
-      {showAppointment && (
-        <div className="rounded-xl border border-accent-200 bg-accent-50/40 p-4">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-accent-800">
-            Next Appointment
-          </p>
-
-          <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-            <SelectField
-              label="Provider"
-              name="provider_id"
-              options={providerOptions}
-              placeholder="Select provider..."
-              required
-            />
-
-            <SelectField
-              label="Appointment Type"
-              name="appointment_type_id"
-              options={appointmentTypeOptions}
-              placeholder="Select type..."
-              required
-            />
-
-            {/* Auto-filled date display */}
-            <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-xs font-medium text-form-label">
-                Appointment Date
-              </label>
-              <div className="flex h-10 items-center rounded-lg border border-ink-200 bg-ink-50/50 px-3 text-sm text-ink-700">
-                {values.follow_up_date || "Set follow-up date first"}
-              </div>
-              <p className="mt-1 text-[11px] text-ink-500">
-                Appointment date is same as follow-up date
-              </p>
-            </div>
-
-            <TextInput
-              label="Start Time"
-              name="start_time"
-              type="time"
-              required
-            />
-
-            <TextInput label="End Time" name="end_time" type="time" required />
-
-            <div className="sm:col-span-2">
-              <TextareaField
-                label="Appointment Notes"
-                name="appointment_notes"
-                rows={2}
-                placeholder="Notes for the appointment..."
-                maxLength={500}
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-form-label">
+              Follow-up Days
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                min="1"
+                name="follow_up_days"
+                value={values.follow_up_days ?? ""}
+                onChange={handleDaysChange}
+                placeholder="e.g. 1"
+                className="w-full rounded-lg border border-ink-200 bg-surface px-3 py-2 text-sm text-ink-900 outline-none transition-colors focus:border-brand-500 focus:ring-1 focus:ring-brand-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
+              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                <span className="text-xs text-ink-400">days</span>
+              </div>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Info banner */}
-      <div className="flex items-start gap-2.5 rounded-lg border border-accent-200 bg-accent-50/50 px-4 py-3">
-        <FiInfo className="mt-0.5 h-4 w-4 shrink-0 text-accent-700" />
-        <p className="text-[11px] leading-relaxed text-accent-800">
-          Provider availability, slot validation, and double-booking will be
-          validated by the backend. No manual validation required.
-        </p>
+        <TextareaField
+          label="Clinical Notes / Instructions"
+          name="notes"
+          placeholder="E.g., Review after 15 days, continue current medication..."
+          rows={3}
+        />
       </div>
 
-      {/* Actions */}
-      <div className="flex justify-end gap-3 border-t border-ink-100 pt-4">
-        <div className="w-52">
-          <FormButton
-            type="submit"
-            text={isPending ? "Creating..." : "Save Follow-up"}
-            disabled={isPending}
-          />
-        </div>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end pt-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isPending}
+          className="cursor-pointer rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:opacity-60"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          disabled={isPending}
+          className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-surface shadow-sm transition-all hover:bg-brand-700 hover:shadow disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <FiCheckCircle className="h-4 w-4" />
+          {isPending ? "Submitting..." : "Submit Follow-up"}
+        </button>
       </div>
     </Form>
   );
 };
 
 // ==================== MAIN ====================
-const FollowUpTab = ({ visitId, canManage = false }) => {
+const FollowUpTab = ({ visitId, canManage = false, onFollowUpCreated }) => {
+  const { can } = usePermission();
+  const canView = can("visits", "view");
+
+  const [showForm, setShowForm] = useState(false);
   const createMutation = useCreateFollowUp();
 
-  const { data: staffData } = useStaff({ per_page: 100, status: 1 });
-  const { data: typesData } = useAppointmentTypes({ per_page: 100, status: 1 });
-
-  const providerOptions = useMemo(
-    () =>
-      (staffData?.list || []).map((p) => ({
-        value: p.id,
-        label: `${p.name}${p.role?.label ? ` — ${p.role.label}` : ""}`,
-      })),
-    [staffData],
-  );
-
-  const appointmentTypeOptions = useMemo(
-    () =>
-      (typesData?.list || []).map((t) => ({
-        value: t.id,
-        label: `${t.name}${t.duration ? ` — ${t.duration} min` : ""}`,
-      })),
-    [typesData],
-  );
-
-  // Initial values
-  const initialValues = {
-    follow_up_days: 7,
-    follow_up_date: addDays(todayStr(), 7),
-    notes: "",
-    book_appointment: false,
-    provider_id: null,
-    appointment_type_id: null,
-    start_time: "",
-    end_time: "",
-    appointment_notes: "",
-  };
-
-  // Validation
-  const validationSchema = Yup.object({
-    follow_up_days: Yup.number()
-      .typeError("Must be a number")
-      .integer("Must be a whole number")
-      .min(1, "Min 1 day")
-      .required("Follow-up days required"),
-    follow_up_date: Yup.string().required("Follow-up date is required"),
-    notes: Yup.string().nullable(),
-    book_appointment: Yup.boolean(),
-    provider_id: Yup.object().when("book_appointment", {
-      is: true,
-      then: (s) => s.nullable().required("Provider is required"),
-      otherwise: (s) => s.nullable(),
-    }),
-    appointment_type_id: Yup.object().when("book_appointment", {
-      is: true,
-      then: (s) => s.nullable().required("Appointment type is required"),
-      otherwise: (s) => s.nullable(),
-    }),
-    start_time: Yup.string().when("book_appointment", {
-      is: true,
-      then: (s) => s.required("Start time is required"),
-      otherwise: (s) => s.nullable(),
-    }),
-    end_time: Yup.string().when("book_appointment", {
-      is: true,
-      then: (s) =>
-        s
-          .required("End time is required")
-          .test(
-            "after-start",
-            "End time must be after start time",
-            function (value) {
-              const { start_time } = this.parent;
-              if (!start_time || !value) return true;
-              return value > start_time;
-            },
-          ),
-      otherwise: (s) => s.nullable(),
-    }),
-    appointment_notes: Yup.string().nullable(),
+  const { data: list = [], isLoading } = useVisitFollowUps(visitId, {
+    enabled: !!visitId && canView,
   });
 
-  // Submit
+  const initialValues = {
+    follow_up_date: "",
+    follow_up_days: "",
+    notes: "",
+  };
+
+  const validationSchema = Yup.object({
+    follow_up_date: Yup.string()
+      .required("Follow-up date is required")
+      .test(
+        "min-tomorrow",
+        "Follow-up date must be from tomorrow onwards",
+        (value) => !value || value >= tomorrowStr(),
+      ),
+    follow_up_days: Yup.mixed().test(
+      "min-one-day",
+      "Follow-up days must be at least 1",
+      (value) =>
+        value === "" ||
+        value === null ||
+        value === undefined ||
+        Number(value) >= 1,
+    ),
+    notes: Yup.string().nullable(),
+  });
+
   const handleSubmit = (values, { resetForm }) => {
     if (!canManage) return;
 
     const payload = {
-      follow_up_days: Number(values.follow_up_days),
       follow_up_date: values.follow_up_date,
+      // days optional hai, lekin agar hai to minimum 1
+      ...(values.follow_up_days !== "" &&
+        Number(values.follow_up_days) >= 1 && {
+          follow_up_days: Number(values.follow_up_days),
+        }),
       notes: values.notes?.trim() || null,
-      book_appointment: !!values.book_appointment,
     };
-
-    if (values.book_appointment) {
-      payload.provider_id = values.provider_id?.value;
-      payload.appointment_type_id = values.appointment_type_id?.value;
-      payload.start_time = values.start_time;
-      payload.end_time = values.end_time;
-      payload.appointment_notes = values.appointment_notes?.trim() || null;
-    }
 
     createMutation.mutate(
       { visitId, payload },
       {
-        onSuccess: () => resetForm(),
+        onSuccess: () => {
+          setShowForm(false);
+          resetForm();
+          onFollowUpCreated?.();
+        },
       },
     );
   };
 
-  const isPending = createMutation.isPending;
+  const columns = [
+    {
+      header: "Follow-up Date",
+      accessor: "follow_up_date",
+      render: (v, row) => (
+        <div>
+          <p className="text-xs font-semibold text-ink-900">{formatDate(v)}</p>
+          {row.follow_up_days != null && (
+            <p className="text-[10px] text-ink-500">
+              {row.follow_up_days} days from today
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "Notes",
+      accessor: "notes",
+      render: (v) => (
+        <span className="max-w-[240px] truncate text-xs text-ink-500">
+          {v || "—"}
+        </span>
+      ),
+    },
+  ];
 
-  // ==================== READ-ONLY GUARD ====================
-  // View-only users cannot create follow-ups
-  if (!canManage) {
+  if (!canView) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-start gap-2.5 rounded-lg border border-warn-200 bg-warn-50/50 px-4 py-3">
-          <FiLock className="mt-0.5 h-4 w-4 shrink-0 text-warn-700" />
-          <div>
-            <p className="text-xs font-semibold text-warn-900">
-              Read-only access
-            </p>
-            <p className="mt-0.5 text-[11px] text-warn-800">
-              You can view follow-up details, but creating a follow-up requires
-              manage permission.
-            </p>
-          </div>
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+          <FiLock className="h-6 w-6" />
         </div>
-
-        <div className="rounded-xl border border-dashed border-ink-200 bg-ink-50/40 py-12 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100">
-            <FiCalendar className="h-5 w-5 text-ink-500" />
-          </div>
-          <p className="text-sm font-medium text-ink-700">
-            No follow-up available
-          </p>
-          <p className="mt-1 text-xs text-ink-500">
-            You do not have permission to create follow-ups for this visit.
-          </p>
-        </div>
+        <p className="mt-3 text-sm font-semibold text-ink-900">Access Denied</p>
+        <p className="mt-1 max-w-sm text-xs text-ink-500">
+          You do not have permission to view follow-ups.
+        </p>
       </div>
     );
   }
 
+  if (isLoading) return <Loader text="Loading follow-ups..." />;
+
   return (
-    <div className="overflow-hidden rounded-xl border border-ink-100 bg-surface">
-      {/* Header */}
-      <div className="border-b border-ink-100 bg-ink-50/40 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <FiCalendar className="h-4 w-4 text-ink-500" />
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-600">
-            Create Follow-up
-          </p>
-        </div>
+    <div className="space-y-4">
+      {/* Top Bar: Sirf Add Button */}
+      <div className="flex items-center justify-end gap-2">
+        {canManage && !showForm && (
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-surface shadow-sm hover:bg-brand-700"
+          >
+            <FiPlus className="h-4 w-4" />
+            Add Follow-up
+          </button>
+        )}
       </div>
 
-      {/* Form */}
-      <Formik
-        initialValues={initialValues}
-        validationSchema={validationSchema}
-        onSubmit={handleSubmit}
-        enableReinitialize
-      >
-        <FollowUpFormInner
-          isPending={isPending}
-          providerOptions={providerOptions}
-          appointmentTypeOptions={appointmentTypeOptions}
+      {/* Form Section */}
+      {showForm && canManage && (
+        <div className="rounded-xl border border-ink-200 bg-surface p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-sm font-bold text-ink-900">New Follow-up Plan</p>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="cursor-pointer rounded-lg p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
+            >
+              <FiX className="h-5 w-5" />
+            </button>
+          </div>
+
+          <Formik
+            initialValues={initialValues}
+            validationSchema={validationSchema}
+            onSubmit={handleSubmit}
+          >
+            <FollowUpFormInner
+              isPending={createMutation.isPending}
+              onCancel={() => setShowForm(false)}
+            />
+          </Formik>
+        </div>
+      )}
+
+      {/* Table Section */}
+      {list.length > 0 && (
+        <CustomeTable
+          columns={columns}
+          data={list}
+          emptyText="No follow-ups yet."
         />
-      </Formik>
+      )}
     </div>
   );
 };

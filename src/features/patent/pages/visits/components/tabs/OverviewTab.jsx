@@ -7,12 +7,15 @@ import {
   FiFileText,
   FiActivity,
   FiCheckCircle,
+  FiCreditCard,
+  FiTag,
+  FiInfo,
 } from "react-icons/fi";
 import { getConsultationEndSourceLabel } from "../../../../queries/visits";
 
 // ==================== HELPERS ====================
 const formatTime12 = (t) => {
-  if (!t) return "—";
+  if (!t) return null;
   const [h, m] = t.slice(0, 5).split(":").map(Number);
   const period = h >= 12 ? "PM" : "AM";
   const hr = h === 0 ? 12 : h > 12 ? h - 12 : h;
@@ -20,7 +23,7 @@ const formatTime12 = (t) => {
 };
 
 const formatDateTime = (d) => {
-  if (!d) return "—";
+  if (!d) return null;
   try {
     return new Date(d).toLocaleString("en-GB", {
       day: "2-digit",
@@ -34,15 +37,67 @@ const formatDateTime = (d) => {
   }
 };
 
+// Human readable booking source
+const getBookingSourceLabel = (source) => {
+  if (!source) return null;
+  const map = {
+    walk_in: "Walk-in",
+    reception: "Reception",
+    patient_app: "Patient App",
+  };
+  return map[source] || String(source).replace(/_/g, " ");
+};
+
 // ==================== MAIN ====================
 const OverviewTab = ({ visit }) => {
+  if (!visit) return null;
+
   const timing = visit.timing || {};
   const schedule = visit.visit_schedule || {};
+  const appointment = visit.appointment;
+
+  // Calculate values
+  const bookingSource = getBookingSourceLabel(appointment?.booking_source);
+  const startTime = formatTime12(schedule.start_time);
+  const endTime = formatTime12(schedule.end_time);
+  const checkedInAt = formatDateTime(timing.check_in_at);
+  const startedAt = formatDateTime(timing.consultation_started_at);
+  const endedAt = formatDateTime(timing.consultation_ended_at);
+  const endSource = timing.consultation_end_source
+    ? getConsultationEndSourceLabel(timing.consultation_end_source)
+    : null;
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      {/* Linked Appointment */}
-      {visit.appointment && (
+      {/* 1. VISIT DETAILS */}
+      <Section
+        title="Visit Details"
+        icon={FiInfo}
+        iconBg="bg-brand-50"
+        iconColor="text-brand-600"
+      >
+        <InfoGrid>
+          <InfoRow
+            icon={FiTag}
+            label="Visit Type"
+            value={visit.visit_type_label || visit.visit_type}
+          />
+          <InfoRow
+            icon={FiActivity}
+            label="Visit Status"
+            value={visit.status_label || visit.status}
+          />
+          <InfoRow
+            icon={FiCreditCard}
+            label="Payment Status"
+            value={visit.payment_status_label || visit.payment_status}
+          />
+          <InfoRow icon={FiCalendar} label="Visit Date" value={schedule.date} />
+        </InfoGrid>
+      </Section>
+
+      {/* 2. LINKED APPOINTMENT (Only shows if appointment exists) */}
+      {appointment && (
         <Section
           title="Linked Appointment"
           icon={FiFileText}
@@ -53,27 +108,32 @@ const OverviewTab = ({ visit }) => {
             <InfoRow
               icon={FiFileText}
               label="Appointment ID"
-              value={`#${visit.appointment.id}`}
+              value={`#${appointment.id}`}
             />
-            {visit.appointment.appointment_date && (
-              <InfoRow
-                icon={FiCalendar}
-                label="Date"
-                value={visit.appointment.appointment_date}
-              />
-            )}
-            {visit.appointment.start_time && (
-              <InfoRow
-                icon={FiClock}
-                label="Time"
-                value={`${formatTime12(visit.appointment.start_time)} – ${formatTime12(visit.appointment.end_time)}`}
-              />
-            )}
+            <InfoRow
+              icon={FiTag}
+              label="Booking Source"
+              value={bookingSource}
+            />
+            <InfoRow
+              icon={FiCalendar}
+              label="Appointment Date"
+              value={appointment.appointment_date}
+            />
+            <InfoRow
+              icon={FiClock}
+              label="Time Slot"
+              value={
+                appointment.start_time && appointment.end_time
+                  ? `${formatTime12(appointment.start_time)} – ${formatTime12(appointment.end_time)}`
+                  : null
+              }
+            />
           </InfoGrid>
         </Section>
       )}
 
-      {/* Visit Schedule */}
+      {/* 3. VISIT SCHEDULE */}
       <Section
         title="Visit Schedule"
         icon={FiCalendar}
@@ -81,30 +141,13 @@ const OverviewTab = ({ visit }) => {
         iconColor="text-brand-600"
       >
         <InfoGrid>
-          <InfoRow
-            icon={FiCalendar}
-            label="Date"
-            value={schedule.date || visit.visit_date || "—"}
-          />
-          <InfoRow
-            icon={FiFileText}
-            label="Type"
-            value={visit.visit_type_label || visit.visit_type || "—"}
-          />
-          <InfoRow
-            icon={FiClock}
-            label="Start Time"
-            value={formatTime12(schedule.start_time || visit.slot_start_time)}
-          />
-          <InfoRow
-            icon={FiClock}
-            label="End Time"
-            value={formatTime12(schedule.end_time || visit.slot_end_time)}
-          />
+          <InfoRow icon={FiCalendar} label="Date" value={schedule.date} />
+          <InfoRow icon={FiClock} label="Start Time" value={startTime} />
+          <InfoRow icon={FiClock} label="End Time" value={endTime} />
         </InfoGrid>
       </Section>
 
-      {/* Consultation Timing */}
+      {/* 4. CONSULTATION TIMING (Only shows available timings) */}
       <Section
         title="Consultation Timing"
         icon={FiClock}
@@ -115,31 +158,15 @@ const OverviewTab = ({ visit }) => {
           <InfoRow
             icon={FiCheckCircle}
             label="Checked In At"
-            value={formatDateTime(timing.check_in_at)}
+            value={checkedInAt}
           />
-          <InfoRow
-            icon={FiClock}
-            label="Consultation Started"
-            value={formatDateTime(timing.consultation_started_at)}
-          />
-          <InfoRow
-            icon={FiClock}
-            label="Consultation Ended"
-            value={formatDateTime(timing.consultation_ended_at)}
-          />
-          <InfoRow
-            icon={FiActivity}
-            label="End Source"
-            value={
-              timing.consultation_end_source
-                ? getConsultationEndSourceLabel(timing.consultation_end_source)
-                : "—"
-            }
-          />
+          <InfoRow icon={FiClock} label="Started At" value={startedAt} />
+          <InfoRow icon={FiClock} label="Ended At" value={endedAt} />
+          <InfoRow icon={FiActivity} label="End Source" value={endSource} />
         </InfoGrid>
       </Section>
 
-      {/* Audit */}
+      {/* 5. AUDIT */}
       <Section
         title="Audit Information"
         icon={FiFileText}
@@ -147,20 +174,16 @@ const OverviewTab = ({ visit }) => {
         iconColor="text-ink-600"
       >
         <InfoGrid>
-          {visit.created_by && (
-            <InfoRow
-              icon={FiUser}
-              label="Created By"
-              value={visit.created_by.name || "—"}
-            />
-          )}
-          {visit.updated_by && (
-            <InfoRow
-              icon={FiUser}
-              label="Updated By"
-              value={visit.updated_by.name || "—"}
-            />
-          )}
+          <InfoRow
+            icon={FiUser}
+            label="Created By"
+            value={visit.created_by?.name}
+          />
+          <InfoRow
+            icon={FiUser}
+            label="Updated By"
+            value={visit.updated_by?.name}
+          />
           <InfoRow
             icon={FiCalendar}
             label="Created At"
@@ -194,26 +217,47 @@ const Section = ({ title, icon: Icon, iconBg, iconColor, children }) => (
   </div>
 );
 
-const InfoGrid = ({ children }) => (
-  <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
-    {children}
-  </div>
-);
+const InfoGrid = ({ children }) => {
+  // Filter out empty/null children so grid doesn't break
+  const validChildren = Array.isArray(children)
+    ? children.filter(Boolean)
+    : children;
 
-const InfoRow = ({ icon: Icon, label, value }) => (
-  <div>
-    <div className="flex items-start gap-2">
-      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-400" />
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-ink-500">
-          {label}
-        </p>
-        <p className="mt-0.5 break-words text-sm font-medium text-ink-800">
-          {value}
-        </p>
+  if (
+    !validChildren ||
+    (Array.isArray(validChildren) && validChildren.length === 0)
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
+      {validChildren}
+    </div>
+  );
+};
+
+// ✅ InfoRow returns null if value is empty/null
+const InfoRow = ({ icon: Icon, label, value }) => {
+  if (value === null || value === undefined || value === "" || value === "—") {
+    return null;
+  }
+
+  return (
+    <div>
+      <div className="flex items-start gap-2">
+        <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-400" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-ink-500">
+            {label}
+          </p>
+          <p className="mt-0.5 break-words text-sm font-medium text-ink-800">
+            {value}
+          </p>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default OverviewTab;

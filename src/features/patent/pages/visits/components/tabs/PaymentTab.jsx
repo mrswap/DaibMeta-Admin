@@ -18,7 +18,24 @@ import {
 import { DatePicker } from "../../../../common/form";
 import Loader from "../../../../common/Loader";
 
+// ==================== CONSTANTS ====================
+// Form khulte hi ye default fee row aayegi (edit / delete kar sakte hain)
+const DEFAULT_FEE_NAME = "Consultation Fee";
+const createDefaultRows = () => [{ key: DEFAULT_FEE_NAME, amount: "" }];
+
 // ==================== HELPERS ====================
+// Aaj ki date (YYYY-MM-DD, local timezone)
+const todayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+// "Consultation Fee" -> "consultation_fee" (API ko snake_case key jati hai)
+const toBreakupKey = (name) => name.trim().toLowerCase().replace(/\s+/g, "_");
+
 const humanizeKey = (key) =>
   key
     .split("_")
@@ -28,7 +45,9 @@ const humanizeKey = (key) =>
 const formatDateTime = (d) => {
   if (!d) return "—";
   try {
-    return new Date(d).toLocaleString("en-GB", {
+    const date = new Date(String(d).replace(" ", "T"));
+    if (Number.isNaN(date.getTime())) return d;
+    return date.toLocaleString("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -110,11 +129,11 @@ const PaymentTab = ({ visitId, canView = false, canManage = false }) => {
           </span>
         </div>
 
-        {/* Add Payment button — only if canManage */}
-        {canManage && (
+        {/* Add Payment button — only if canManage and form closed */}
+        {canManage && !formOpen && (
           <button
             type="button"
-            onClick={() => setFormOpen((v) => !v)}
+            onClick={() => setFormOpen(true)}
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-surface hover:bg-brand-700"
           >
             <FiPlus className="h-3.5 w-3.5" />
@@ -199,12 +218,14 @@ const PaymentForm = ({ visitId, onClose }) => {
   const createMutation = useCreatePayment();
 
   const [status, setStatus] = useState("paid");
-  const [feeRows, setFeeRows] = useState([{ key: "", amount: "" }]);
+  // 👇 Default: ek "consultation_fee" row hamesha aayegi
+  const [feeRows, setFeeRows] = useState(createDefaultRows);
   const [taxAmount, setTaxAmount] = useState("");
   const [amount, setAmount] = useState("");
   const [balanceAmount, setBalanceAmount] = useState("");
   const [remark, setRemark] = useState("");
-  const [paymentDate, setPaymentDate] = useState("");
+  // 👇 Default: aaj ki date (change / clear kar sakte hain)
+  const [paymentDate, setPaymentDate] = useState(todayStr);
 
   const isFree = status === "free";
   const isPending = createMutation.isPending;
@@ -227,6 +248,7 @@ const PaymentForm = ({ visitId, onClose }) => {
     setFeeRows((rows) => [...rows, { key: "", amount: "" }]);
   };
 
+  // Default row ko bhi delete kar sakte hain (sab rows delete ho sakti hain)
   const handleRemoveRow = (idx) => {
     setFeeRows((rows) => rows.filter((_, i) => i !== idx));
   };
@@ -240,9 +262,12 @@ const PaymentForm = ({ visitId, onClose }) => {
   const handleSubmit = () => {
     const breakup = {};
     feeRows.forEach((r) => {
-      const k = r.key?.trim();
+      const k = r.key ? toBreakupKey(r.key) : "";
       const v = Number(r.amount);
-      if (k && !Number.isNaN(v)) breakup[k] = v;
+      if (k && !Number.isNaN(v)) {
+        // same naam ki do rows ho to amount add ho jaye (overwrite na ho)
+        breakup[k] = (breakup[k] || 0) + v;
+      }
     });
 
     const payload = {
@@ -339,47 +364,49 @@ const PaymentForm = ({ visitId, onClose }) => {
                 </button>
               </div>
 
-              <div className="space-y-2">
-                {feeRows.map((row, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={row.key}
-                      onChange={(e) =>
-                        handleRowChange(idx, "key", e.target.value)
-                      }
-                      placeholder="Fee name (e.g. consultation_fee)"
-                      maxLength={100}
-                      disabled={isPending}
-                      className="h-9 flex-1 rounded-lg border border-ink-200 bg-surface px-2.5 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
-                    <input
-                      type="number"
-                      value={row.amount}
-                      onChange={(e) =>
-                        handleRowChange(idx, "amount", e.target.value)
-                      }
-                      placeholder="Amount"
-                      min={0}
-                      disabled={isPending}
-                      className="h-9 w-28 rounded-lg border border-ink-200 bg-surface px-2.5 text-xs tabular-nums outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveRow(idx)}
-                      disabled={feeRows.length === 1 || isPending}
-                      title="Remove"
-                      className="cursor-pointer rounded-md p-1.5 text-danger-500 hover:bg-danger-50 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <FiTrash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-1.5 text-[10px] text-ink-500">
-                Use snake_case keys (e.g. consultation_fee, registration_fee,
-                medicine)
-              </p>
+              {feeRows.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-ink-200 bg-surface px-3 py-4 text-center text-[11px] text-ink-500">
+                  No fees added. Click “Add Fee” to add a fee item.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {feeRows.map((row, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={row.key}
+                        onChange={(e) =>
+                          handleRowChange(idx, "key", e.target.value)
+                        }
+                        placeholder="Fee name (e.g. Registration Fee)"
+                        maxLength={100}
+                        disabled={isPending}
+                        className="h-9 flex-1 rounded-lg border border-ink-200 bg-surface px-2.5 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                      <input
+                        type="number"
+                        value={row.amount}
+                        onChange={(e) =>
+                          handleRowChange(idx, "amount", e.target.value)
+                        }
+                        placeholder="Amount"
+                        min={0}
+                        disabled={isPending}
+                        className="h-9 w-28 rounded-lg border border-ink-200 bg-surface px-2.5 text-xs tabular-nums outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRow(idx)}
+                        disabled={isPending}
+                        title="Remove"
+                        className="cursor-pointer rounded-md p-1.5 text-danger-500 hover:bg-danger-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <FiTrash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Totals */}
@@ -465,7 +492,7 @@ const PaymentForm = ({ visitId, onClose }) => {
 
         {/* Payment date */}
         <DatePicker
-          label="Payment Date (optional)"
+          label="Payment Date"
           name="payment_date"
           isFormik={false}
           value={paymentDate}
