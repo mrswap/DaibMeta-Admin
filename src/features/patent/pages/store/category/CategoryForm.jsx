@@ -27,8 +27,8 @@ const CategoryForm = () => {
 
   const { can, isLoading: permLoading } = usePermission();
 
-  const canView = can("store_categories", "view");
-  const canManage = can("store_categories", "manage");
+  const canView = can("store", "view");
+  const canManage = can("store", "manage");
 
   const [imagePreview, setImagePreview] = useState("");
   const [imageError, setImageError] = useState("");

@@ -15,8 +15,8 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const initialValues = {
-    email: "swapnil@netswaptech.com",
-    password: "Admin@12345",
+    email: "",
+    password: "",
   };
 
   const validationSchema = Yup.object({
