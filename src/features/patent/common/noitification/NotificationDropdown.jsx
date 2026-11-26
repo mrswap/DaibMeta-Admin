@@ -46,7 +46,11 @@ const NotificationDropdown = ({ open, onClose }) => {
   const navigate = useNavigate();
   const ref = useRef(null);
 
-  const { data, isLoading } = useNotifications({ per_page: 10, page: 1 });
+  // const { data, isLoading } = useNotifications({ per_page: 10, page: 1 });
+  const { data, isLoading } = useNotifications(
+    { per_page: 10, page: 1 },
+    { refetchInterval: 30000 }, // 👈 dropdown har 30 sec mein auto-refresh
+  );
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
