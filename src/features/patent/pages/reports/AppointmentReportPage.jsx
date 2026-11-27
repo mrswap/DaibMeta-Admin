@@ -81,6 +81,15 @@ const safe = (v, fallback = "—") =>
 
 const num = (v) => Number(v) || 0;
 
+// Format snake_case to Title Case (e.g., in_consultation -> In Consultation)
+const formatLabel = (str) => {
+  if (!str) return "—";
+  return String(str)
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
 // Backend label mapping
 const BOOKING_SOURCE_LABELS = {
   walk_in: "Walk In",
@@ -264,7 +273,7 @@ const AppointmentReportPage = () => {
       summary?.booking_source_breakdown ||
       [];
     return toChartData(s, "booking_source", "total").map((r) => ({
-      name: BOOKING_SOURCE_LABELS[r.name] || r.name,
+      name: BOOKING_SOURCE_LABELS[r.name] || formatLabel(r.name),
       value: r.value,
     }));
   }, [charts, summary]);
@@ -273,7 +282,7 @@ const AppointmentReportPage = () => {
     const s =
       charts?.appointment_status_breakdown || summary?.status_breakdown || [];
     return toChartData(s, "status", "total").map((r) => ({
-      name: STATUS_LABELS[r.name] || r.name,
+      name: STATUS_LABELS[r.name] || formatLabel(r.name),
       value: r.value,
     }));
   }, [charts, summary]);
@@ -360,8 +369,8 @@ const AppointmentReportPage = () => {
           <span className="text-xs text-ink-600">
             {safe(
               row.appointment_type?.name ||
-                row.appointment_type_label ||
-                row.appointment_type,
+                formatLabel(row.appointment_type_label) ||
+                formatLabel(row.appointment_type),
             )}
           </span>
         ),
@@ -400,8 +409,7 @@ const AppointmentReportPage = () => {
           <span className="text-xs text-ink-600">
             {safe(
               BOOKING_SOURCE_LABELS[row.booking_source] ||
-                row.booking_source_label ||
-                row.booking_source,
+                formatLabel(row.booking_source_label || row.booking_source),
             )}
           </span>
         ),
@@ -417,7 +425,9 @@ const AppointmentReportPage = () => {
                 : "bg-ink-100 text-ink-700"
             }`}
           >
-            {row.slot_type === "free" ? "Free" : "Normal"}
+            {row.slot_type === "free"
+              ? "Free"
+              : formatLabel(row.slot_type) || "Normal"}
           </span>
         ),
       },
@@ -425,8 +435,10 @@ const AppointmentReportPage = () => {
         header: "Status",
         align: "left",
         render: (_, row) => {
+          // Use formatLabel to handle any raw snake_case strings from the API
           const label =
-            STATUS_LABELS[row.status] || row.status_label || row.status || "—";
+            STATUS_LABELS[row.status] ||
+            formatLabel(row.status_label || row.status);
           const cls =
             row.status === "completed"
               ? "bg-brand-50 text-brand-700"
