@@ -1,5 +1,6 @@
-// // Full file — same as before, sirf placeholders change
+// // src/features/patent/pages/patients/components/PatientForm.jsx
 
+// import { useParams, useNavigate } from "react-router-dom";
 // import { Formik, Form, useFormikContext } from "formik";
 // import * as Yup from "yup";
 // import {
@@ -11,8 +12,10 @@
 //   FiMapPin,
 //   FiLock,
 //   FiUsers,
+//   FiArrowLeft,
 // } from "react-icons/fi";
 // import {
+//   usePatient,
 //   useCreatePatient,
 //   useUpdatePatient,
 //   usePatients,
@@ -23,12 +26,12 @@
 //   TextareaField,
 //   SelectField,
 //   FormButton,
-//   ToggleSwitch,
 //   DatePicker,
 //   PhoneInputField,
 //   validatePhone,
 // } from "../../../common/form";
 // import { usePermission } from "../../../hooks/usePermission";
+// import Loader from "../../../common/Loader";
 
 // const SEX_OPTIONS = [
 //   { value: "male", label: "Male" },
@@ -54,11 +57,11 @@
 // );
 
 // const PatientFormInner = ({
-//   onClose,
 //   isEdit,
 //   isPending,
 //   relationOptions,
 //   primaryPatientOptions,
+//   onCancel,
 // }) => {
 //   const { values, setFieldValue } = useFormikContext();
 //   const isFamily = values.patient_type === "family";
@@ -289,7 +292,7 @@
 //       <div className="sticky bottom-0 flex justify-end gap-3 border-t border-ink-100 bg-surface px-5 py-4 sm:px-6">
 //         <button
 //           type="button"
-//           onClick={onClose}
+//           onClick={onCancel}
 //           disabled={isPending}
 //           className="cursor-pointer rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-60"
 //         >
@@ -315,13 +318,17 @@
 //   );
 // };
 
-// const PatientForm = ({ open, onClose, initialData, onSuccess }) => {
-//   const isEdit = !!initialData;
+// const PatientForm = () => {
+//   const { id } = useParams();
+//   const navigate = useNavigate();
+//   const isEdit = !!id;
+
 //   const createMutation = useCreatePatient();
 //   const updateMutation = useUpdatePatient();
-//   const { can } = usePermission();
-
+//   const { can, isLoading: permLoading } = usePermission();
 //   const canManage = can("patients", "manage");
+
+//   const { data: existing, isLoading: loadingPatient } = usePatient(id);
 
 //   const { data: relationTypes = [] } = useRelationTypes();
 //   const relationOptions = relationTypes.map((r) => ({
@@ -338,12 +345,27 @@
 //     label: `${p.name} — ${p.patient_id || p.id}`,
 //   }));
 
-//   if (!canManage) return null;
+//   if (permLoading) return <Loader text="Checking permissions..." />;
+//   if (!canManage) {
+//     return (
+//       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+//         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-danger-50 text-danger-500">
+//           <FiLock className="h-7 w-7" />
+//         </div>
+//         <h2 className="mt-4 text-lg font-semibold text-ink-900">
+//           Access Denied
+//         </h2>
+//         <p className="mt-1 max-w-md text-sm text-ink-500">
+//           You do not have permission to manage patients.
+//         </p>
+//       </div>
+//     );
+//   }
 
-//   if (!open) return null;
+//   if (isEdit && loadingPatient) return <Loader text="Loading patient..." />;
 
 //   const isPending = createMutation.isPending || updateMutation.isPending;
-
+//   const initialData = isEdit ? existing : null;
 //   const isFamilyMemberExisting =
 //     isEdit && !!initialData?.linked_primary_patient_id;
 
@@ -449,59 +471,50 @@
 //       : createMutation.mutateAsync(payload);
 
 //     mutation
-//       .then((response) => {
-//         if (onSuccess) {
-//           const patientData =
-//             response?.data?.data || response?.data || response;
-//           onSuccess(patientData);
-//         }
-//         onClose();
+//       .then(() => {
+//         navigate("/patients");
 //       })
 //       .catch(() => {});
 //   };
 
 //   return (
-//     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-//       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-
-//       <div className="relative z-10 max-h-[95vh] w-full max-w-3xl overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xl">
-//         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-ink-100 bg-surface px-5 py-4 sm:px-6">
-//           <div>
-//             <h2 className="font-jakarta text-lg font-bold text-ink-900">
-//               {isEdit ? "Edit Patient" : "Add New Patient"}
-//             </h2>
-//             <p className="mt-0.5 text-xs text-ink-500">
-//               {isEdit
-//                 ? "Update patient information"
-//                 : "Fill in the patient details below"}
-//             </p>
-//           </div>
-//           <button
-//             type="button"
-//             onClick={onClose}
-//             className="cursor-pointer rounded-lg p-1 text-ink-500 hover:bg-ink-50"
-//           >
-//             <FiX className="h-5 w-5" />
-//           </button>
+//     <div className="space-y-5">
+//       <div className="flex items-center gap-3">
+//         <button
+//           type="button"
+//           onClick={() => navigate("/patients")}
+//           className="cursor-pointer rounded-lg border border-ink-200 p-2 text-ink-600 hover:bg-ink-50"
+//         >
+//           <FiArrowLeft className="h-4 w-4" />
+//         </button>
+//         <div>
+//           <h1 className="font-jakarta text-2xl font-bold text-ink-900">
+//             {isEdit ? "Edit Patient" : "Add New Patient"}
+//           </h1>
+//           <p className="mt-1 text-sm text-ink-500">
+//             {isEdit
+//               ? "Update patient information"
+//               : "Fill in the patient details below"}
+//           </p>
 //         </div>
+//       </div>
 
-//         <div className="max-h-[calc(95vh-73px)] overflow-y-auto">
-//           <Formik
-//             key={initialData?.id || "new"}
-//             initialValues={initialValues}
-//             validationSchema={validationSchema}
-//             onSubmit={handleSubmit}
-//             enableReinitialize
-//           >
-//             <PatientFormInner
-//               onClose={onClose}
-//               isEdit={isEdit}
-//               isPending={isPending}
-//               relationOptions={relationOptions}
-//               primaryPatientOptions={primaryPatientOptions}
-//             />
-//           </Formik>
-//         </div>
+//       <div className="overflow-hidden rounded-xl border border-ink-200 bg-surface">
+//         <Formik
+//           key={initialData?.id || "new"}
+//           initialValues={initialValues}
+//           validationSchema={validationSchema}
+//           onSubmit={handleSubmit}
+//           enableReinitialize
+//         >
+//           <PatientFormInner
+//             isEdit={isEdit}
+//             isPending={isPending}
+//             relationOptions={relationOptions}
+//             primaryPatientOptions={primaryPatientOptions}
+//             onCancel={() => navigate("/patients")}
+//           />
+//         </Formik>
 //       </div>
 //     </div>
 //   );
@@ -543,6 +556,30 @@ import {
 } from "../../../common/form";
 import { usePermission } from "../../../hooks/usePermission";
 import Loader from "../../../common/Loader";
+
+// PIN field UI me nahi dikhti, backend ko required hai isliye hamesha ye jayega
+const DEFAULT_PIN = "0000";
+
+// API kabhi "9586555666" deta hai, kabhi "+919586555666".
+// PhoneInput ko hamesha "+91XXXXXXXXXX" format chahiye, tabhi flag + code dikhta hai.
+const normalizeIndianMobile = (mobile) => {
+  if (!mobile) return "";
+  const raw = String(mobile).trim().replace(/\s/g, "");
+
+  // Pehle se +91 (ya koi aur country code) hai to as-is
+  if (raw.startsWith("+")) return raw;
+
+  const digits = raw.replace(/\D/g, "");
+
+  // "919586555666" -> "+919586555666"
+  if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
+
+  // "09586555666" -> leading 0 hata do
+  const national =
+    digits.length === 11 && digits.startsWith("0") ? digits.slice(1) : digits;
+
+  return `+91${national}`;
+};
 
 const SEX_OPTIONS = [
   { value: "male", label: "Male" },
@@ -591,7 +628,11 @@ const PatientFormInner = ({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setFieldValue("patient_type", opt.value)}
+                  onClick={() => {
+                    setFieldValue("patient_type", opt.value);
+                    // Family me email nahi hota, switch pe clear kar do
+                    if (opt.value === "family") setFieldValue("email", "");
+                  }}
                   className={`flex cursor-pointer items-center gap-2.5 rounded-lg border p-3 text-left transition ${
                     isActive
                       ? "border-brand-500 bg-brand-50 ring-1 ring-brand-500"
@@ -675,17 +716,6 @@ const PatientFormInner = ({
               placeholder="Select date of birth"
               max={new Date().toISOString().slice(0, 10)}
             />
-
-            <div className="relative">
-              <TextInput
-                label={isEdit ? "New PIN (leave blank to keep)" : "PIN"}
-                name="pin"
-                type="password"
-                placeholder="••••"
-                maxLength={4}
-                required={!isEdit}
-              />
-            </div>
           </div>
         </div>
 
@@ -693,7 +723,11 @@ const PatientFormInner = ({
           <SectionHeader
             icon={FiPhone}
             title="Contact Information"
-            subtitle="Mobile is required, email is optional"
+            subtitle={
+              isFamily
+                ? "Mobile number is required"
+                : "Mobile is required, email is optional"
+            }
           />
 
           <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
@@ -705,13 +739,16 @@ const PatientFormInner = ({
               required
             />
 
-            <TextInput
-              label="Email (optional)"
-              name="email"
-              type="email"
-              placeholder="Enter email address"
-              maxLength={150}
-            />
+            {/* Family member ke liye email field nahi dikhegi */}
+            {!isFamily && (
+              <TextInput
+                label="Email (optional)"
+                name="email"
+                type="email"
+                placeholder="Enter email address"
+                maxLength={150}
+              />
+            )}
           </div>
         </div>
 
@@ -883,7 +920,8 @@ const PatientForm = () => {
   const initialValues = {
     patient_type: isFamilyMemberExisting ? "family" : "primary",
     name: initialData?.name || "",
-    mobile: initialData?.mobile || "",
+    // Edit me "9586555666" -> "+919586555666" taki flag + +91 dikhe
+    mobile: normalizeIndianMobile(initialData?.mobile),
     email: initialData?.email || "",
     age: initialData?.age ?? "",
     dob: initialData?.dob || "",
@@ -895,7 +933,6 @@ const PatientForm = () => {
         }
       : null,
     address: initialData?.address || "",
-    pin: "",
     relation_type_id: initialData?.relation_type_id
       ? {
           value: initialData.relation_type_id,
@@ -932,17 +969,6 @@ const PatientForm = () => {
     dob: Yup.string().nullable(),
     sex: Yup.object().nullable().required("Sex is required"),
     address: Yup.string().nullable(),
-    pin: isEdit
-      ? Yup.string()
-          .nullable()
-          .test(
-            "pin-format",
-            "PIN must be 4 digits",
-            (v) => !v || /^[0-9]{4}$/.test(v),
-          )
-      : Yup.string()
-          .required("PIN is required")
-          .matches(/^[0-9]{4}$/, "PIN must be exactly 4 digits"),
     relation_type_id: Yup.object().when("patient_type", {
       is: "family",
       then: (schema) => schema.nullable().required("Relation is required"),
@@ -958,20 +984,23 @@ const PatientForm = () => {
   });
 
   const handleSubmit = (values) => {
+    const isFamily = values.patient_type === "family";
+
     const payload = {
       name: values.name.trim(),
       mobile: values.mobile.trim(),
-      email: values.email?.trim() || null,
+      // Family member ke liye email hamesha null
+      email: isFamily ? null : values.email?.trim() || null,
       age: Number(values.age),
       dob: values.dob || null,
       sex: values.sex?.value,
       address: values.address?.trim() || null,
       status: values.status,
+      // PIN UI me nahi hai, add + edit dono me 0000 jayega
+      pin: DEFAULT_PIN,
     };
 
-    if (values.pin) payload.pin = values.pin;
-
-    if (values.patient_type === "family") {
+    if (isFamily) {
       payload.relation_type_id = values.relation_type_id?.value;
       payload.linked_primary_patient_id =
         values.linked_primary_patient_id?.value;
