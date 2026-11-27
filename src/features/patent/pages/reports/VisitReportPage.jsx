@@ -80,6 +80,37 @@ const safe = (v, fallback = "—") =>
 
 const num = (v) => Number(v) || 0;
 
+// Format snake_case to Title Case (e.g., in_consultation -> In Consultation)
+const formatLabel = (str) => {
+  if (!str) return "—";
+  return String(str)
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+// Backend label mapping
+const STATUS_LABELS = {
+  waiting: "Waiting",
+  in_consultation: "In Consultation",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  no_show: "No Show",
+};
+
+const PAYMENT_STATUS_LABELS = {
+  free: "Free",
+  unpaid: "Unpaid",
+  partial: "Partial",
+  paid: "Paid",
+};
+
+const VISIT_TYPE_LABELS = {
+  consultation: "Consultation",
+  follow_up: "Follow Up",
+  walk_in: "Walk In",
+};
+
 // Array -> chart data
 const toChartData = (raw, nameKey = "label", valueKey = "value") => {
   if (!raw) return [];
@@ -251,35 +282,30 @@ const VisitReportPage = () => {
     }));
   }, [charts]);
 
-  const statusData = useMemo(
-    () =>
-      toChartData(
-        summary?.status_breakdown || charts?.visit_status_breakdown,
-        "status",
-        "total",
-      ),
-    [charts, summary],
-  );
+  const statusData = useMemo(() => {
+    const s = summary?.status_breakdown || charts?.visit_status_breakdown;
+    return toChartData(s, "status", "total").map((r) => ({
+      name: STATUS_LABELS[r.name] || formatLabel(r.name),
+      value: r.value,
+    }));
+  }, [charts, summary]);
 
-  const typeData = useMemo(
-    () =>
-      toChartData(
-        summary?.visit_type_breakdown || charts?.visit_type_breakdown,
-        "visit_type",
-        "total",
-      ),
-    [charts, summary],
-  );
+  const typeData = useMemo(() => {
+    const t = summary?.visit_type_breakdown || charts?.visit_type_breakdown;
+    return toChartData(t, "visit_type", "total").map((r) => ({
+      name: VISIT_TYPE_LABELS[r.name] || formatLabel(r.name),
+      value: r.value,
+    }));
+  }, [charts, summary]);
 
-  const paymentStatusData = useMemo(
-    () =>
-      toChartData(
-        summary?.payment_status_breakdown || charts?.payment_status_breakdown,
-        "payment_status",
-        "total",
-      ),
-    [charts, summary],
-  );
+  const paymentStatusData = useMemo(() => {
+    const p =
+      summary?.payment_status_breakdown || charts?.payment_status_breakdown;
+    return toChartData(p, "payment_status", "total").map((r) => ({
+      name: PAYMENT_STATUS_LABELS[r.name] || formatLabel(r.name),
+      value: r.value,
+    }));
+  }, [charts, summary]);
 
   // ==================== RESET ====================
   const resetFilters = () => {
@@ -380,7 +406,10 @@ const VisitReportPage = () => {
         align: "left",
         render: (_, row) => (
           <span className="text-xs capitalize text-ink-600">
-            {safe(row.visit_type_label || row.visit_type)}
+            {safe(
+              VISIT_TYPE_LABELS[row.visit_type] ||
+                formatLabel(row.visit_type_label || row.visit_type),
+            )}
           </span>
         ),
       },
@@ -388,6 +417,9 @@ const VisitReportPage = () => {
         header: "Status",
         align: "left",
         render: (_, row) => {
+          const label =
+            STATUS_LABELS[row.status] ||
+            formatLabel(row.status_label || row.status);
           const cls =
             row.status === "completed"
               ? "bg-brand-50 text-brand-700"
@@ -400,7 +432,7 @@ const VisitReportPage = () => {
             <span
               className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}
             >
-              {safe(row.status_label || row.status)}
+              {label}
             </span>
           );
         },
@@ -409,6 +441,9 @@ const VisitReportPage = () => {
         header: "Payment",
         align: "left",
         render: (_, row) => {
+          const label =
+            PAYMENT_STATUS_LABELS[row.payment_status] ||
+            formatLabel(row.payment_status_label || row.payment_status);
           const cls =
             row.payment_status === "paid"
               ? "bg-brand-50 text-brand-700"
@@ -421,7 +456,7 @@ const VisitReportPage = () => {
             <span
               className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}
             >
-              {safe(row.payment_status_label || row.payment_status)}
+              {label}
             </span>
           );
         },
