@@ -245,7 +245,7 @@ const StaffFormPage = () => {
     if (isEdit) {
       updateMutation
         .mutateAsync({ id, payload })
-        .then(() => navigate(`/staff/${id}`))
+        .then(() => navigate(`/staff`))
         .catch(() => setSubmitting(false));
     } else {
       createMutation

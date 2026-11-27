@@ -46,10 +46,9 @@ const NotificationDropdown = ({ open, onClose }) => {
   const navigate = useNavigate();
   const ref = useRef(null);
 
-  // const { data, isLoading } = useNotifications({ per_page: 10, page: 1 });
   const { data, isLoading } = useNotifications(
     { per_page: 10, page: 1 },
-    { refetchInterval: 30000 }, // 👈 dropdown har 30 sec mein auto-refresh
+    { refetchInterval: 30000 }, // dropdown auto-refreshes every 30 sec
   );
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
@@ -90,7 +89,10 @@ const NotificationDropdown = ({ open, onClose }) => {
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full z-50 mt-2 w-96 overflow-hidden rounded-xl border border-ink-100 bg-surface shadow-lg"
+      className="
+        fixed left-2 right-2 top-[68px] z-50 overflow-hidden rounded-xl border border-ink-100 bg-surface shadow-lg
+        sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96
+      "
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-ink-100 px-4 py-3">
@@ -108,7 +110,7 @@ const NotificationDropdown = ({ open, onClose }) => {
       </div>
 
       {/* Body */}
-      <div className="max-h-[420px] overflow-y-auto">
+      <div className="max-h-[min(420px,calc(100vh-11rem))] overflow-y-auto">
         {isLoading ? (
           <div className="px-4 py-8">
             <Loader text="Loading..." />
